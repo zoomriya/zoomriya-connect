@@ -1,0 +1,29 @@
+# How it works
+
+Part of [ZOOMRIYA Connect](../README.md).
+
+- **Direct, with no relay.** Phones, laptops and the box each run an iroh endpoint: a QUIC socket that connects by key instead of by address. They reach the box by hole punching: the control plane tells each side its public address and the other side's, and tells both to dial at once.
+- **Only the servers you can see.** iroh's built-in public relays and address lookup are turned off, and so is its router port mapping. Devices talk only to the box and the control plane Connect names, ZOOMRIYA's or your own. An allow list in front of every endpoint blocks any other host, and a packet-capture test checks it on every iroh upgrade. If a relay is ever turned on, it is one Connect names, never a built-in one.
+- **Paired devices need no open port.** Nothing changes on the home router for the phone app or the desktop app.
+- **Guests use a door opened only for share links.** While at least one share link is live, the box asks the router to open port 443 (automatic mapping: UPnP, NAT-PMP, PCP), or opens an IPv6 pinhole. The door leads only to a share listener that has nothing but the share routes, read-only (GET and HEAD); the sign-in page and apps are not on it. With no live share links, nothing is open. If the door can't be opened, guests fall back to hole punching from the browser (WebRTC).
+- **IPv6 check first.** On every home, the box checks whether it has a public IPv6 address and whether inbound IPv6 on port 443 is reachable (the control plane tests it from outside). If it is, guests with IPv6 connect with no NAT problem at all, even on services that sit behind carrier-grade NAT for IPv4. This costs nothing to try, so it is the first thing the setup checks, including on home wireless internet, where it is not yet known whether inbound IPv6 is allowed.
+- **Harder hole punching.** When a plain punch fails because one or both ends use strict (symmetric) NAT, the link does not give up. On top of iroh, it opens many UDP sockets on both sides and predicts the ports the strict NAT will use (the "birthday" technique), and it races several paths at once (UDP, TCP simultaneous open, IPv6), keeping whichever connects first. This helps phones, the desktop app and the guest viewer. The success rate is modest, and it never involves a relay.
+- **Silent to strangers.** The first packet of every link carries a tag that only devices that know the box's key can make; a filter in front of the box's endpoint drops anything else without answering, so a scan can't even see the link.
+- **Pinned keys for paired devices.** At home, each phone scans a QR code from the box: the phone learns the box's endpoint ID (its public key), the box learns the phone's. iroh's connection key is Ed25519, which phone hardware can't hold, so each phone also has a key in the Secure Enclave or Android Keystore that never leaves it and signs for every connection. Only paired devices get in, and nothing in between can pose as the box.
+- **Only the box.** A connection reaches the box's own apps, never other devices on the home network. It isn't a VPN.
+- **A real https address.** Each box has one name, such as `maplehouse.zoomriya.app`, with a real certificate whose key never leaves the box. Let's Encrypt issues the certificate. To check the box owns the name, it looks up a temporary DNS record that the control plane publishes for the box, so no inbound port is needed.
+- **Helped, not carried.** A small control plane serves the box's address record (signed with the box's key, so it can't be faked), tells each side its public address, coordinates hole punching, answers DNS for box names, hosts certificate challenges and tests from outside whether the box is reachable. It stores no family data and can't make a device trusted. Families can run their own.
+
+![The web view's own HTTPS to the box runs inside the link, between the app's local proxy and connectd, so neither of them can open it.](link.svg)
+
+### Every path, in order
+
+![Family devices try six direct paths together: the home network, IPv6, hole punching, harder hole punching, the open path on UDP 443, and TLS over TCP 443; the first that authenticates wins. A relay, off for now, would come only after all six fail, never for backup or bulk uploads. Guests load a page from share.zoomriya.net, then reach the box directly over HTTPS through its share name, or by WebRTC hole punching; if neither works, the owner can send the photos instead. Guests never use a relay.](paths.svg)
+
+## The parts
+
+| Part | Runs on | Job |
+|---|---|---|
+| **The link** | An iroh endpoint inside the ZOOMRIYA phone app (Android, iOS) and the desktop app (Linux, Windows, macOS) | Dials the box by its pinned endpoint ID over a mutually authenticated QUIC connection; the app's web view, or the laptop's browsers through a local proxy, reach the box's apps through it. No VPN permission, no clash with a work VPN |
+| **connectd** | The ZOOMRIYA box | Runs the box's iroh endpoint on UDP 443 and owns TCP 443. Accepts links, and guests' share-link requests, checks each paired device's endpoint ID and each shared link's token, hands the connection to the box's web server, hole punches with devices and guest browsers (with port prediction and parallel paths when plain punching fails), checks its own IPv6 reachability, asks the router for a port mapping or an IPv6 pinhole, publishes its signed address record to the control plane. Watches the public certificate logs for its own name |
+| **Control plane** | A small server: ZOOMRIYA's, or your own | Serves the box's signed address record, tells each side its public address (STUN on two addresses), tells both ends to dial at once, passes guest signaling messages, answers DNS for box names (A and AAAA, short TTL), hosts certificate challenges, probes the box's port 443 from outside over IPv4 and IPv6. Runs no relay |

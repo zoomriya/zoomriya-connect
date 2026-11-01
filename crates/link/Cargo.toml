@@ -1,0 +1,11 @@
+[package]
+name = "zoomriya-link"
+description = "The link: QUIC and TLS-over-TCP streams, the local CONNECT proxy, path choice, roaming"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true

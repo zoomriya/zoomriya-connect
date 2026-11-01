@@ -1,0 +1,11 @@
+[package]
+name = "zoomriya-proto"
+description = "Messages shared by the link, connectd and the control plane, versioned"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
