@@ -6,8 +6,8 @@ Part of [ZOOMRIYA Connect](../README.md).
 
 A guest never installs anything and has no account or paired key, so a shared link is a plain browser visit, read-only.
 
-- **The link.** `https://share.zoomriya.net/maplehouse#<token>.<box-fingerprint>`. Everything after `#` stays in the browser and never reaches any server. The token opens one album, read-only, and nothing else on the box.
-- **Read-only, always.** Guests never write: no uploads, comments or reactions. For a share token the box accepts only GET and HEAD, for that one album's view and its photos.
+- **The link.** `https://share.zoomriya.net/maplehouse#<token>.<box-fingerprint>`. Everything after `#` stays in the browser and never reaches any server. The token opens the albums its link lists, read-only, and nothing else on the box.
+- **Read-only, always.** Guests never write: no uploads, comments or reactions. For a share token the box accepts only GET and HEAD, for those albums' views and their photos.
 - **One secret.** The token in the link is the only secret. It is checked on every request, attempts are rate-limited, and a wrong, expired or revoked token gets the same answer.
 - **Short blocks.** A source that keeps sending wrong tokens or failing handshakes is blocked by the box's firewall for a short time, before any code runs. Short on purpose: guests behind carrier-grade NAT share addresses with strangers.
 - **Owner's controls.** An expiry, a view limit, an optional passcode, and revoke at any time.
