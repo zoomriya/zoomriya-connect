@@ -14,7 +14,7 @@ A guest never installs anything and has no account or paired key, so a shared li
 - **Order of attempts.**
   1. **Direct.** The page fetches the album from the box's share name (such as `maplehouse-share.zoomriya.app`), which points at the home's public address only while a share link is live and leads only to the share listener. This works when the home has an open path, from any guest network, cellular included.
   2. **Browser hole punching (WebRTC).** If the direct try fails, the page and the box hole-punch through a WebRTC data channel. The control plane passes signaling messages and runs STUN, and nothing else: no TURN, so no relay. The page checks the box's fingerprint from the link, so the control plane can't pose as the box, and the box checks the token.
-  3. **Neither works.** The page says the album can't be opened from this network right now. The owner was already told when making the link (below), and the app offers to send the photos instead, through the phone's own sharing.
+  3. **Neither works.** The page says the album can't be opened from this network right now. The owner was already told when making the link (see *Checked when the link is made*, further down this list), and the app offers to send the photos instead, through the phone's own sharing.
 - **Costs to accept.**
   - The guest runs the viewer page served from `share.zoomriya.net`. A compromised host could serve code that steals the shared album. The damage is limited to that one read-only album. Reduce the risk with hashed assets, reproducible builds and an option to host the page yourself. Serving a static page is not relaying traffic.
   - The address bar shows `share.zoomriya.net`, not the box name, on the WebRTC route.
