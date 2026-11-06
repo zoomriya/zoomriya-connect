@@ -4,6 +4,10 @@ Part of [ZOOMRIYA Connect](../README.md).
 
 To report a vulnerability, see [SECURITY.md](../SECURITY.md); never in a public issue.
 
+Connect is designed so that no single part of the service can read a paired
+device's traffic or grant a new device access. The table below describes the
+impact if a component, device or link is compromised.
+
 ## What each party can and can't do
 
 | If this is compromised… | It can | It can't |
@@ -14,4 +18,7 @@ To report a vulnerability, see [SECURITY.md](../SECURITY.md); never in a public 
 | A shared link that leaks | Show the albums it lists until it expires or is revoked | Reach anything else on the box |
 | The internet at large | Reach the box's port 443 while a share link is live, and probe the read-only share view | Reach the sign-in page or any app (never served to the internet), open an album without its token, or change anything |
 
-While a share link is live, port 443 is reachable by anyone on the internet, but it serves only the read-only share view. Paired devices never need it. A home that doesn't want it turns sharing off, and the box closes what it opened.
+While a share link is active, anyone on the internet can reach the box on
+port 443, but that route serves only the read-only share view. Paired devices
+do not use it. A household that does not want this exposure can turn sharing
+off; the box then closes the route it opened.

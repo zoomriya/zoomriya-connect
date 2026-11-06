@@ -4,28 +4,58 @@ Part of [ZOOMRIYA Connect](../README.md).
 
 ## Sharing with guests
 
-A guest never installs anything and has no account or paired key, so a shared link is a plain browser visit, read-only.
+A guest can open a shared album in a browser without installing an app,
+creating an account or pairing a device. The link gives read-only access to
+the albums selected by the owner.
 
-- **The link.** `https://share.zoomriya.net/maplehouse#<token>.<box-fingerprint>`. Everything after `#` stays in the browser and never reaches any server. The token opens the albums its link lists, read-only, and nothing else on the box.
+- **The link.** `https://share.zoomriya.net/maplehouse#<token>.<box-fingerprint>`.
+  The token and box fingerprint are after `#`, so the browser does not send
+  them to the page's web server. The token opens only the albums selected for
+  that link.
 - **Read-only, always.** Guests never write: no uploads, comments or reactions. For a share token the box accepts only GET and HEAD, for those albums' views and their photos.
-- **One secret.** The token in the link is the only secret. It is checked on every request, attempts are rate-limited, and a wrong, expired or revoked token gets the same answer.
-- **Short blocks.** A source that keeps sending wrong tokens or failing handshakes is blocked by the box's firewall for a short time, before any code runs. Short on purpose: guests behind carrier-grade NAT share addresses with strangers.
+- **The link is a secret.** Its token is checked on every request, and
+  repeated attempts are rate-limited. Wrong, expired and revoked tokens all
+  receive the same response.
+- **Temporary blocks.** The box's firewall briefly blocks a source that
+  repeatedly sends wrong tokens or fails to connect. The block is short
+  because people behind carrier-grade NAT may share a public address with
+  strangers.
 - **Owner's controls.** An expiry, a view limit, an optional passcode, and revoke at any time.
-- **Order of attempts.**
-  1. **Direct.** The page fetches the album from the box's share name (such as `maplehouse-share.zoomriya.app`), which points at the home's public address only while a share link is live and leads only to the share listener. This works when the home has an open path, from any guest network, cellular included.
-  2. **Browser hole punching (WebRTC).** If the direct try fails, the page and the box hole-punch through a WebRTC data channel. The control plane passes signaling messages and runs STUN, and nothing else: no TURN, so no relay. The page checks the box's fingerprint from the link, so the control plane can't pose as the box, and the box checks the token.
-  3. **Neither works.** The page says the album can't be opened from this network right now. The owner was already told when making the link (see *Checked when the link is made*, further down this list), and the app offers to send the photos instead, through the phone's own sharing.
-- **Costs to accept.**
-  - The guest runs the viewer page served from `share.zoomriya.net`. A compromised host could serve code that steals the shared album. The damage is limited to that one read-only album. Reduce the risk with hashed assets, reproducible builds and an option to host the page yourself. Serving a static page is not relaying traffic.
-  - The address bar shows `share.zoomriya.net`, not the box name, on the WebRTC route.
-  - The WebRTC route has the same limit as phones: it fails when both ends are behind strict NAT, or UDP is blocked.
-  - connectd needs a WebRTC stack for this.
-- **Checked when the link is made.** The outside test and the NAT type tell the owner: "Guests can open this link", "Guests may fail on some networks", or "Guests can't open links from this home".
+- **How a guest connects.**
+  1. **Direct connection.** The page requests the album from the box's share
+     name, such as `maplehouse-share.zoomriya.app`. That name points to the
+     home's public address only while a share link is active and leads only
+     to the share listener. This works when the home has an open path, even
+     if the guest is using cellular data.
+  2. **Browser connection (WebRTC).** If a direct connection is unavailable,
+     the page and box try to connect through a WebRTC data channel. The
+     control plane passes setup messages and provides STUN address discovery;
+     it does not relay the album. The page checks the box fingerprint from
+     the link, and the box checks the share token.
+  3. **If neither route works,** the page explains that the album cannot be
+     opened from that network. When creating the link, the owner is warned
+     about this possibility. The phone app can offer to send the photos using
+     the phone's own sharing feature instead.
+- **Trade-offs to be aware of.**
+  - The guest's browser runs a viewer page from `share.zoomriya.net`. If that
+    site were compromised, it could serve code that copies the album being
+    viewed. The access is limited to that one read-only share. Hashed assets,
+    reproducible builds and the option to host the page yourself can reduce
+    this risk. Serving the page is not the same as relaying the album.
+  - During the WebRTC route, the browser's address bar shows
+    `share.zoomriya.net`, not the box's name.
+  - WebRTC may fail if both sides use strict NAT or a network blocks UDP.
+  - `connectd` needs a WebRTC implementation to support this route.
+- **The owner gets a connection check.** An outside test and the detected
+  NAT type help explain whether guests should be able to open the link:
+  "Guests can open this link", "Guests may fail on some networks", or "Guests
+  can't open links from this home".
 - **Export elsewhere** is an explicit owner choice and never the default.
 
 ## Names and domains
 
-Three domains, one job each:
+The design uses separate domains for the shop and help pages, box names, and
+the services that help Connect work:
 
 | Domain | Think of it as | Who sees it |
 |---|---|---|

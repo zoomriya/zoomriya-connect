@@ -4,17 +4,44 @@ Part of [ZOOMRIYA Connect](../README.md).
 
 ## Plan
 
-1. **[The box's own name](sharing-and-names.md#names-and-domains):** connectd on 443, a real certificate from Let's Encrypt through a DNS challenge, the control plane's DNS (A and AAAA) for box names, the box reporting its addresses, the Ethernet check.
-2. **[Guest access without setup](where-it-works.md#by-the-homes-setup):** the IPv6 reachability check, automatic port mapping and IPv6 pinholes, the outside test with a specific reason for each failure, ISP and gateway detection with exact steps, and a turn-off switch.
-3. **[The link and hole punching](how-it-works.md):** first a test that iroh hole punches well with no relay (if it can't, the link uses `quinn` and our own punching instead); then pairing keys, the link on iroh, our signaling, the local proxy; harder hole punching (many sockets, port prediction, parallel paths) from the start, not as an afterthought; Android, then iOS.
-4. **[Desktop app](desktop.md):** a Linux proxy for testing, then the tray app with autostart and PAC for Linux, Windows and macOS, then signed installers.
-5. **[Sharing](sharing-and-names.md#sharing-with-guests):** share tokens, the direct path, then the guest viewer with WebRTC hole punching, the owner's controls and the "will guests get in" check.
-6. **Advanced setups:** manual port forwards and IPv6 rules, the TCP 443 fallback.
-7. **[Custom domains](sharing-and-names.md#names-and-domains)**, through ZOOMRIYA or on their own.
-8. **Measure and tune:** log which method worked and why others failed, by ISP and NAT type, from real homes, then fix the biggest failure group first.
-9. **Hardening and release:** exposure tests (the share view with port 443 open to the internet), an independent security review, a guide to running your own control plane.
+1. **[Give each box a name](sharing-and-names.md#names-and-domains).**
+   Build `connectd` on port 443, issue a Let's Encrypt certificate through
+   DNS validation, add control-plane DNS records, report the box's addresses
+   and check that it uses Ethernet.
+2. **[Support guest access](where-it-works.md#by-the-homes-setup).** Check
+   whether IPv6 is reachable, try automatic router port mapping or IPv6
+   access, and run an outside connectivity test. Explain failures in plain
+   terms, identify common providers and gateways, show any relevant setup
+   steps, and let owners turn guest access off.
+3. **[Build the family link](how-it-works.md).** First verify that iroh can
+   connect without a relay; if not, use `quinn` with our own hole punching.
+   Then implement pairing, the link, signaling and the local proxy. Include
+   the advanced hole-punching paths from the start, then bring the link to
+   Android and iOS.
+4. **[Build the desktop app](desktop.md).** Start with a Linux proxy for
+   testing, then add a tray app, automatic startup and PAC configuration for
+   Linux, Windows and macOS. Package and sign the installers.
+5. **[Add guest sharing](sharing-and-names.md#sharing-with-guests).** Add
+   share tokens and the direct connection first, then the browser viewer and
+   WebRTC route, owner controls and a check that tells owners whether guests
+   are likely to connect.
+6. **Support advanced network setups.** Add manual port forwarding, IPv6
+   firewall rules and the TCP 443 fallback.
+7. **[Support custom domains](sharing-and-names.md#names-and-domains),**
+   whether they use ZOOMRIYA's control plane or the family's own DNS.
+8. **Measure and improve reliability.** Measure which connection method
+   works and why others fail across ISPs and NAT types. Then focus
+   improvements on the most common failures.
+9. **Prepare for release.** Test the exposed share listener, arrange an
+   independent security review and document how to run a private control
+   plane.
 
-Not planned: a relay for family or guest traffic (see "No relay" in the README's [What we want](../README.md#what-we-want)); the box's sign-in page or apps on the internet (away from home, family members use the apps); anything for guests to install. Guests at a home with no open path use the browser hole-punch route.
+The design does not include relaying family or guest traffic (see
+[What Connect is designed to do](../README.md#what-connect-is-designed-to-do)).
+The box's sign-in page and apps will not be exposed directly to the internet;
+family members use the apps when away from home. Guests will not need to
+install anything. If the home has no direct route for guests, their browser
+will try hole punching.
 
 ## Layout
 
