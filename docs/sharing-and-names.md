@@ -76,15 +76,15 @@ Three ways to name the box:
 |---|---|---|---|
 | ZOOMRIYA name (default) | `maplehouse.zoomriya.app` | ZOOMRIYA's control plane | Yes, through ZOOMRIYA's relays |
 | Own domain, through ZOOMRIYA | `home.smith.ca`, a CNAME to the box's ZOOMRIYA name, set at any DNS host | ZOOMRIYA's control plane | Yes, through ZOOMRIYA's relays |
-| [Own server](#your-own-server) | `home.smith.ca`, or the bare `smith.ca` | The family's own control plane | Yes, through the family's relay |
+| [Own server](#your-own-server) | `home.smith.ca` | The family's own control plane | Yes, through the family's relay |
 
 A family's own domain is just a domain: a name such as `home.smith.ca` doesn't
 say there's a ZOOMRIYA box behind it. The surname advice above is for
 `zoomriya.app`, where every name is a box.
 
-A bare domain such as `smith.ca` can't be a CNAME; DNS doesn't allow one at the
-top of a domain. Through ZOOMRIYA it needs a DNS host that offers ALIAS records
-or "CNAME flattening"; otherwise use a name under it, such as `home.smith.ca`.
+On a family's own domain, the box always gets a name under it, such as
+`home.smith.ca`, never the bare `smith.ca`. The bare domain stays for the
+family's website, email and everything else.
 
 The family name never points at the home's public address. Away from home,
 the app reaches the box through the link, not through DNS, so a public record
@@ -122,7 +122,7 @@ laptops never type anything: the pairing QR code carries the same address.
 
 | Name | Points at | Who uses it | What for |
 |---|---|---|---|
-| `smith.ca` | Whatever the family likes | Not ZOOMRIYA | Stays the family's own: their website, their email, or nothing |
+| `smith.ca` | Whatever the family likes | Not ZOOMRIYA | Stays the family's own: their website, email and everything else. Never the box's name |
 | `connect.smith.ca` | Their server | The box and the apps, behind the scenes | The control plane: the file listing the other names, the boxes' signed address records (`iroh-dns-server`, looked up over HTTPS), which devices the relay admits, and the outside reachability check |
 | `relay.smith.ca` | Their server | The box and the apps, behind the scenes | The relay (`iroh-relay`): starts each connection, and carries it if no direct path works |
 | `share.smith.ca` | Their server | Guests | The page a share link opens, and the guests' WebRTC relay (TURN) |
@@ -143,16 +143,6 @@ family's DNS host. `home.smith.ca` is handed to their server with one NS
 record. That covers `share.home.smith.ca` too, so their server can point both
 names and publish the certificate check, as ZOOMRIYA's control plane does
 for `zoomriya.app`.
-
-**The bare domain as the box's name.** The box can be `smith.ca` itself, with
-`connect.`, `relay.` and `share.` as before and the share route at
-`share-box.smith.ca`. Two things change:
-- The whole domain's DNS moves to their server, set at the registrar, because
-  one NS record can't hand over the bare domain alone. Their server then
-  answers for all of `smith.ca`, so it must also hold their other records,
-  such as email.
-- `smith.ca` points at the box on the home network, so it can't also be
-  their public website.
 
 **Only a relay.** A family that wants their traffic on their own server but
 no DNS to look after can keep a ZOOMRIYA name and run only `relay.smith.ca`.
