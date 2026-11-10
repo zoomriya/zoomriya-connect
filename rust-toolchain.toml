@@ -1,0 +1,5 @@
+# Pin an exact version (e.g. "1.90.0") before the first release, so builds are
+# reproducible; "stable" until then.
+[toolchain]
+channel = "stable"
+components = ["rustfmt", "clippy"]

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1110" height="240" viewBox="0 0 1110 240" role="img" aria-label="The web view's own HTTPS to the box runs inside the link between the app's local proxy and connectd, so neither of them can open it.">
+<style>
+svg{--surface:#ffffff;--bg:#f4f6f7;--zone:#eaeff1;--fg:#15232a;--muted:#5b6c75;--line:#c3ced4;--link:#0d7a6b;--link-soft:#d3eee9;--web:#2a5cb3;--ctl:#8a6a14;--never:#b23a2e}
+@media (prefers-color-scheme: dark){svg{--surface:#162026;--bg:#0e1518;--zone:#121b20;--fg:#e2eaed;--muted:#93a5ad;--line:#33464f;--link:#4cc3ae;--link-soft:#163a34;--web:#7ea8f0;--ctl:#d8b45c;--never:#ee7d6f}}
+.bg{fill:var(--surface)}
+text{fill:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:12px}
+.t{font-size:14px;font-weight:600}.m{fill:var(--muted)}.s{font-size:11px}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px}.bold{font-weight:600}
+.zone{fill:var(--zone);stroke:var(--line)}.box{fill:var(--surface);stroke:var(--line)}.chip{fill:var(--bg);stroke:var(--line)}
+.hl{fill:var(--surface);stroke:var(--link);stroke-width:1.5}.band{fill:var(--bg);stroke:var(--line);stroke-dasharray:2 4}
+.tube{fill:var(--link-soft);stroke:var(--link);stroke-width:1.5}
+.a-link{stroke:var(--link);stroke-width:3;fill:none}.a-web{stroke:var(--web);stroke-width:3;fill:none}
+.a-ctl{stroke:var(--ctl);stroke-width:1.75;stroke-dasharray:6 5;fill:none}.a-int{stroke:var(--muted);stroke-width:1.5;fill:none}
+.a-never{stroke:var(--never);stroke-width:1.75;stroke-dasharray:4 4;fill:none}.x{stroke:var(--never);stroke-width:2.5}
+.f-link{fill:var(--link)}.f-web{fill:var(--web)}.f-ctl{fill:var(--ctl)}.f-int{fill:var(--muted)}
+.c-link{fill:var(--link)}.c-web{fill:var(--web)}.c-ctl{fill:var(--ctl)}.c-never{fill:var(--never)}
+</style>
+<rect class="bg" width="1110" height="240" rx="10"/>
+          <defs>
+            <marker id="m2-web" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="f-web"/></marker>
+          </defs>
+          <!-- outer bracket: web view TLS -->
+          <path class="a-int" d="M105,62 V48 H1005 V62"/>
+          <text x="555" y="38" text-anchor="middle" class="s c-web">the web view's own HTTPS, to the box's web server with its real certificate: the proxy and connectd pass it on unopened</text>
+
+          <!-- the link tube -->
+          <rect class="tube" x="380" y="126" width="360" height="48" rx="24"/>
+          <text x="560" y="114" text-anchor="middle" class="bold c-link">the link</text>
+          <text x="560" y="196" text-anchor="middle" class="s m">iroh (QUIC), or TLS on TCP 443</text>
+          <text x="560" y="213" text-anchor="middle" class="s m">pinned keys both ways · device checked first</text>
+
+          <!-- nodes -->
+          <rect class="box" x="20" y="90" width="170" height="120" rx="8"/>
+          <text x="105" y="118" text-anchor="middle" class="t">Web view</text>
+          <text x="105" y="188" text-anchor="middle" class="mono">x7k2q.zoomriya.app</text>
+          <rect class="box" x="250" y="90" width="170" height="120" rx="8"/>
+          <text x="335" y="118" text-anchor="middle" class="t">Local proxy</text>
+          <text x="335" y="188" text-anchor="middle" class="m s">in the app</text>
+          <rect class="box" x="700" y="90" width="170" height="120" rx="8"/>
+          <text x="785" y="118" text-anchor="middle" class="t">connectd</text>
+          <text x="785" y="188" text-anchor="middle" class="m s">on the box</text>
+          <rect class="box" x="920" y="90" width="170" height="120" rx="8"/>
+          <text x="1005" y="118" text-anchor="middle" class="t">Web server</text>
+          <text x="1005" y="188" text-anchor="middle" class="m s">opens it, serves the apps</text>
+
+          <!-- the TLS stream, on top -->
+          <line class="a-web" x1="105" y1="150" x2="1000" y2="150" marker-end="url(#m2-web)"/>
+        </svg>

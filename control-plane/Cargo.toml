@@ -1,0 +1,11 @@
+[package]
+name = "zoomriya-control-plane"
+description = "The control plane: box addresses, hole-punch signaling, STUN, DNS for box names"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true

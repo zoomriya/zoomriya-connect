@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="950" viewBox="0 0 900 950" role="img" aria-label="How a connection reaches the box. Family devices try six direct paths together: the home network, IPv6, hole punching, harder hole punching, the open path on UDP 443, and TLS over TCP 443. The first that authenticates wins. A relay, off for now, would be used only after all six fail, and never for backup or bulk uploads. Guests load a page from share.zoomriya.net, then reach the box directly over HTTPS through its share name, or by WebRTC hole punching. If neither works the page says so and the owner can send the photos instead. Guests never use a relay.">
+<style>
+svg{--surface:#ffffff;--zone:#eef2f4;--fg:#15232a;--muted:#5b6c75;--line:#c3ced4;--link:#0d7a6b;--web:#2a5cb3;--relay:#8a6a14;--never:#b23a2e}
+@media (prefers-color-scheme: dark){svg{--surface:#162026;--zone:#121b20;--fg:#e2eaed;--muted:#93a5ad;--line:#33464f;--link:#4cc3ae;--web:#7ea8f0;--relay:#d8b45c;--never:#ee7d6f}}
+.bg{fill:var(--surface)}
+text{fill:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:15px}
+.t{font-size:18px;font-weight:600}.h{font-weight:600}.m{fill:var(--muted)}.s{font-size:12.5px}.n{font-size:13px;font-weight:700;fill:var(--surface)}
+.zone{fill:var(--zone);stroke:var(--line)}.end{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+.l-link{stroke:var(--link);stroke-width:3;fill:none}
+.l-web{stroke:var(--web);stroke-width:3;fill:none}
+.l-relay{stroke:var(--relay);stroke-width:3;stroke-dasharray:8 6;fill:none}
+.c-link{fill:var(--link)}.c-web{fill:var(--web)}.c-relay{fill:var(--relay)}.c-never{fill:var(--never)}
+.mid{fill:var(--surface);stroke:var(--line)}
+.dot{opacity:0}
+.fam{animation:fam 8s linear infinite}
+.rel{animation:rel 8s linear infinite}
+.g1{animation:g1 8s linear infinite}
+.g2{animation:g2 8s linear infinite}
+.g3{animation:g3 8s linear infinite}
+@keyframes fam{0%{transform:translateX(0);opacity:1}22%{transform:translateX(522px);opacity:1}23%,100%{transform:translateX(522px);opacity:0}}
+@keyframes rel{0%,45%{transform:translateX(0);opacity:0}46%{transform:translateX(0);opacity:1}75%{transform:translateX(522px);opacity:1}76%,100%{transform:translateX(522px);opacity:0}}
+@keyframes g1{0%{transform:translateX(0);opacity:1}15%{transform:translateX(366px);opacity:1}16%,100%{transform:translateX(366px);opacity:0}}
+@keyframes g2{0%,20%{transform:translateX(0);opacity:0}21%{transform:translateX(0);opacity:1}40%{transform:translateX(522px);opacity:1}41%,100%{transform:translateX(522px);opacity:0}}
+@keyframes g3{0%,48%{transform:translateX(0);opacity:0}49%{transform:translateX(0);opacity:1}68%{transform:translateX(522px);opacity:1}69%,100%{transform:translateX(522px);opacity:0}}
+@media (prefers-reduced-motion: reduce){.fam,.rel,.g1,.g2,.g3{animation:none}}
+</style>
+<defs>
+  <marker id="a-link" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="c-link"/></marker>
+  <marker id="a-web" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="c-web"/></marker>
+  <marker id="a-relay" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="c-relay"/></marker>
+</defs>
+<rect class="bg" width="900" height="950" rx="12"/>
+
+<!-- ===================== Family ===================== -->
+<text x="20" y="38" class="t">Family: phone or laptop to the box</text>
+<text x="20" y="62" class="s m">Paths 1–6 are tried together; the first that authenticates wins. The relay (7) only after all six fail.</text>
+
+<rect class="zone" x="20" y="80" width="150" height="474" rx="10"/>
+<text x="95" y="290" text-anchor="middle" class="h">Phone</text>
+<text x="95" y="310" text-anchor="middle" class="h">or laptop</text>
+<text x="95" y="334" text-anchor="middle" class="s m">ZOOMRIYA app</text>
+<text x="95" y="352" text-anchor="middle" class="s m">iroh endpoint</text>
+
+<rect class="zone" x="730" y="80" width="150" height="474" rx="10"/>
+<text x="805" y="290" text-anchor="middle" class="h">ZOOMRIYA</text>
+<text x="805" y="310" text-anchor="middle" class="h">box</text>
+<text x="805" y="334" text-anchor="middle" class="s m">connectd</text>
+<text x="805" y="352" text-anchor="middle" class="s m">at home</text>
+
+<!-- row 1 -->
+<circle cx="205" cy="102" r="12" class="c-link"/><text x="205" y="107" text-anchor="middle" class="n">1</text>
+<text x="228" y="107" class="h">Home network</text>
+<text x="228" y="125" class="s m">found by mDNS · when the device is at home</text>
+<line x1="182" y1="140" x2="716" y2="140" class="l-link" marker-end="url(#a-link)"/>
+<circle cx="190" cy="140" r="6" class="c-link dot fam" style="animation-delay:0s"/>
+
+<!-- row 2 -->
+<circle cx="205" cy="168" r="12" class="c-link"/><text x="205" y="173" text-anchor="middle" class="n">2</text>
+<text x="228" y="173" class="h">IPv6, straight to the box</text>
+<text x="228" y="191" class="s m">when both ends have IPv6 · the home firewall is punched through</text>
+<line x1="182" y1="206" x2="716" y2="206" class="l-link" marker-end="url(#a-link)"/>
+<circle cx="190" cy="206" r="6" class="c-link dot fam" style="animation-delay:.1s"/>
+
+<!-- row 3 -->
+<circle cx="205" cy="234" r="12" class="c-link"/><text x="205" y="239" text-anchor="middle" class="n">3</text>
+<text x="228" y="239" class="h">Hole punching</text>
+<text x="228" y="257" class="s m">the control plane says “dial now”; both sides send at once</text>
+<line x1="182" y1="272" x2="716" y2="272" class="l-link" marker-end="url(#a-link)"/>
+<circle cx="190" cy="272" r="6" class="c-link dot fam" style="animation-delay:.2s"/>
+
+<!-- row 4 -->
+<circle cx="205" cy="300" r="12" class="c-link"/><text x="205" y="305" text-anchor="middle" class="n">4</text>
+<text x="228" y="305" class="h">Harder hole punching</text>
+<text x="228" y="323" class="s m">port prediction · many sockets · TCP simultaneous open</text>
+<line x1="182" y1="338" x2="716" y2="338" class="l-link" marker-end="url(#a-link)"/>
+<circle cx="190" cy="338" r="6" class="c-link dot fam" style="animation-delay:.3s"/>
+
+<!-- row 5 -->
+<circle cx="205" cy="366" r="12" class="c-link"/><text x="205" y="371" text-anchor="middle" class="n">5</text>
+<text x="228" y="371" class="h">Open path, UDP 443</text>
+<text x="228" y="389" class="s m">when the box has one: a live share link, or a manual forward</text>
+<line x1="182" y1="404" x2="716" y2="404" class="l-link" marker-end="url(#a-link)"/>
+<circle cx="190" cy="404" r="6" class="c-link dot fam" style="animation-delay:.4s"/>
+
+<!-- row 6 -->
+<circle cx="205" cy="432" r="12" class="c-link"/><text x="205" y="437" text-anchor="middle" class="n">6</text>
+<text x="228" y="437" class="h">TLS over TCP 443</text>
+<text x="228" y="455" class="s m">for networks that block UDP · needs the open path</text>
+<line x1="182" y1="470" x2="716" y2="470" class="l-link" marker-end="url(#a-link)"/>
+<circle cx="190" cy="470" r="6" class="c-link dot fam" style="animation-delay:.5s"/>
+
+<!-- row 7: relay -->
+<circle cx="205" cy="498" r="12" class="c-relay"/><text x="205" y="503" text-anchor="middle" class="n">7</text>
+<text x="228" y="503" class="h">Relay · off for now</text>
+<text x="228" y="521" class="s m">last resort · encrypted end to end · no backup or bulk uploads · 480p video</text>
+<line x1="182" y1="538" x2="404" y2="538" class="l-relay"/>
+<rect class="mid" x="404" y="527" width="92" height="22" rx="5"/>
+<text x="450" y="542" text-anchor="middle" class="s c-relay">relay</text>
+<line x1="496" y1="538" x2="716" y2="538" class="l-relay" marker-end="url(#a-relay)"/>
+<circle cx="190" cy="538" r="6" class="c-relay dot rel"/>
+
+<!-- ===================== Guest ===================== -->
+<text x="20" y="612" class="t">Guest: any browser to the box</text>
+<text x="20" y="636" class="s m">Nothing installed, read-only, one album. The page tries 2, then 3. Guests never use a relay.</text>
+
+<rect class="zone" x="20" y="654" width="150" height="276" rx="10"/>
+<text x="95" y="774" text-anchor="middle" class="h">Guest</text>
+<text x="95" y="798" text-anchor="middle" class="s m">any browser</text>
+<text x="95" y="816" text-anchor="middle" class="s m">a share link</text>
+
+<rect class="zone" x="730" y="654" width="150" height="276" rx="10"/>
+<text x="805" y="774" text-anchor="middle" class="h">ZOOMRIYA box</text>
+<text x="805" y="798" text-anchor="middle" class="s m">share listener</text>
+<text x="805" y="816" text-anchor="middle" class="s m">one album, read-only</text>
+
+<!-- guest row 1: the page -->
+<circle cx="205" cy="676" r="12" class="c-web"/><text x="205" y="681" text-anchor="middle" class="n">1</text>
+<text x="228" y="681" class="h">The page</text>
+<text x="228" y="699" class="s m">from share.zoomriya.net · the token stays after #, in the browser</text>
+<line x1="182" y1="714" x2="548" y2="714" class="l-web" marker-end="url(#a-web)"/>
+<rect class="mid" x="556" y="703" width="160" height="22" rx="5"/>
+<text x="636" y="718" text-anchor="middle" class="s c-web">share.zoomriya.net</text>
+<circle cx="190" cy="714" r="6" class="c-web dot g1"/>
+
+<!-- guest row 2: direct -->
+<circle cx="205" cy="742" r="12" class="c-web"/><text x="205" y="747" text-anchor="middle" class="n">2</text>
+<text x="228" y="747" class="h">Direct, HTTPS to the box's share name</text>
+<text x="228" y="765" class="s m">only while a share link is live and the box has an open path</text>
+<line x1="182" y1="780" x2="716" y2="780" class="l-web" marker-end="url(#a-web)"/>
+<circle cx="190" cy="780" r="6" class="c-web dot g2"/>
+
+<!-- guest row 3: WebRTC -->
+<circle cx="205" cy="808" r="12" class="c-web"/><text x="205" y="813" text-anchor="middle" class="n">3</text>
+<text x="228" y="813" class="h">WebRTC hole punching</text>
+<text x="228" y="831" class="s m">signaling via the control plane · the box checked by the link's fingerprint</text>
+<line x1="182" y1="846" x2="716" y2="846" class="l-web" marker-end="url(#a-web)"/>
+<circle cx="190" cy="846" r="6" class="c-web dot g3"/>
+
+<!-- guest row 4: neither -->
+<circle cx="205" cy="874" r="12" class="c-never"/><text x="205" y="879" text-anchor="middle" class="n">✕</text>
+<text x="228" y="879" class="h c-never">Neither works</text>
+<text x="228" y="897" class="s m">the page says so; the owner can send the photos instead</text>
+</svg>

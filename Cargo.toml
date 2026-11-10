@@ -1,0 +1,26 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/keys",
+    "crates/link",
+    "crates/punch",
+    "crates/proto",
+    "crates/ffi",
+    "connectd",
+    "control-plane",
+]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+license = "AGPL-3.0-only"
+repository = "https://github.com/zoomriya/zoomriya-connect"
+publish = false
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+unwrap_used = "warn"
+expect_used = "warn"
