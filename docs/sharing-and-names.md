@@ -32,9 +32,8 @@ the albums selected by the owner.
      control plane passes setup messages and provides STUN address discovery;
      it does not carry album data. The page checks the box fingerprint from
      the link, and the box checks the share token.
-  3. **Relay fallback.** If direct WebRTC also fails and relay sharing is
-     enabled, the browser and box use a configured relay for the encrypted
-     data channel. The relay carries only this scoped, read-only share
+  3. **Relay, the last option.** If direct WebRTC also fails, the browser and
+     box use our relay for the encrypted data channel. The relay carries only this scoped, read-only share
      session; it does not expose the dashboard or other apps.
   4. **If no route works,** the page explains that the album cannot be
      opened from that network. When creating the link, the owner is told
@@ -95,7 +94,7 @@ behind its provider's shared address (CGNAT).
 
 For independence from ZOOMRIYA with everything working, run your own control
 plane and relay instead: pairing, the pinned link, hole punching, the relay
-fallback and guest links all keep working, and nothing is exposed.
+and guest links all keep working, and nothing is exposed.
 
 ## Certificates
 

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1016" viewBox="0 0 900 1016" role="img" aria-label="How a connection reaches the box. Family devices try six direct paths first; if all fail, an optional configured relay forwards end-to-end encrypted traffic. Guests load a page from share.zoomriya.net, then try direct HTTPS and WebRTC hole punching. An optional configured relay can forward the encrypted, read-only share session if direct paths fail.">
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1016" viewBox="0 0 900 1016" role="img" aria-label="How a connection reaches the box. Family devices start each connection through the relay, which tells each side its public address and passes the hole-punching signals; six direct paths are tried at once and the first that works takes over. The relay keeps forwarding end-to-end encrypted traffic only if none does. Guests load a page from share.zoomriya.net, then try direct HTTPS and WebRTC hole punching. A relay forwards the encrypted, read-only share session as the last option.">
 <style>
 svg{--surface:#ffffff;--zone:#eef2f4;--fg:#15232a;--muted:#5b6c75;--line:#c3ced4;--link:#0d7a6b;--web:#2a5cb3;--relay:#8a6a14;--never:#b23a2e}
 @media (prefers-color-scheme: dark){svg{--surface:#162026;--zone:#121b20;--fg:#e2eaed;--muted:#93a5ad;--line:#33464f;--link:#4cc3ae;--web:#7ea8f0;--relay:#d8b45c;--never:#ee7d6f}}
@@ -34,7 +34,7 @@ text{fill:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvet
 
 <!-- ===================== Family ===================== -->
 <text x="20" y="38" class="t">Family: phone or laptop to the box</text>
-<text x="20" y="62" class="s m">Paths 1–6 are tried together; the first that authenticates wins. Configured relay (7) is the fallback.</text>
+<text x="20" y="62" class="s m">The relay (R) starts the connection at once; paths 1–6 are tried together, and the first that works takes over.</text>
 
 <rect class="zone" x="20" y="80" width="150" height="474" rx="10"/>
 <text x="95" y="290" text-anchor="middle" class="h">Phone</text>
@@ -65,14 +65,14 @@ text{fill:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvet
 <!-- row 3 -->
 <circle cx="205" cy="234" r="12" class="c-link"/><text x="205" y="239" text-anchor="middle" class="n">3</text>
 <text x="228" y="239" class="h">Hole punching</text>
-<text x="228" y="257" class="s m">the control plane says “dial now”; both sides send at once</text>
+<text x="228" y="257" class="s m">the relay passes “dial now”; both sides send at once</text>
 <line x1="182" y1="272" x2="716" y2="272" class="l-link" marker-end="url(#a-link)"/>
 <circle cx="190" cy="272" r="6" class="c-link dot fam" style="animation-delay:.2s"/>
 
 <!-- row 4 -->
 <circle cx="205" cy="300" r="12" class="c-link"/><text x="205" y="305" text-anchor="middle" class="n">4</text>
 <text x="228" y="305" class="h">Harder hole punching</text>
-<text x="228" y="323" class="s m">port prediction · many sockets · TCP simultaneous open</text>
+<text x="228" y="323" class="s m">later, if measured useful: port prediction · many sockets · TCP open</text>
 <line x1="182" y1="338" x2="716" y2="338" class="l-link" marker-end="url(#a-link)"/>
 <circle cx="190" cy="338" r="6" class="c-link dot fam" style="animation-delay:.3s"/>
 
@@ -91,9 +91,9 @@ text{fill:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvet
 <circle cx="190" cy="470" r="6" class="c-link dot fam" style="animation-delay:.5s"/>
 
 <!-- row 7: relay -->
-<circle cx="205" cy="498" r="12" class="c-relay"/><text x="205" y="503" text-anchor="middle" class="n">7</text>
-<text x="228" y="503" class="h">Configured relay · fallback only</text>
-<text x="228" y="521" class="s m">operated by ZOOMRIYA or the family · encrypted end to end · bandwidth limits may apply</text>
+<circle cx="205" cy="498" r="12" class="c-relay"/><text x="205" y="503" text-anchor="middle" class="n">R</text>
+<text x="228" y="503" class="h">Relay · starts every connection</text>
+<text x="228" y="521" class="s m">ZOOMRIYA's or the family's · encrypted end to end · stays only if 1–6 all fail</text>
 <line x1="182" y1="538" x2="404" y2="538" class="l-relay"/>
 <rect class="mid" x="404" y="527" width="92" height="22" rx="5"/>
 <text x="450" y="542" text-anchor="middle" class="s c-relay">relay</text>
@@ -102,7 +102,7 @@ text{fill:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvet
 
 <!-- ===================== Guest ===================== -->
 <text x="20" y="612" class="t">Guest: any browser to the box</text>
-<text x="20" y="636" class="s m">Nothing installed, read-only, one album. Try direct routes first, then an optional configured relay.</text>
+<text x="20" y="636" class="s m">Nothing installed, read-only, one album. Direct routes first; a relay is the last option.</text>
 
 <rect class="zone" x="20" y="654" width="150" height="340" rx="10"/>
 <text x="95" y="774" text-anchor="middle" class="h">Guest</text>
@@ -139,7 +139,7 @@ text{fill:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvet
 
 <!-- guest row 4: relay -->
 <circle cx="205" cy="874" r="12" class="c-relay"/><text x="205" y="879" text-anchor="middle" class="n">4</text>
-<text x="228" y="879" class="h">Configured WebRTC relay · fallback only</text>
+<text x="228" y="879" class="h">WebRTC relay · last option</text>
 <text x="228" y="897" class="s m">for the encrypted, read-only share session · relay operator sees connection metadata</text>
 <line x1="182" y1="912" x2="404" y2="912" class="l-relay"/>
 <rect class="mid" x="404" y="901" width="92" height="22" rx="5"/>

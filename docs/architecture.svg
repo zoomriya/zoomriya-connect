@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1000" viewBox="0 0 900 1000" role="img" aria-label="Phones and laptops with the ZOOMRIYA app reach the box by direct paths first, with pinned keys, and connectd hands them to the box's apps. If direct paths fail, an optional configured relay forwards encrypted family traffic. Guests open a share link in any browser with nothing installed: over port 443 or by WebRTC hole punching, with an optional relay fallback for the encrypted read-only share session. The sign-in page and apps are never on the internet. The control plane only finds the box, passes signals, answers DNS and serves the guest page; it carries no family or guest data.">
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1000" viewBox="0 0 900 1000" role="img" aria-label="Phones and laptops with the ZOOMRIYA app reach the box with pinned keys, and connectd hands them to the box's apps. Each connection starts through the relay and moves to a direct path when one works; the relay keeps forwarding encrypted traffic only if none does. Guests open a share link in any browser with nothing installed: over port 443 or by WebRTC hole punching, with a relay as the last option for the encrypted read-only share session. The sign-in page and apps are never on the internet. The control plane only serves the boxes' address records, passes guests' signals, answers DNS and serves the guest page; it carries no family or guest data.">
 <style>
 svg{--surface:#ffffff;--bg:#f4f6f7;--zone:#eaeff1;--fg:#15232a;--muted:#5b6c75;--line:#c3ced4;--link:#0d7a6b;--web:#2a5cb3;--web-soft:#e3ecfa;--ctl:#8a6a14;--never:#b23a2e}
 @media (prefers-color-scheme: dark){svg{--surface:#162026;--bg:#0e1518;--zone:#121b20;--fg:#e2eaed;--muted:#93a5ad;--line:#33464f;--link:#4cc3ae;--web:#7ea8f0;--web-soft:#17243a;--ctl:#d8b45c;--never:#ee7d6f}}
@@ -26,7 +26,7 @@ text{fill:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvet
 <!-- Control plane -->
 <rect class="box" x="20" y="20" width="860" height="104" rx="10"/>
 <text x="40" y="50" class="t">Control plane · zoomriya.net</text>
-<text x="40" y="76" class="m">signed address records · "dial now" · STUN · DNS for zoomriya.app · guest page</text>
+<text x="40" y="76" class="m">signed address records · DNS for zoomriya.app · guest page · guest signals</text>
 <text x="40" y="104" class="s c-never">coordination only · cannot trust a device · relay is separate</text>
 
 <!-- Control plane to devices -->
@@ -60,7 +60,7 @@ text{fill:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvet
 <text x="624" y="288" class="s c-web b">one album · READ-ONLY</text>
 
 <!-- Arrow labels -->
-<text x="303" y="336" text-anchor="middle" class="s c-link b">the link · hole-punched</text>
+<text x="303" y="336" text-anchor="middle" class="s c-link b">the link · relay, then direct</text>
 <text x="303" y="356" text-anchor="middle" class="s c-link">pinned keys both ways</text>
 <text x="731" y="336" text-anchor="end" class="s c-web b">HTTPS 443 direct,</text>
 <text x="731" y="356" text-anchor="end" class="s c-web">or WebRTC hole punch</text>
@@ -68,7 +68,7 @@ text{fill:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvet
 <!-- Internet -->
 <rect class="band" x="20" y="384" width="860" height="52" rx="8"/>
 <text x="36" y="416" class="b">Internet</text>
-<text x="176" y="416" class="m">direct first · relay fallback</text>
+<text x="176" y="416" class="m">relay first · then direct</text>
 <text x="470" y="416" class="m">relay forwards encrypted data</text>
 
 <!-- Router -->
