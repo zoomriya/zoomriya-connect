@@ -25,6 +25,8 @@ The phone, the laptop app and the box all use
 [iroh](https://github.com/n0-computer/iroh). iroh finds a device by its key,
 not by its internet address.
 
+![How your phone connects to the box, step by step: the box stays in touch with the relay; the app asks which relay the box uses; it connects through the relay at once; the relay tells each side where the other is and both reach out together; usually within seconds the direct path takes over. If nothing direct works, the relay keeps passing the data along, still encrypted.](connecting.svg)
+
 1. **The box stays in touch with the relay.** It keeps a small connection open
    to our relay all the time.
 2. **You open the app.** The phone looks up which relay the box uses and

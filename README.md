@@ -27,6 +27,8 @@ goes straight between them and the relay steps aside. If they can't, say on a
 strict office network, the relay keeps passing the data along. It's still
 encrypted, so the relay can't read it.
 
+There's a step-by-step picture of this in [How it works](docs/how-it-works.md#connecting).
+
 This is how [iroh](https://github.com/n0-computer/iroh), the open-source
 library we build on, works. We run our own relays instead of using iroh's
 public ones. Families who want to can run their own.
