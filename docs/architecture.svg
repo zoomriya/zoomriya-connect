@@ -41,14 +41,14 @@ text{fill:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvet
 <rect class="hl-link" x="20" y="162" width="273" height="138" rx="10"/>
 <text x="38" y="190" class="t">Phone · ZOOMRIYA app</text>
 <text x="38" y="218">web view → proxy → link</text>
-<text x="38" y="242" class="m">key in the Secure Enclave</text>
-<text x="38" y="264" class="m">or Android Keystore</text>
+<text x="38" y="242" class="m">key locked by the Secure</text>
+<text x="38" y="264" class="m">Enclave or Android Keystore</text>
 <text x="38" y="288" class="s c-link b">family member · full access</text>
 
 <rect class="hl-link" x="313" y="162" width="273" height="138" rx="10"/>
 <text x="331" y="190" class="t">Laptop · desktop app</text>
 <text x="331" y="218">any browser → proxy → link</text>
-<text x="331" y="242" class="m">key in TPM or Keychain</text>
+<text x="331" y="242" class="m">key locked by TPM or Keychain</text>
 <text x="331" y="264" class="m">starts at sign-in</text>
 <text x="331" y="288" class="s c-link b">family member · full access</text>
 
@@ -90,7 +90,7 @@ text{fill:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvet
 <!-- connectd -->
 <rect class="box" x="50" y="606" width="800" height="120" rx="8"/>
 <text x="68" y="634" class="t">connectd · port 443</text>
-<text x="68" y="660" class="s c-link">UDP: iroh endpoint · no tag, no answer · paired endpoint IDs only</text>
+<text x="68" y="660" class="s c-link">UDP: iroh endpoint · paired devices only · strangers refused</text>
 <text x="68" y="684" class="s c-web">TCP 443 from the internet → the share listener only</text>
 <text x="68" y="708" class="s m">from the home network → the web server, as usual</text>
 

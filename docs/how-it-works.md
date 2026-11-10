@@ -16,8 +16,9 @@ Now the phone knows the box's key, and the box knows the phone's. Each one
 checks the other's key every time they connect. So a phone the box doesn't
 know can't get in, and nobody can pretend to be your box.
 
-The phone keeps its key in its secure chip: the Secure Enclave on an iPhone,
-the Keystore on Android. The key never leaves the phone.
+The phone's key is stored on the phone, locked by its secure chip: the
+Secure Enclave on an iPhone, the Keystore on Android. It's unlocked only
+inside the ZOOMRIYA app while it runs, and never leaves the phone.
 
 ### Connecting
 
@@ -48,14 +49,18 @@ In step 3, they try:
 - ordinary hole punching
 - the box's open port, if it has one (while a share link is live, or if you
   forwarded a port yourself)
+- TCP port 443, if you forwarded it, for networks that block UDP. This one is
+  our own addition: iroh's direct paths use UDP only
 
 Some strict routers beat ordinary hole punching. If our
 [tests](testing.md) show it's worth it, we'll add cleverer tricks later.
 
 ### What gets in
 
-Only paired devices. The box ignores everything else and doesn't even reply,
-so someone scanning the internet can't tell it's there.
+Only paired devices. Our relay doesn't let strangers through at all, so
+through the relay they can't even reach the box. And a stranger who finds the
+box's address directly still can't connect: the box refuses any device it
+hasn't paired.
 
 A connection reaches the box's apps and nothing else on your home network.
 It isn't a VPN. Your phone won't ask for VPN permission, and it works

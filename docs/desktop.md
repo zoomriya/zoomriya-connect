@@ -58,9 +58,12 @@ Laptops often have no camera, so the box shows a code or link on its screen
 instead of a QR code. Or a paired phone can help. An admin can remove a laptop
 the same way as a phone.
 
-## Where the key is kept
+## What locks the key
 
-| System | Key store |
+As on a phone, the app's key is stored on the laptop, locked by the system's
+own key store.
+
+| System | Locked by |
 |---|---|
 | Windows | The TPM security chip |
 | macOS | Keychain, with the Secure Enclave on Macs that have one |

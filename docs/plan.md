@@ -12,20 +12,30 @@ Part of [ZOOMRIYA Connect](../README.md).
    home has working IPv6. Try opening a port on the router automatically. Test
    from outside whether it worked. When it doesn't, explain why in plain words
    and show the steps for common routers. Let owners switch guest access off.
-3. **[Build the family link](how-it-works.md).** Run our own iroh relays, with
-   iroh's public ones switched off, letting in only boxes and their paired
-   devices. Run our own address server (`iroh-dns-server`). Then build
-   pairing, the link and the desktop proxy, keep backups off our relay, and
-   bring it all to Android and iOS. Add cleverer hole punching only if
-   measurements show we need it.
+3. **[Build the family link](how-it-works.md).**
+   - Run our own iroh relays, with iroh's public ones switched off. They let
+     in only boxes and their paired devices, and have address discovery
+     switched on (`enable_quic_addr_discovery`, which is off by default).
+   - Run our own address server (`iroh-dns-server`).
+   - Build pairing, the link and the desktop proxy. Keep each device's iroh
+     key locked by its secure chip or key store, and keep backups off our
+     relay.
+   - Bring it all to Android and iOS.
+   - Add cleverer hole punching only if measurements show we need it.
 4. **[Build the desktop app](desktop.md).** Start with a plain Linux proxy for
    testing. Then add the tray icon, starting at sign-in, and the browser setup
    for Linux, Windows and macOS. Sign the installers.
 5. **[Add share links](sharing-and-names.md#sharing-with-guests).** Tokens,
    the guest page, direct connections and WebRTC, with the relay as the last
    resort. Give owners their controls, and tell them what to expect.
-6. **Help advanced homes.** Manual port forwards, IPv6 firewall rules, and the
-   app connecting over TCP 443 when UDP is blocked.
+6. **Help advanced homes.** Manual port forwards and IPv6 firewall rules.
+   For families who forward port 443, a direct path over TCP for networks
+   that block UDP. iroh doesn't do this, so it's our own: TLS with the same
+   key checks, sharing TCP 443 with the guests' album viewer (the TLS
+   handshake says which one a connection is for). The box turns it on only
+   when its outside check finds the forward working, and the app uses it
+   only when UDP is blocked. It matters most to families who switch the
+   relay off.
 7. **[Own domains](sharing-and-names.md#names-and-domains).** A CNAME from the
    family's domain to their ZOOMRIYA name. Dynamic DNS from other companies
    isn't supported.
@@ -47,7 +57,7 @@ Some of this exists; most is still to come.
 ```
 crates/
   keys/           device and box keys, checking pinned keys, pairing
-  link/           the iroh connection (our relays only), the local proxy, TCP 443 fallback
+  link/           the iroh connection (our relays only), the local proxy, TCP 443 for forwarded ports
   punch/          signed address records, finding the box at home; cleverer hole punching later, if needed
   portmap/        opening the guests' door on the router (UPnP, NAT-PMP, PCP), IPv6 firewall rules
   proto/          messages between the box, the apps and the control plane

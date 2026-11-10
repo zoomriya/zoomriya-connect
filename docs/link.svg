@@ -27,7 +27,7 @@ text{fill:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvet
           <!-- the link tube -->
           <rect class="tube" x="380" y="126" width="360" height="48" rx="24"/>
           <text x="560" y="114" text-anchor="middle" class="bold c-link">the link</text>
-          <text x="560" y="196" text-anchor="middle" class="s m">iroh (QUIC), or TLS on TCP 443</text>
+          <text x="560" y="196" text-anchor="middle" class="s m">iroh (QUIC), or TCP 443 if you forwarded it</text>
           <text x="560" y="213" text-anchor="middle" class="s m">pinned keys both ways · device checked first</text>
 
           <!-- nodes -->

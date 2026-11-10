@@ -48,7 +48,7 @@ means someone opening a share link.
 | Shared address (CGNAT), easy | Works | Direct | Usually direct | Relay | WebRTC, then the relay |
 | Shared address (CGNAT), strict | Works | Usually direct | Relay | Relay | WebRTC, then the relay |
 | Home and device both have IPv6 | Works | Usually direct | Usually direct | Relay | Direct for guests with IPv6 |
-| You forwarded port 443 to the box | Works | Direct | Direct | Direct, over TCP 443 | Direct |
+| You forwarded port 443 to the box | Works | Direct | Direct | Direct, over TCP | Direct |
 | Remote access switched off | Works | No | No | No | No |
 | Box on Wi-Fi | Not supported. Use a cable. | | | | |
 
