@@ -28,6 +28,18 @@ Part of [ZOOMRIYA Connect](../README.md).
 5. **[Add share links](sharing-and-names.md#sharing-with-guests).** Tokens,
    the guest page, direct connections and WebRTC, with the relay as the last
    resort. Give owners their controls, and tell them what to expect.
+   The guests' door gets its own name, made by the box; families never see
+   it:
+   - On ZOOMRIYA names, `<name>-share.zoomriya.app`. Setup refuses box names
+     ending in `-share`, and the name `share`, so no family's box can clash
+     with another's door.
+   - On a family's own domain, `share.<box name>`, such as
+     `share.home.smith.ca`, so the one NS record they already added covers
+     it.
+   - Before the first box ships, put `zoomriya.app` on the Public Suffix List,
+     so browsers treat every family's names as separate sites. One family's
+     box must never be able to set cookies for another's. Browsers take a
+     while to pick up the list.
 6. **Help advanced homes.** Manual port forwards and IPv6 firewall rules.
    For families who forward port 443, a direct path over TCP for networks
    that block UDP. iroh doesn't do this, so it's our own: TLS with the same

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="730" viewBox="0 0 1000 730" role="img" aria-label="Planned ZOOMRIYA Connect data flow. DNS answers names only: the box name points at its home-network address, and the share name at the public address only while a share link is live. The control plane serves address records and guests' signals only. Family connections start through the relay and move to a direct path when one works; the relay keeps forwarding encrypted traffic only if none does. Guests use a relay only as the last option. The relay can observe connection metadata but not end-to-end encrypted content.">
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="730" viewBox="0 0 1000 730" role="img" aria-label="Planned ZOOMRIYA Connect data flow. DNS answers names only: the box name points at its home-network address, and the guests' door at the home's public address only while a share link is live. The control plane serves address records and guests' signals only. Family connections start through the relay and move to a direct path when one works; the relay keeps forwarding encrypted traffic only if none does. Guests use a relay only as the last option. The relay can observe connection metadata but not end-to-end encrypted content.">
 <style>
 svg{--surface:#fff;--bg:#f4f6f7;--zone:#eaf0f2;--fg:#15232a;--muted:#5b6c75;--line:#c3ced4;--direct:#087f6e;--direct-soft:#e4f4f0;--control:#886516;--control-soft:#fbf4df;--web:#285db1;--web-soft:#e8effb;--warning:#a13a2f}
 @media(prefers-color-scheme:dark){svg{--surface:#162026;--bg:#0e1518;--zone:#121b20;--fg:#e2eaed;--muted:#93a5ad;--line:#33464f;--direct:#56c5ae;--direct-soft:#172e2a;--control:#d8b45c;--control-soft:#302a19;--web:#86aaf0;--web-soft:#19263c;--warning:#ee7d6f}}
@@ -21,7 +21,7 @@ text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-
 <rect x="30" y="94" width="300" height="138" rx="12" class="control"/>
 <text x="50" y="126" class="head">DNS</text>
 <text x="50" y="154" class="small">Box name → its home-network address</text>
-<text x="50" y="178" class="small">Share name → public, only while live</text>
+<text x="50" y="178" class="small">Guests' door → home, only while live</text>
 <text x="50" y="208" class="small bold control-text">No app or album data</text>
 
 <rect x="350" y="94" width="300" height="138" rx="12" class="control"/>

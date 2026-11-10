@@ -125,7 +125,7 @@ text{fill:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvet
 
 <!-- guest row 2: direct -->
 <circle cx="205" cy="742" r="12" class="c-web"/><text x="205" y="747" text-anchor="middle" class="n">2</text>
-<text x="228" y="747" class="h">Direct, HTTPS to the box's share name</text>
+<text x="228" y="747" class="h">Direct, HTTPS through the box's door for guests</text>
 <text x="228" y="765" class="s m">only while a share link is live and the box has an open path</text>
 <line x1="182" y1="780" x2="716" y2="780" class="l-web" marker-end="url(#a-web)"/>
 <circle cx="190" cy="780" r="6" class="c-web dot g2"/>

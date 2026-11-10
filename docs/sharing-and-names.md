@@ -37,10 +37,10 @@ only the albums you picked for that link.
 
 ### How a guest's browser reaches the album
 
-1. **Straight to the box.** The page fetches the album from the box's share
-   name, such as `maplehouse-share.zoomriya.app`. That name points at your
-   home only while a link is live, and leads only to the album viewer. This
-   works when your home can open a door for guests, even if they're on mobile
+1. **Straight to the box.** While a link is live, the box opens a door for
+   guests under its own name, by itself; there's nothing to set up. The door
+   leads only to the album viewer, and the page fetches the album through it.
+   This works when your home can open a door, even if guests are on mobile
    data.
 2. **Browser to box, with WebRTC.** If there's no door, the browser and the
    box try to reach each other directly, the way video calls do. Our control
@@ -77,7 +77,6 @@ ZOOMRIYA uses a few domains, each for one job:
 |---|---|---|
 | `zoomriya.com` | The shop and help | Everyone |
 | `maplehouse.zoomriya.app` | Your box's name. You pick it. It points at the box on your home network, never at your home's public address | Your family |
-| `maplehouse-share.zoomriya.app` | The door for guests. It points at your home only while a share link is live | Nobody types it. The guest page uses it |
 | `zoomriya.net` | Our servers that help find your box (`connect.`, `ns1.`, the relays) and the guest page (`share.zoomriya.net`) | Guests see `share.zoomriya.net` in a link |
 
 `zoomriya.app` holds only families' boxes. Box names are public, because every
@@ -102,8 +101,9 @@ email and everything else.
 
 The box's name never points at your home's public address. Away from home,
 the app doesn't use the name to find the box, so a public address there would
-only tell people where you live. Only the guests' door points at your home,
-and only while a link is live.
+only tell people where you live. The only thing that ever points at your home
+is the guests' door, which the box opens by itself under its own name while a
+share link is live.
 
 ### Dynamic DNS from another company
 
@@ -140,7 +140,6 @@ address.
 | `relay.smith.ca` | Your server | The box and the apps, in the background | Your relay: starts each connection, and carries it when nothing direct works |
 | `share.smith.ca` | Your server | Guests | The page a share link opens, and the guests' relay |
 | `home.smith.ca` | Your box, on your home network | Your family, in a browser at home | Your box. `https://home.smith.ca` opens Family Hub with a proper padlock |
-| `share.home.smith.ca` | Your home, only while a share link is live | Nobody types it. The guest page uses it | The guests' door to the album viewer |
 
 **Why so many names?**
 - `share.smith.ca` runs in guests' browsers. Browsers keep different names
@@ -151,9 +150,10 @@ address.
   box or anyone's phone.
 
 **DNS.** `connect.`, `relay.` and `share.` are normal records at your DNS host.
-For `home.smith.ca`, you add one NS record that hands it to your server. That
-covers `share.home.smith.ca` too. Your server can then point both names and
-handle the certificate check, the same way ZOOMRIYA does for `zoomriya.app`.
+For `home.smith.ca`, you add one NS record that hands it to your server. Your
+server can then point the name at your box, open and close the guests' door
+under it, and handle the certificate check, the same way ZOOMRIYA does for
+`zoomriya.app`. That one record is all.
 
 **Your relay, your rules.** On your own relay, ZOOMRIYA doesn't limit anything.
 There's no cap on how much goes through it. Any limits are yours to set, and
@@ -200,8 +200,8 @@ from us.
 The padlock in your browser comes from a certificate. Here's how the box gets
 one:
 
-- Let's Encrypt issues one certificate covering the box's name, its share
-  name and any domain of your own.
+- Let's Encrypt issues one certificate covering the box's name, the guests'
+  door and any domain of your own.
 - To prove the box owns those names, our control plane puts a temporary
   record in DNS, and removes it afterwards. Nothing on your router needs
   opening.
