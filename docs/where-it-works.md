@@ -30,8 +30,11 @@ network.
 - **Easy and strict routers.** Most routers allow hole punching. Strict ones
   (called **symmetric NAT**) change their ports for every destination, which
   usually stops it.
+- **Port 443.** The port every secure website (HTTPS) uses. Almost every
+  network lets it through, because blocking it would break the web. That's
+  why the relay and the guests' door use it.
 - **UDP.** The kind of traffic hole punching uses. Some offices and hotels
-  block it.
+  block it. TCP is the other kind; HTTPS normally runs over TCP.
 - **The relay.** Our server that starts every connection, and carries it
   when nothing direct works. It's reached over the same kind of connection as
   a website, so it gets through almost everywhere.

@@ -36,7 +36,7 @@ text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-
 <circle cx="40" cy="160" r="12" class="num"/><text x="40" y="165" text-anchor="middle" class="num-text">1</text>
 <text x="62" y="165" class="step halo">The box stays in touch with the relay, all the time</text>
 <path d="M578 192H782" class="setup" marker-start="url(#s)" marker-end="url(#s)"/>
-<text x="680" y="184" text-anchor="middle" class="small setup-text halo">always open</text>
+<text x="680" y="184" text-anchor="middle" class="small setup-text halo">always open, over HTTPS</text>
 
 <!-- 2 -->
 <circle cx="40" cy="232" r="12" class="num"/><text x="40" y="237" text-anchor="middle" class="num-text">2</text>

@@ -91,8 +91,8 @@ text{fill:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvet
 <rect class="box" x="50" y="606" width="800" height="120" rx="8"/>
 <text x="68" y="634" class="t">connectd · port 443</text>
 <text x="68" y="660" class="s c-link">UDP: iroh endpoint · paired devices only · strangers refused</text>
-<text x="68" y="684" class="s c-web">TCP 443 from the internet → the share listener only</text>
-<text x="68" y="708" class="s m">from the home network → the web server, as usual</text>
+<text x="68" y="684" class="s c-web">TCP 443 (HTTPS) from the internet → the album viewer; paired devices too, if you forwarded it</text>
+<text x="68" y="708" class="s m">from the home network → the web server (HTTPS), as usual</text>
 
 <!-- Main paths -->
 <line class="a-link" x1="156" y1="300" x2="156" y2="602" marker-end="url(#m-link)"/>
