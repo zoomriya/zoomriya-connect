@@ -38,8 +38,8 @@ Part of [ZOOMRIYA Connect](../README.md).
    works and why others fail across ISPs and NAT types, then focus
    improvements on the most common failures.
 9. **Prepare for release.** Test the exposed share listener, arrange an
-   independent security review and document how to run a private control
-   plane.
+   independent security review and document how to run
+   [your own server](sharing-and-names.md#your-own-server).
 
 Family connections start through the relay and move to a direct path when one
 works; guests use a relay only as the last option. Relays forward end-to-end

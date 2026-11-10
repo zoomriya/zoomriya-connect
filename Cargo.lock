@@ -29,3 +29,7 @@ version = "0.0.0"
 [[package]]
 name = "zoomriya-punch"
 version = "0.0.0"
+
+[[package]]
+name = "zoomriya-sim-model"
+version = "0.0.0"

@@ -25,6 +25,8 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Test
         run: cargo test --workspace
+      - name: Traffic model (docs/testing.md, stage 1)
+        run: cargo run --release -p zoomriya-sim-model
 
   deny:
     name: Licences and advisories

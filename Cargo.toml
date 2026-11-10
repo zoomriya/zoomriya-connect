@@ -8,6 +8,7 @@ members = [
     "crates/ffi",
     "connectd",
     "control-plane",
+    "sim/model",
 ]
 
 [workspace.package]
