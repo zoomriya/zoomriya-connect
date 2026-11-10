@@ -30,12 +30,15 @@ the albums selected by the owner.
   2. **Browser connection (WebRTC).** If a direct connection is unavailable,
      the page and box try to connect through a WebRTC data channel. The
      control plane passes setup messages and provides STUN address discovery;
-     it does not relay the album. The page checks the box fingerprint from
+     it does not carry album data. The page checks the box fingerprint from
      the link, and the box checks the share token.
-  3. **If neither route works,** the page explains that the album cannot be
-     opened from that network. When creating the link, the owner is warned
-     about this possibility. The phone app can offer to send the photos using
-     the phone's own sharing feature instead.
+  3. **Relay fallback.** If direct WebRTC also fails and relay sharing is
+     enabled, the browser and box use a configured relay for the encrypted
+     data channel. The relay carries only this scoped, read-only share
+     session; it does not expose the dashboard or other apps.
+  4. **If no route works,** the page explains that the album cannot be
+     opened from that network. When creating the link, the owner is told
+     whether relay may be used and any bandwidth limits or operator.
 - **Trade-offs to be aware of.**
   - The guest's browser runs a viewer page from `share.zoomriya.net`. If that
     site were compromised, it could serve code that copies the album being
@@ -44,7 +47,9 @@ the albums selected by the owner.
     this risk. Serving the page is not the same as relaying the album.
   - During the WebRTC route, the browser's address bar shows
     `share.zoomriya.net`, not the box's name.
-  - WebRTC may fail if both sides use strict NAT or a network blocks UDP.
+  - A relay adds latency and bandwidth cost. Its operator can see endpoint
+    addresses, timing and traffic volume, but must not be able to read the
+    end-to-end encrypted album contents.
   - `connectd` needs a WebRTC implementation to support this route.
 - **The owner gets a connection check.** An outside test and the detected
   NAT type help explain whether guests should be able to open the link:
@@ -60,21 +65,37 @@ the services that help Connect work:
 | Domain | Think of it as | Who sees it |
 |---|---|---|
 | `zoomriya.com` | The shop and help desk | Everyone |
-| `maplehouse.zoomriya.app` | Your home's address, a name the family picks; it always points at the box's address on the home network | The family |
+| `maplehouse.zoomriya.app` | Your home's address, a name the family picks; it always points at the box's address on the home network, never the home's public address | The family |
 | `maplehouse-share.zoomriya.app` | The door for guests' photos, pointing at the home's public address only while a share link is live | Nobody: the guest page uses it behind the scenes |
 | `zoomriya.net` | The switchboard that finds your box (`connect.`, `stun1.`, `stun2.`, `ns1.`), and the guest page `share.zoomriya.net` | Nobody types it; guests see `share.zoomriya.net` in a share link |
 
 `zoomriya.app` holds only families' boxes, never anything of ZOOMRIYA's. Box names are public (every certificate is logged publicly), so the setup suggests a name that doesn't identify the family: a street or a word, not a surname.
 
-Three ways to name the box:
+Two ways to name the box:
 
-| Option | Name | DNS kept by | Hole punching |
+| Option | Name | DNS kept by | Hole punching and relay |
 |---|---|---|---|
 | ZOOMRIYA name (default) | `maplehouse.zoomriya.app` | The control plane | Yes |
-| Own domain, through ZOOMRIYA | `home.smith.ca`, a CNAME at any DNS host | The control plane | Yes |
-| Own domain, on its own | `home.smith.ca` | The box, through the family's DNS | No: advanced homes with a permanent port forward or IPv6 rule only |
+| Own domain, through ZOOMRIYA | `home.smith.ca`, a CNAME to the box's ZOOMRIYA name, set at any DNS host | The control plane | Yes |
 
-On its own domain, the box still runs Connect (the pinned link, the desktop app, the share view) but has no control plane, so there is no hole punching and no guest WebRTC. For independence from ZOOMRIYA with everything working, run your own control plane instead.
+The family name never points at the home's public address. Away from home,
+the app reaches the box through the link, not through DNS, so a public record
+would only tell anyone who reads the certificate logs where the family lives.
+Only the share name points at the public address, and only while a share
+link is live.
+
+### Third-party dynamic DNS
+
+Reaching the box through a third-party dynamic DNS name, without ZOOMRIYA
+Connect, is **not supported**. It would need a router port forward and the
+box's sign-in page and apps open to the whole internet. The box's firewall
+admits only the home network, and nothing on the box faces the internet
+except a live share link's read-only view. Dynamic DNS also can't help a home
+behind its provider's shared address (CGNAT).
+
+For independence from ZOOMRIYA with everything working, run your own control
+plane and relay instead: pairing, the pinned link, hole punching, the relay
+fallback and guest links all keep working, and nothing is exposed.
 
 ## Certificates
 

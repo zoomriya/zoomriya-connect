@@ -55,15 +55,15 @@ depends on the device and provider's IPv6 support.
 |---|---|---|---|---|---|
 | **Regular** (default: nothing set up by hand, hole punching) | | | | | |
 | Home router with easy NAT | Yes | Yes | Yes | No | Yes |
-| Home router with symmetric NAT | Yes | Yes | Harder punching only | No | Yes if the box could open 443; otherwise only from easy networks |
-| ISP's CGNAT, easy | Yes | Yes | Yes | No | Yes, by WebRTC, from networks that allow UDP |
-| ISP's CGNAT, symmetric | Yes | Yes | Harder punching only | No | Only from easy networks, by WebRTC |
-| Home and device both have IPv6 | Yes | Usually | Usually | No | Yes, for guests with IPv6 |
+| Home router with symmetric NAT | Yes | Yes | Relay if enabled and reachable | Relay if enabled and reachable | Yes if the box could open 443; otherwise WebRTC, then relay if enabled and reachable |
+| ISP's CGNAT, easy | Yes | Yes | Yes | Relay if enabled and reachable | Yes, by WebRTC, then relay if enabled and reachable |
+| ISP's CGNAT, symmetric | Yes | Yes | Relay if enabled and reachable | Relay if enabled and reachable | WebRTC may fail; relay if enabled and reachable |
+| Home and device both have IPv6 | Yes | Usually | Usually | Relay if enabled and reachable | Yes, for guests with IPv6; otherwise relay if enabled and reachable |
 | **Advanced** | | | | | |
 | Port forward, public IPv4 | Yes | Yes | Yes | Yes, TCP 443 | Yes |
 | Double NAT, forwarded on both routers | Yes | Yes | Yes | Yes, TCP 443 | Yes |
 | IPv6 firewall rule to the box | Yes | Yes | Yes | If the device has IPv6 | If the guest has IPv6 |
-| ISP's CGNAT, no IPv6 | A forward can't help: same as the regular CGNAT rows. The fix is a public IPv4 or IPv6 from the ISP | | | | |
+| ISP's CGNAT, no IPv6 | A forward can't help: direct access needs a public IPv4 or IPv6. Connect relay fallback can still work if enabled and reachable. | | | | |
 | **Box on Wi-Fi** | Not supported: connect the box by Ethernet | | | | |
 | **Home only** (remote access off) | Yes | No | No | No | No |
 
@@ -73,8 +73,8 @@ depends on the device and provider's IPv6 support.
 - **Guest links** connect directly when the box can open port 443 on the
   router, through automatic mapping or an IPv6 rule, and only while a share
   link is active. Otherwise, the browser and box try WebRTC hole punching.
-  That can fail if both sides have strict NAT or the guest's network blocks
-  UDP.
+  If that fails, an enabled relay can carry the encrypted, read-only share
+  session. The relay must be reachable and available.
 - **Background backups away from home:** Android is designed to back up in
   the background using the link. iOS background uploads are handed to the
   system, which cannot use the link directly, so uploads may wait until the
@@ -95,15 +95,20 @@ or only an IPv6 path:
 - **Direct link to an open-path box:** works from cellular data too. Cellular CGNAT affects only connections coming *in* to the guest, not this one going out.
 - **IPv6-only box path:** the guest's network must have IPv6, and many hotels and offices don't.
 - **Browser hole-punch route** (box with no open path): works if at least one end is not symmetric NAT. A guest on cellular is behind CGNAT too, so the chance of both ends being strict is higher than for a guest on home Wi-Fi.
+- **Relay fallback:** can work when direct paths fail, provided relay use is
+  enabled and the guest network permits reaching the relay. The relay
+  forwards encrypted traffic and adds latency and bandwidth cost.
 
 ## Never works
 
 Some networks cannot use Connect: networks that allow traffic only to
 approved sites, HTTPS-inspecting proxies (the pinned keys deliberately
 reject them), and captive portals before sign-in. Hole punching also usually
-fails when both ends use symmetric NAT, though the more advanced attempts may
-help in some cases.
+fails when both ends use symmetric NAT, though the more advanced attempts
+may help in some cases. If relay fallback is disabled, blocked or
+unavailable, those direct-path failures still prevent remote access.
 
-Family members on these networks need an open path to the box for the apps'
-TCP 443 fallback. Guests may not be able to open a shared link; the owner is
-warned about this when creating it.
+Family members on these networks need an allowed relay path or an open path
+to the box for the apps' TCP 443 fallback. Guests may not be able to open a
+shared link if both direct and relay paths are blocked; the owner is warned
+about this when creating it.

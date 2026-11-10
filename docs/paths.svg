@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="950" viewBox="0 0 900 950" role="img" aria-label="How a connection reaches the box. Family devices try six direct paths together: the home network, IPv6, hole punching, harder hole punching, the open path on UDP 443, and TLS over TCP 443. The first that authenticates wins. A relay, off for now, would be used only after all six fail, and never for backup or bulk uploads. Guests load a page from share.zoomriya.net, then reach the box directly over HTTPS through its share name, or by WebRTC hole punching. If neither works the page says so and the owner can send the photos instead. Guests never use a relay.">
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1016" viewBox="0 0 900 1016" role="img" aria-label="How a connection reaches the box. Family devices try six direct paths first; if all fail, an optional configured relay forwards end-to-end encrypted traffic. Guests load a page from share.zoomriya.net, then try direct HTTPS and WebRTC hole punching. An optional configured relay can forward the encrypted, read-only share session if direct paths fail.">
 <style>
 svg{--surface:#ffffff;--zone:#eef2f4;--fg:#15232a;--muted:#5b6c75;--line:#c3ced4;--link:#0d7a6b;--web:#2a5cb3;--relay:#8a6a14;--never:#b23a2e}
 @media (prefers-color-scheme: dark){svg{--surface:#162026;--zone:#121b20;--fg:#e2eaed;--muted:#93a5ad;--line:#33464f;--link:#4cc3ae;--web:#7ea8f0;--relay:#d8b45c;--never:#ee7d6f}}
@@ -30,11 +30,11 @@ text{fill:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvet
   <marker id="a-web" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="c-web"/></marker>
   <marker id="a-relay" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="c-relay"/></marker>
 </defs>
-<rect class="bg" width="900" height="950" rx="12"/>
+<rect class="bg" width="900" height="1016" rx="12"/>
 
 <!-- ===================== Family ===================== -->
 <text x="20" y="38" class="t">Family: phone or laptop to the box</text>
-<text x="20" y="62" class="s m">Paths 1–6 are tried together; the first that authenticates wins. The relay (7) only after all six fail.</text>
+<text x="20" y="62" class="s m">Paths 1–6 are tried together; the first that authenticates wins. Configured relay (7) is the fallback.</text>
 
 <rect class="zone" x="20" y="80" width="150" height="474" rx="10"/>
 <text x="95" y="290" text-anchor="middle" class="h">Phone</text>
@@ -92,8 +92,8 @@ text{fill:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvet
 
 <!-- row 7: relay -->
 <circle cx="205" cy="498" r="12" class="c-relay"/><text x="205" y="503" text-anchor="middle" class="n">7</text>
-<text x="228" y="503" class="h">Relay · off for now</text>
-<text x="228" y="521" class="s m">last resort · encrypted end to end · no backup or bulk uploads · 480p video</text>
+<text x="228" y="503" class="h">Configured relay · fallback only</text>
+<text x="228" y="521" class="s m">operated by ZOOMRIYA or the family · encrypted end to end · bandwidth limits may apply</text>
 <line x1="182" y1="538" x2="404" y2="538" class="l-relay"/>
 <rect class="mid" x="404" y="527" width="92" height="22" rx="5"/>
 <text x="450" y="542" text-anchor="middle" class="s c-relay">relay</text>
@@ -102,14 +102,14 @@ text{fill:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvet
 
 <!-- ===================== Guest ===================== -->
 <text x="20" y="612" class="t">Guest: any browser to the box</text>
-<text x="20" y="636" class="s m">Nothing installed, read-only, one album. The page tries 2, then 3. Guests never use a relay.</text>
+<text x="20" y="636" class="s m">Nothing installed, read-only, one album. Try direct routes first, then an optional configured relay.</text>
 
-<rect class="zone" x="20" y="654" width="150" height="276" rx="10"/>
+<rect class="zone" x="20" y="654" width="150" height="340" rx="10"/>
 <text x="95" y="774" text-anchor="middle" class="h">Guest</text>
 <text x="95" y="798" text-anchor="middle" class="s m">any browser</text>
 <text x="95" y="816" text-anchor="middle" class="s m">a share link</text>
 
-<rect class="zone" x="730" y="654" width="150" height="276" rx="10"/>
+<rect class="zone" x="730" y="654" width="150" height="340" rx="10"/>
 <text x="805" y="774" text-anchor="middle" class="h">ZOOMRIYA box</text>
 <text x="805" y="798" text-anchor="middle" class="s m">share listener</text>
 <text x="805" y="816" text-anchor="middle" class="s m">one album, read-only</text>
@@ -137,8 +137,17 @@ text{fill:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvet
 <line x1="182" y1="846" x2="716" y2="846" class="l-web" marker-end="url(#a-web)"/>
 <circle cx="190" cy="846" r="6" class="c-web dot g3"/>
 
-<!-- guest row 4: neither -->
-<circle cx="205" cy="874" r="12" class="c-never"/><text x="205" y="879" text-anchor="middle" class="n">✕</text>
-<text x="228" y="879" class="h c-never">Neither works</text>
-<text x="228" y="897" class="s m">the page says so; the owner can send the photos instead</text>
+<!-- guest row 4: relay -->
+<circle cx="205" cy="874" r="12" class="c-relay"/><text x="205" y="879" text-anchor="middle" class="n">4</text>
+<text x="228" y="879" class="h">Configured WebRTC relay · fallback only</text>
+<text x="228" y="897" class="s m">for the encrypted, read-only share session · relay operator sees connection metadata</text>
+<line x1="182" y1="912" x2="404" y2="912" class="l-relay"/>
+<rect class="mid" x="404" y="901" width="92" height="22" rx="5"/>
+<text x="450" y="916" text-anchor="middle" class="s c-relay">relay</text>
+<line x1="496" y1="912" x2="716" y2="912" class="l-relay" marker-end="url(#a-relay)"/>
+
+<!-- guest row 5: neither -->
+<circle cx="205" cy="940" r="12" class="c-never"/><text x="205" y="945" text-anchor="middle" class="n">✕</text>
+<text x="228" y="945" class="h c-never">No route works</text>
+<text x="228" y="963" class="s m">the page explains the failure; owner may send the photos another way</text>
 </svg>

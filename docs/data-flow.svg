@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="730" viewBox="0 0 1000 730" role="img" aria-label="Planned ZOOMRIYA Connect data flow. DNS answers names only: the box name points at its home-network address, and the share name at the public address only while a share link is live. The control plane carries discovery and signaling only. Family and guest data travel directly by default; an optional configured relay forwards encrypted traffic when direct paths fail. The relay can observe connection metadata but not end-to-end encrypted content.">
+<style>
+svg{--surface:#fff;--bg:#f4f6f7;--zone:#eaf0f2;--fg:#15232a;--muted:#5b6c75;--line:#c3ced4;--direct:#087f6e;--direct-soft:#e4f4f0;--control:#886516;--control-soft:#fbf4df;--web:#285db1;--web-soft:#e8effb;--warning:#a13a2f}
+@media(prefers-color-scheme:dark){svg{--surface:#162026;--bg:#0e1518;--zone:#121b20;--fg:#e2eaed;--muted:#93a5ad;--line:#33464f;--direct:#56c5ae;--direct-soft:#172e2a;--control:#d8b45c;--control-soft:#302a19;--web:#86aaf0;--web-soft:#19263c;--warning:#ee7d6f}}
+text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;fill:var(--fg);font-size:15px}
+.title{font-size:22px;font-weight:700}.head{font-size:18px;font-weight:650}.small{font-size:13px}.tiny{font-size:11px}.muted{fill:var(--muted)}.bold{font-weight:650}
+.panel{fill:var(--surface);stroke:var(--line);stroke-width:1.5}.direct{fill:var(--direct-soft);stroke:var(--direct);stroke-width:2}.control{fill:var(--control-soft);stroke:var(--control);stroke-width:1.5}.viewer{fill:var(--web-soft);stroke:var(--web);stroke-width:1.5}
+.direct-line{fill:none;stroke:var(--direct);stroke-width:4}.control-line{fill:none;stroke:var(--control);stroke-width:2.5;stroke-dasharray:8 6}.web-line{fill:none;stroke:var(--web);stroke-width:2.5;stroke-dasharray:4 5}
+.direct-text{fill:var(--direct)}.control-text{fill:var(--control)}.web-text{fill:var(--web)}.warning{fill:var(--warning)}
+</style>
+<defs>
+  <marker id="arrow-direct" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="var(--direct)"/></marker>
+  <marker id="arrow-control" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="var(--control)"/></marker>
+  <marker id="arrow-web" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="var(--web)"/></marker>
+</defs>
+<rect width="1000" height="700" rx="14" fill="var(--surface)"/>
+<text x="30" y="40" class="title">ZOOMRIYA Connect · who carries what</text>
+<text x="30" y="65" class="small muted">Solid green: user data · dashed gold: DNS and control only · dotted blue: guest viewer page</text>
+
+<rect x="30" y="94" width="300" height="138" rx="12" class="control"/>
+<text x="50" y="126" class="head">DNS</text>
+<text x="50" y="154" class="small">Box name → its home-network address</text>
+<text x="50" y="178" class="small">Share name → public, only while live</text>
+<text x="50" y="208" class="small bold control-text">No app or album data</text>
+
+<rect x="350" y="94" width="300" height="138" rx="12" class="control"/>
+<text x="370" y="126" class="head">Control plane</text>
+<text x="370" y="154" class="small">Signed address records · STUN</text>
+<text x="370" y="178" class="small">Rendezvous · hole-punch signaling</text>
+<text x="370" y="208" class="small bold control-text">Coordination only · relay is a separate service</text>
+
+<rect x="670" y="94" width="300" height="138" rx="12" class="viewer"/>
+<text x="690" y="126" class="head">Guest viewer website</text>
+<text x="690" y="154" class="small">Hosts the share page / client code</text>
+<text x="690" y="178" class="small">May see the page request</text>
+<text x="690" y="208" class="small bold web-text">Does not proxy album contents</text>
+
+<rect x="30" y="286" width="940" height="74" rx="10" fill="var(--bg)" stroke="var(--line)"/>
+<text x="50" y="317" class="head">Setup and discovery</text>
+<text x="50" y="343" class="small muted">Box and clients use the control plane's signed address records and signaling to coordinate direct attempts.</text>
+<path d="M205 232V278" class="control-line" marker-start="url(#arrow-control)" marker-end="url(#arrow-control)"/>
+<path d="M500 232V278" class="control-line" marker-start="url(#arrow-control)" marker-end="url(#arrow-control)"/>
+<path d="M815 232V278" class="web-line" marker-end="url(#arrow-web)"/>
+
+<rect x="30" y="394" width="940" height="40" rx="8" fill="var(--bg)" stroke="var(--line)"/>
+<text x="50" y="420" class="small bold">INTERNET · direct paths preferred</text>
+<rect x="565" y="400" width="385" height="28" rx="7" class="control"/>
+<text x="757" y="419" text-anchor="middle" class="tiny bold control-text">Optional relay · encrypted fallback only</text>
+
+<rect x="30" y="478" width="270" height="148" rx="12" class="direct"/>
+<text x="50" y="512" class="head">Family device</text>
+<text x="50" y="542" class="small">Paired phone or laptop</text>
+<text x="50" y="568" class="small">Mutual key authentication</text>
+<text x="50" y="604" class="small bold direct-text">Encrypted app traffic</text>
+
+<rect x="365" y="478" width="270" height="148" rx="12" class="viewer"/>
+<text x="385" y="512" class="head">Guest browser</text>
+<text x="385" y="542" class="small">Share token for selected album</text>
+<text x="385" y="568" class="small">Read-only, no account</text>
+<text x="385" y="604" class="small bold web-text">Viewer page only from host</text>
+
+<rect x="700" y="478" width="270" height="148" rx="12" class="direct"/>
+<text x="720" y="512" class="head">Home ZOOMRIYA box</text>
+<text x="720" y="542" class="small">ZOOMRIYA Connect + app services</text>
+<text x="720" y="568" class="small">Separate read-only share listener</text>
+<text x="720" y="604" class="small bold direct-text">Home data stays here</text>
+
+<path d="M300 550V646H700V550" class="direct-line" marker-start="url(#arrow-direct)" marker-end="url(#arrow-direct)"/>
+<text x="500" y="638" text-anchor="middle" class="small bold direct-text">Direct encrypted links are preferred</text>
+<path d="M635 584H692" class="direct-line" marker-start="url(#arrow-direct)" marker-end="url(#arrow-direct)"/>
+<text x="664" y="608" text-anchor="middle" class="tiny direct-text">album bytes</text>
+<path d="M815 232V450H635V470" class="web-line" marker-end="url(#arrow-web)"/>
+<text x="720" y="442" class="tiny web-text">viewer page</text>
+<path d="M165 360V470" class="control-line" marker-start="url(#arrow-control)" marker-end="url(#arrow-control)"/>
+<path d="M500 360V470" class="control-line" marker-start="url(#arrow-control)" marker-end="url(#arrow-control)"/>
+<path d="M835 360V470" class="control-line" marker-start="url(#arrow-control)" marker-end="url(#arrow-control)"/>
+<text x="510" y="454" class="tiny control-text">Address discovery / signaling</text>
+
+<text x="30" y="680" class="small bold warning">If direct paths fail, a configured relay forwards encrypted family or guest traffic; its operator sees metadata.</text>
+<text x="30" y="697" class="tiny muted">Design proposal only: ZOOMRIYA Connect is not implemented.</text>
+</svg>
