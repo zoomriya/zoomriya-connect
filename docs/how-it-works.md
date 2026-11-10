@@ -2,117 +2,142 @@
 
 Part of [ZOOMRIYA Connect](../README.md).
 
-This page describes the connection from the first attempt to the secure link.
-Each connection between a paired device and the box starts through a relay
-run by ZOOMRIYA or the family, then moves to a direct path as soon as one
-works, the way iroh does it. If no direct path works, the relay keeps
-forwarding the encrypted traffic. A small control plane helps the two ends
-find each other.
+This page follows a connection from the moment you open the app to the moment
+you see your photos. Most of it isn't built yet. This is the plan.
 
-## Family devices
+## Your phone and the box
 
-- **Relay first, then direct.** Phones, laptops and the box run an iroh
-  endpoint. They use QUIC, a transport protocol, and authenticate each other
-  by key rather than relying only on network addresses. Each endpoint keeps a
-  connection to its home relay. A new connection starts through the relay, so
-  it opens at once. Meanwhile the relay tells each side the public address it
-  sees and passes the signals for hole punching, and both sides try direct
-  paths. When one works, traffic moves to it and the relay drops out. If none
-  works, the relay keeps forwarding the encrypted traffic.
-- **No router changes are normally needed for paired devices.** The phone
-  and desktop apps do not require an open port on the home router.
-- **The connection is limited to the box.** It provides access to the box's
-  apps, not to other devices on the home network. It is not a VPN.
-- **Paired devices verify each other's keys.** Pairing starts at home: a
-  phone scans a QR code displayed by the box. This lets the phone learn the
-  box's endpoint ID (its public key), and the box learn the phone's. A
-  hardware-backed key on the phone signs each connection. Only paired
-  devices are allowed in, and an intermediary cannot pretend to be the box.
-- **The box is quiet to unpaired devices.** A connection begins with a tag
-  that can be made only by a device that knows the box's key. The box drops
-  other first packets without replying, so a network scan cannot tell whether
-  a Connect endpoint is there.
-- **Only our relays.** The endpoint uses only relays run by ZOOMRIYA or the
-  family; iroh's public relays and address lookup are switched off
-  (`RelayMode::Custom` with our relay map, and our own address lookup). The
-  relay admits only boxes and their paired devices: for each endpoint ID it
-  asks the control plane (iroh-relay's `access = http`). It forwards encrypted packets
-  and cannot authenticate a new device or read application content. A
-  packet-capture test checks the allowed endpoints whenever iroh is upgraded.
-- **Backups wait for a direct path.** Browsing, chat and the rest work over
-  the relay; photo and video backups wait until the connection is direct, so
-  the relay never carries bulk uploads.
+### Pairing
 
-## Guest links
+You pair a phone once, at home. The box shows a QR code on its screen. You
+scan it with the ZOOMRIYA app.
 
-- **A temporary route, only while a link is active.** While at least one
-  guest link is live, the box asks the router to open port 443 using UPnP,
-  NAT-PMP or PCP, or to allow access over IPv6. The route leads to a separate
-  read-only share listener. It does not expose the sign-in page or apps. When
-  no guest links are live, the box closes the route.
-- **If a direct route is not available,** the guest's browser and the box
-  try to connect using WebRTC. This also uses hole punching. If the network
-  will not allow it, they use a WebRTC relay as the last option. Only the
-  encrypted, token-scoped share session is relayed.
-- **IPv6 is checked first.** The box checks whether it has a public IPv6
-  address and whether outside connections to port 443 can reach it. The
-  control plane runs that outside check. If IPv6 is reachable, guests with
-  IPv6 can connect directly, including when the provider uses carrier-grade
-  NAT for IPv4.
+Now the phone knows the box's key, and the box knows the phone's. Each one
+checks the other's key every time they connect. So a phone the box doesn't
+know can't get in, and nobody can pretend to be your box.
 
-## When a direct connection is difficult
+The phone keeps its key in its secure chip: the Secure Enclave on an iPhone,
+the Keystore on Android. The key never leaves the phone.
 
-Some routers change connection addresses and ports in ways that make
-hole-punching harder. iroh tries the home network, IPv6 and ordinary hole
-punching. Where measurements show they help, ZOOMRIYA Connect may add harder
-attempts: multiple UDP sockets, port prediction for strict (symmetric) NAT
-and TCP simultaneous open. When nothing direct works, the connection simply
-stays on the relay: slower, and it costs relay bandwidth, but end-to-end
-encryption keeps the content private.
+### Connecting
 
-## Box name and control plane
+The phone, the laptop app and the box all use
+[iroh](https://github.com/n0-computer/iroh). iroh finds a device by its key,
+not by its internet address.
 
-Each box has a name, such as `maplehouse.zoomriya.app`, that points at the
-box's address on the home network, never at the home's public address. A
-family's own domain can point at it with a CNAME. Away from home, the app
-finds the box through its signed, short-lived address record, which names
-the box's relay, not through its name. These are iroh's own address records
-(signed by the endpoint's key and served by `iroh-dns-server`), run by the
-control plane.
+1. **The box stays in touch with the relay.** It keeps a small connection open
+   to our relay all the time.
+2. **You open the app.** The phone looks up which relay the box uses and
+   connects to the box through it. This is about as quick as opening a web
+   page.
+3. **They try to go direct.** While you're already using the app, the relay
+   tells each side where the other one is. Then both try to reach each other
+   at the same moment. This is called hole punching. Each router sees a
+   connection going out, so it lets the reply come in.
+4. **The direct path takes over.** As soon as one works, your data goes
+   straight between your phone and the box. The relay drops out. This usually
+   takes a few seconds.
+5. **If nothing direct works,** the relay keeps passing your data along. It's
+   slower, but it works. It's still encrypted, so the relay can't read it.
 
-The box has a real HTTPS certificate issued by Let's Encrypt, and its private
-key stays on the box. To verify that the box controls its name, the control
-plane publishes a temporary DNS record for the certificate check; no inbound
-port is needed. Each box can change only its own records. Reaching the box
-through a third-party dynamic DNS name, without ZOOMRIYA Connect, is not
-supported; see
-[Sharing, names and certificates](sharing-and-names.md#third-party-dynamic-dns).
+In step 3, they try:
+- the home network, if you're at home
+- IPv6, if both ends have it
+- ordinary hole punching
+- the box's open port, if it has one (while a share link is live, or if you
+  forwarded a port yourself)
 
-## What carries data
+Some strict routers beat ordinary hole punching. If our
+[tests](testing.md) show it's worth it, we'll add cleverer tricks later.
 
-The control plane helps devices find each other and is not the application
-data path. Family traffic starts through the relay and moves to a direct
-path between the paired device and the box when one works. If none works,
-the relay keeps forwarding the encrypted stream between them. Guest album bytes normally
-travel directly between the browser and the box's isolated share listener,
-over HTTPS or a WebRTC data channel. If direct guest paths fail, a relay
-forwards the encrypted share session only, as the last option. The
-guest viewer page itself may be downloaded from `share.zoomriya.net`; it is
-separate from album data. DNS carries only DNS records and queries.
+### What gets in
 
-![Diagram showing DNS and address records separately from encrypted family and guest data. Family connections start through the relay and move to a direct path when one works.](data-flow.svg)
+Only paired devices. The box ignores everything else and doesn't even reply,
+so someone scanning the internet can't tell it's there.
 
-![The web view's own HTTPS to the box runs inside the link, between the app's local proxy and connectd, so neither of them can open it.](link.svg)
+A connection reaches the box's apps and nothing else on your home network.
+It isn't a VPN. Your phone won't ask for VPN permission, and it works
+alongside a work VPN.
 
-### Every path, in order
+### Only our relays
 
-![Family devices start each connection through the relay and try six direct paths at once; the first that works takes over, and the relay keeps carrying the connection only if none does. Guests use direct HTTPS or WebRTC hole punching first, with a relay as the last option for the share session.](paths.svg)
+The app and the box use only relays run by ZOOMRIYA, or by your family if you
+[run your own](sharing-and-names.md#your-own-server). iroh's public relays are
+switched off.
 
-## The parts of the system
+Our relays let in only boxes and their paired devices. For each one, the
+relay asks our control plane. Each time we upgrade iroh, a test records the
+network traffic to make sure nothing goes anywhere else.
 
-| Part | Runs on | Job |
+### Backups wait
+
+Browsing photos, chat, the tracker and the rest all work over the relay.
+Backing up new photos and videos waits until the connection is direct, or
+until you're home. This keeps big uploads off the relay.
+
+If you [run your own relay](sharing-and-names.md#your-own-server), you get a
+switch, **Back up over the relay**, to let backups use it too.
+
+## Guests and share links
+
+A share link opens one album in any browser. Read only, nothing to install,
+no account.
+
+While a link is live, the box asks your router to open port 443 (using UPnP,
+NAT-PMP or PCP), or opens it over IPv6. That door leads only to the album
+viewer, never to the sign-in page or the apps. When the last link expires,
+the box closes the door.
+
+If the router won't open a door, the guest's browser and the box try to reach
+each other with WebRTC. That's what browsers use for video calls. If that
+fails too, the relay carries the album, encrypted. For guests, the relay is
+the last resort.
+
+The box tries IPv6 first. If your home has IPv6, guests who also have it come
+straight in. This works even when your provider shares one IPv4 address
+between many homes (that's called CGNAT).
+
+More in [Sharing with guests](sharing-and-names.md#sharing-with-guests).
+
+## The box's name
+
+Each box has a name, such as `maplehouse.zoomriya.app`. The name points at the
+box on your home network, never at your home's public address.
+
+At home, your browser opens the box by its name, with a proper padlock. Away
+from home, the app doesn't use the name. It looks up the box's signed address
+record instead, which says which relay the box uses.
+
+The padlock certificate comes from Let's Encrypt. Its private key is made on
+the box and never leaves it. To prove the box owns its name, our control plane
+puts a temporary record in DNS. Nothing on your router needs opening for this.
+
+You can use your own domain instead, such as `home.smith.ca`. See
+[names and domains](sharing-and-names.md#names-and-domains).
+
+## Who carries what
+
+| Part | What it carries |
+|---|---|
+| **The direct path** | Your data, almost always |
+| **The relay** | The first moments of each connection. Your data only when nothing direct works. It's encrypted, so the relay can't read it |
+| **The control plane** | Which relay each box uses, and setup messages for guests. Never your data |
+| **The guest page** (`share.zoomriya.net`) | The viewer page only. The album itself comes from the box |
+| **DNS** | Names and addresses only |
+
+![What carries what. DNS and the control plane only help devices find each other. Family connections start on the relay and switch to a direct path when one works. Guests get the viewer page from share.zoomriya.net and the album from the box.](data-flow.svg)
+
+![Inside the link: your browser's encrypted connection to the box runs through the app and connectd, so neither of them can read it.](link.svg)
+
+### The order of attempts
+
+![Family devices start on the relay and try six direct paths at once; the first that works takes over. Guests try the box directly, then WebRTC, then the relay.](paths.svg)
+
+## The parts
+
+| Part | Where it runs | What it does |
 |---|---|---|
-| **The link** | An iroh endpoint inside the ZOOMRIYA phone app (Android, iOS) and desktop app (Linux, Windows, macOS) | Connects to the box using its pinned endpoint ID over an authenticated QUIC connection. The app's web view, or a laptop browser through a local proxy, uses the link to reach the box's apps. It needs no VPN permission and can coexist with a work VPN. |
-| **connectd** | The ZOOMRIYA Box | Runs the box's iroh endpoint on UDP 443 and owns TCP 443. It verifies paired devices and guest-link tokens, passes approved connections to the box's web server, coordinates hole punching, checks IPv6 reachability and requests temporary router access for guest links. It also publishes the box's signed address record and watches public certificate logs for the box's name. |
-| **Control plane** | A small service run by ZOOMRIYA or the family | Serves the boxes' signed address records (which name each box's relay), answers DNS for box names, hosts certificate challenges, checks reachability, and passes guests' WebRTC signals and STUN. It does not carry application data. |
-| **Relay** | iroh's relay server, run by ZOOMRIYA or the family | Starts every family connection, tells each side its public address and passes the hole-punching signals; keeps forwarding encrypted traffic only when no direct path works. Also relays a guest's share session as the last option. Admits only boxes and their paired devices. It can observe endpoint IPs, timing and traffic volume, but cannot read end-to-end encrypted content. |
+| **The link** | Inside the ZOOMRIYA app on phones (Android, iOS) and in the desktop app (Linux, Windows, macOS) | Connects to the box and checks its key. The app's screens, or a laptop's browser, reach the box's apps through it |
+| **connectd** | The box | Lets in paired devices and nobody else. Checks share links. Opens and closes the door on the router for guests. Publishes the box's address record. Warns you if anyone else gets a certificate for the box's name |
+| **The relay** | A server run by ZOOMRIYA, or by your family | Starts each connection and helps with hole punching. Carries data only when nothing direct works. Lets in only boxes and their paired devices |
+| **The control plane** | A server run by ZOOMRIYA, or by your family | Keeps each box's address record, answers DNS for box names, helps get certificates, checks from outside whether a box can be reached, and passes setup messages for guests |

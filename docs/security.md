@@ -2,32 +2,40 @@
 
 Part of [ZOOMRIYA Connect](../README.md).
 
-To report a vulnerability, see [SECURITY.md](../SECURITY.md); never in a public issue.
+To report a vulnerability, see [SECURITY.md](../SECURITY.md). Please never use
+a public issue.
 
-Connect is designed so that no single part of the service can read a paired
-device's traffic or grant a new device access. The table below describes the
-impact if a component, device or link is compromised.
+The idea is simple: no single part of ZOOMRIYA Connect can read your data or
+let a new device in. Not our servers, not the relay, not the network you're
+on. This page goes through each part and says what someone could and couldn't
+do if they took it over.
 
-## What each party can and can't do
+## If someone took over…
 
-| If this is compromised… | It can | It can't |
+| What | They could | They couldn't |
 |---|---|---|
-| The control plane | Stop new connections; see who connects when, and IP addresses. Not send a device to the wrong place: address records are signed by the box. Because it answers DNS for box names, it could get a certificate for a box's name and pose as the box **to browsers**; the box watches the certificate logs and tells the admin. It could also serve a bad guest viewer page | Trust a device, read or change a paired device's traffic, pose as the box to the phone or desktop app (they pin the box's endpoint ID) |
-| A relay | Observe, for every connection, which endpoints connect, their IP addresses, timing and traffic volume (much of which the control plane sees already); deny service or drop packets | Read or undetectably alter authenticated end-to-end encrypted family traffic or guest share content; grant a device access |
-| A network the device is on | Block or slow it | Read or change it, connect as a paired device |
-| A lost phone or laptop | Use its access until the admin revokes it | Anything after that |
-| A shared link that leaks | Show the albums it lists until it expires or is revoked | Reach anything else on the box |
-| The internet at large | Reach the box's port 443 while a share link is live, and probe the read-only share view | Reach the sign-in page or any app (never served to the internet), open an album without its token, or change anything |
+| **Our control plane** | Stop new connections. See which devices connect to which box, when, and from where. Serve a bad guest page. Because it answers DNS for box names, it could get a certificate for your box's name and pretend to be your box to a browser. The box watches the public certificate logs and tells you if that happens | Let a new device in. Read or change your data. Pretend to be your box to the app, which checks the box's key. Send your phone to the wrong place, because the box signs its own address record |
+| **A relay** | See which devices connect to which box, when, from where, and how much data goes through. Much of this the control plane sees anyway. Slow connections down or drop them | Read or quietly change your data, or a guest's album. Let a device in |
+| **The network you're on** | Block or slow the connection | Read or change it. Connect as your phone |
+| **A lost phone or laptop** | Use the box until an admin removes it | Anything after that |
+| **A leaked share link** | Show the albums in that link until it expires or you cancel it | Reach anything else on the box |
+| **Anyone on the internet** | Reach the album viewer on port 443 while a share link is live, and poke at it | Reach the sign-in page or any app (they're never on the internet). Open an album without its link. Change anything |
 
-While a share link is active, anyone on the internet can reach the box on
-port 443, but that route serves only the read-only share view. Paired devices
-do not use it. A household that does not want this exposure can turn sharing
-off; the box then closes the route it opened.
+## The open door for guests
 
-Every family connection starts through the relay, so its operator learns
-connection metadata. The product names who operates the relay, says what it
-keeps and for how long, and lets the owner switch the relay off; the app then
-reaches the box away from home only over IPv6 or a forwarded port. End-to-end
-encryption must be verified for both the family link and guest WebRTC data
-channel; relay transport alone is not a substitute for endpoint
-authentication.
+While a share link is live, anyone on the internet can reach the box on port
+443. But that door only leads to the read-only album viewer. Paired devices
+don't use it. If you don't want any door open, switch sharing off and the box
+closes it.
+
+## The relay
+
+Every family connection starts on the relay, so whoever runs it learns who
+connects when. It never learns what. We'll say who runs our relays and what
+they keep, and for how long. You can switch the relay off; the app then
+reaches the box away from home only over IPv6 or a port you've forwarded. Or
+you can [run your own](sharing-and-names.md#your-own-server).
+
+The relay is never what keeps your data safe. The encryption between your
+device and the box does that, and so does each side checking the other's key.
+We'll check both for the family link and for guests' WebRTC connections.

@@ -2,113 +2,100 @@
 
 Part of [ZOOMRIYA Connect](../README.md).
 
-**The box must connect to the router by Ethernet, not Wi-Fi.** A wired
-connection gives the box a more dependable place on the home network and
-avoids Wi-Fi client-isolation rules that can block connections. It also helps
-with port mapping and hole punching. Setup checks that the box is wired and
-that its Ethernet port is on the same home network as the Wi-Fi devices.
-Some provider gateways and mesh systems put TV or guest ports on a separate
+Short answer: at home, always. Away from home, on nearly any network where you
+can browse the web. This page explains the exceptions.
+
+None of this has been tested on real networks yet. It's what we expect.
+
+## Plug the box in with a cable
+
+The box must be connected to your router with an Ethernet cable, not Wi-Fi.
+A cable is more reliable, and some Wi-Fi setups stop devices from talking to
+each other. Setup checks the cable.
+
+Setup also checks that the box is on the same network as your Wi-Fi. Some
+provider routers and mesh systems put certain ports on a separate guest or TV
 network.
 
-## A few network terms
+## A few words you'll see
 
-The type of internet connection at home affects which connection paths are
-available. These terms help explain the table below.
+- **Public address.** The address your home has on the internet. Many homes
+  have their own. Some providers share one address between many homes; that's
+  called **CGNAT**. It's common with mobile, 5G and fixed-wireless internet.
+- **Port forward.** A rule on your router that lets connections from the
+  internet reach one device at home. It only helps if your home has its own
+  public address.
+- **Hole punching.** Two devices, each behind a router, reach out to each
+  other at the same moment so both routers let the connection through.
+- **Easy and strict routers.** Most routers allow hole punching. Strict ones
+  (called **symmetric NAT**) change their ports for every destination, which
+  usually stops it.
+- **UDP.** The kind of traffic hole punching uses. Some offices and hotels
+  block it.
+- **The relay.** Our server that starts every connection, and carries it
+  when nothing direct works. It's reached over the same kind of connection as
+  a website, so it gets through almost everywhere.
 
-- **Wired home internet** (fibre, cable or DSL) brings a line into the house
-  and connects it to a modem or gateway. Many homes have a public IPv4
-  address, which can let the router forward port 443 to the box.
-- **Home wireless internet** (5G, LTE or fixed wireless) receives the
-  provider's signal at home and provides Wi-Fi and Ethernet, much like a
-  phone hotspot. These providers may share a public IPv4 address among many
-  customers.
-- **CGNAT** (carrier-grade network address translation) is when the internet
-  provider shares one public address among customers. In that case, the home
-  router cannot make a port forward reachable from the internet. Ethernet
-  does not remove this provider-side restriction.
-- **Symmetric NAT** is a stricter form of address translation that may assign
-  a different public port for each destination. It can stop ordinary hole
-  punching, though Connect's more advanced attempts may work in some cases.
-  Whether a particular provider uses it varies.
-- **An open path** means the box can be reached from the internet on port 443,
-  through router mapping, a port forward or an IPv6 firewall rule.
-- **Hole punching** is a way for two devices behind routers to try to connect
-  directly by coordinating outbound connection attempts. It can fail when
-  either network restricts those connections.
-- **UDP** is a network transport used by the direct connection and WebRTC.
-  Some workplaces, hotels and other networks block it.
-- **WebRTC** is a browser technology used here for a guest's direct connection
-  to the box.
-- **Easy NAT** in the table means the router's address translation allows the
-  coordinated connection attempts to work. A **symmetric NAT** assigns
-  destination-specific ports, which makes those attempts harder.
+## By your home's internet
 
-## By the home's setup
+"App" means the ZOOMRIYA app on a phone or laptop, away from home. "Guest"
+means someone opening a share link.
 
-This table describes the intended behavior; these network combinations have
-not yet been tested. "App" means the phone or desktop app. "Guest link" means
-a guest opening a shared album in a browser; guest access is read-only.
-**Yes** means the connection is expected to work; **Usually** means it
-depends on the device and provider's IPv6 support.
-
-| Home setup | Home Wi-Fi | App · easy NAT | App · symmetric NAT | App · UDP blocked | Guest link |
+| Your home's internet | At home | App, easy network | App, strict network | App, UDP blocked | Guest |
 |---|---|---|---|---|---|
-| **Regular** (default: nothing set up by hand, hole punching) | | | | | |
-| Home router with easy NAT | Yes | Yes | Yes | No | Yes |
-| Home router with symmetric NAT | Yes | Yes | Through the relay | Through the relay | Yes if the box could open 443; otherwise WebRTC, then the relay |
-| ISP's CGNAT, easy | Yes | Yes | Yes | Through the relay | Yes, by WebRTC, then the relay |
-| ISP's CGNAT, symmetric | Yes | Yes | Through the relay | Through the relay | WebRTC, then the relay |
-| Home and device both have IPv6 | Yes | Usually | Usually | Through the relay | Yes, for guests with IPv6; otherwise the relay |
-| **Advanced** | | | | | |
-| Port forward, public IPv4 | Yes | Yes | Yes | Yes, TCP 443 | Yes |
-| Double NAT, forwarded on both routers | Yes | Yes | Yes | Yes, TCP 443 | Yes |
-| IPv6 firewall rule to the box | Yes | Yes | Yes | If the device has IPv6 | If the guest has IPv6 |
-| ISP's CGNAT, no IPv6 | A forward can't help: direct access needs a public IPv4 or IPv6. The app still works through the relay. | | | | |
-| **Box on Wi-Fi** | Not supported: connect the box by Ethernet | | | | |
-| **Home only** (remote access off) | Yes | No | No | No | No |
+| Router with its own public address, easy | Works | Direct | Usually direct | Relay | Direct |
+| Router with its own public address, strict | Works | Usually direct | Relay | Relay | Direct if the box can open a port; otherwise WebRTC, then the relay |
+| Shared address (CGNAT), easy | Works | Direct | Usually direct | Relay | WebRTC, then the relay |
+| Shared address (CGNAT), strict | Works | Usually direct | Relay | Relay | WebRTC, then the relay |
+| Home and device both have IPv6 | Works | Usually direct | Usually direct | Relay | Direct for guests with IPv6 |
+| You forwarded port 443 to the box | Works | Direct | Direct | Direct, over TCP 443 | Direct |
+| Remote access switched off | Works | No | No | No | No |
+| Box on Wi-Fi | Not supported. Use a cable. | | | | |
 
-- **At home:** a browser can use the box normally. **Away from home:** a
-  browser can open guest share links, but family members need the phone or
-  desktop app for other box features.
-- **Guest links** connect directly when the box can open port 443 on the
-  router, through automatic mapping or an IPv6 rule, and only while a share
-  link is active. Otherwise, the browser and box try WebRTC hole punching.
-  If that fails, the relay carries the encrypted, read-only share session as
-  the last option.
-- **Background backups away from home:** Android is designed to back up in
-  the background using the link. iOS background uploads are handed to the
-  system, which cannot use the link directly, so uploads may wait until the
-  app is open or the phone is back on home Wi-Fi. iOS may grant short
-  background windows that allow an upload; this still needs testing.
-- **Port forwarding** helps only if the home router has a public IPv4 address.
-  It cannot bypass the provider's CGNAT. Setup is designed to use an outside
-  connectivity check to explain which case applies and show router-specific
-  steps when a port forward can help.
+**Relay** means it works, a bit slower, through our relay. **Direct** means
+your data goes straight between the device and the box.
 
-## By the guest's network
+A port forward can't help if your provider shares your address (CGNAT). The
+fix there is IPv6, or asking your provider for your own address. The app still
+works through the relay either way.
 
-Guests do not need to accept incoming connections. A direct link to a box
-with an open path can therefore work from cellular data, home Wi-Fi, hotels
-or offices. The guest's network matters more when the box has no open path
-or only an IPv6 path:
+## Guests
 
-- **Direct link to an open-path box:** works from cellular data too. Cellular CGNAT affects only connections coming *in* to the guest, not this one going out.
-- **IPv6-only box path:** the guest's network must have IPv6, and many hotels and offices don't.
-- **Browser hole-punch route** (box with no open path): works if at least one end is not symmetric NAT. A guest on cellular is behind CGNAT too, so the chance of both ends being strict is higher than for a guest on home Wi-Fi.
-- **Relay, the last option:** works when direct paths fail, provided the
-  guest's network lets the browser reach the relay. The relay
-  forwards encrypted traffic and adds latency and bandwidth cost.
+Guests never have to accept connections, only make them. So when your home
+can open a door for them, they can come in from anywhere: mobile data, hotel
+Wi-Fi, an office.
 
-## Never works
+When your home can't open a door:
+- **If your home has IPv6,** guests who also have IPv6 come straight in. Many
+  hotels and offices don't have it.
+- **Otherwise their browser tries WebRTC.** That works if at least one of the
+  two networks is an easy one. A guest on mobile data is more likely to be on
+  a strict one.
+- **If that fails, the relay carries the album.** That works anywhere the
+  guest can browse normally.
 
-Some networks cannot use Connect: networks that allow traffic only to
-approved sites, HTTPS-inspecting proxies (the pinned keys deliberately
-reject them), and captive portals before sign-in. Hole punching also usually
-fails when both ends use symmetric NAT, though the more advanced attempts
-may help in some cases; the connection then stays on the relay. If the
-relay is switched off or blocked, those failures prevent remote access.
+When you make a link, the box tells you what to expect: "Guests can open this
+link", "Guests may have trouble on some networks", or "Guests can't open links
+from this home".
 
-Family members on these networks need an allowed relay path or an open path
-to the box for the apps' TCP 443 fallback. Guests may not be able to open a
-shared link if both direct and relay paths are blocked; the owner is warned
-about this when creating it.
+## Backups away from home
+
+On Android, the app can back up in the background over the link, once the
+connection is direct.
+
+On an iPhone, background uploads are handed to iOS, which can't use the link.
+So backups may wait until you open the app or get home. iOS sometimes gives
+apps a short window in the background; we still need to test how far that
+gets.
+
+## Where it won't work
+
+- Networks that only allow approved websites.
+- Networks that open and inspect encrypted traffic. The app refuses them on
+  purpose, because it checks the box's key.
+- Hotel or café Wi-Fi before you've signed in to it.
+- Any network that blocks our relay, when nothing direct works either. The
+  same happens if you've switched the relay off.
+
+For guests, the page explains when an album can't be opened from their
+network, and you're warned when you make the link.

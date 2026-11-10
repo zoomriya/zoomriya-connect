@@ -1,104 +1,94 @@
 # ZOOMRIYA Connect
 
-ZOOMRIYA Connect is designed to let you reach your home box from your phone
-or laptop, and to let guests open albums you share with them. Paired devices
-start each connection through a relay, so it opens at once, then move to a
-direct path to the box as soon as one works, usually within seconds. If no
-direct path works, the relay keeps carrying the connection, so no router setup
-is ever needed.
+ZOOMRIYA Connect lets your family reach your ZOOMRIYA box from anywhere: on
+the bus, at work, on holiday. It also lets you share an album with friends who
+just open a link in their browser.
 
-Family data is encrypted end to end between the paired device and the box.
-The relay is run by ZOOMRIYA or by the family, never a third party, and
-forwards that data without being able to read it.
+You don't set anything up on your router, and the box is never put on the open
+internet. Everything between your phone and the box is encrypted, and only
+devices you've paired can get in.
 
-**Status:** early development. The design is in place, but the code is still
-a skeleton. The features described here are not yet available.
+> **Early days.** Most of this isn't built yet. These pages describe what
+> we're building and why, so you can follow along and tell us where we're
+> wrong.
 
-The design uses [iroh](https://github.com/n0-computer/iroh) for connections
-between family devices, the way iroh is meant to be used: each connection
-starts on a relay, which also passes the hole-punching signals, and moves to a
-direct path when one works. Only our relays are used, never iroh's public
-ones. Guests use WebRTC from their browser: direct first, with a relay as the
-last option.
+![Phones and laptops connect to the box through ZOOMRIYA's relay, then switch to a direct path when one works. Guests open shared albums directly when they can, with the relay as the last resort. The control plane only helps devices find the box; it never sees your data.](docs/data-flow.svg)
 
-![Phones and laptops start each connection through the relay, then move to a direct path to the box when one works; the relay keeps carrying encrypted traffic only if none does. Guests open read-only album shares directly, with a relay as the last option. The control plane handles DNS and address records; the relay forwards ciphertext without reading it.](docs/data-flow.svg)
+## How it works, in short
 
-## What Connect is designed to do
+**For the family.** You pair your phone with the box once, at home, by
+scanning a QR code on the box's screen. After that, the ZOOMRIYA app on your
+phone or laptop can reach the box wherever you are.
 
-1. **Relay first, then direct.** Each connection from the phone or desktop
-   app starts through the relay, so it opens at once, then moves to a direct
-   path (the home network, IPv6 or hole punching) as soon as one works. Only
-   when none works does the relay keep carrying it. Each paired device and
-   the box check each other's keys.
-2. **Laptops can use their regular browser.** A desktop app for Linux,
-   Windows and macOS provides the connection, so a browser can open the box's
-   own HTTPS address.
-3. **The box's sign-in and apps stay private.** They are not served directly
-   to the public internet. At home, any browser can open the box's address,
-   such as `https://maplehouse.zoomriya.app`.
-4. **Guests can view shared albums in a browser.** They do not need an
-   account or an app, and access is read-only.
-5. **Router setup is normally automatic.** When a guest link needs an
-   internet-facing route, the box tries to open one itself if the router
-   allows it.
-6. **Some networks need extra setup or may not work.** For example, an
-   internet provider may share one public address among many homes. Advanced
-   users may be able to configure a port forward, but it cannot bypass every
-   provider restriction.
-7. **The relay is ZOOMRIYA's or the family's.** Never a third party's. It
-   admits only boxes and their paired devices and forwards encrypted traffic.
-   It can see connection metadata such as IP addresses, timing and volume,
-   but not the content. Backups wait for a direct path instead of using it.
-   The operator and any bandwidth or retention limits are disclosed.
+When you open the app, it connects through our relay first, so it's quick.
+Behind the scenes, your phone and the box then try to reach each other
+directly, and usually manage within a few seconds. Once they do, your data
+goes straight between them and the relay steps aside. If they can't, say on a
+strict office network, the relay keeps passing the data along. It's still
+encrypted, so the relay can't read it.
 
-The box must connect to the router over Ethernet, not Wi-Fi. Setup checks the
-connection and explains this requirement.
+This is how [iroh](https://github.com/n0-computer/iroh), the open-source
+library we build on, works. We run our own relays instead of using iroh's
+public ones. Families who want to can run their own.
 
-## How it works
+**For guests.** You make a share link for an album and send it. Your friend
+opens it in any browser, with no app and no account, and can look at that
+album and nothing else. The box opens a door on your router only while a share
+link is live, and that door leads only to the album viewer.
 
-For family members, the phone or desktop app pairs with the box. Each
-connection starts through the relay and moves to a direct path when one
-works; the control plane's signed address records tell the app which relay
-the box uses. Family traffic is encrypted end to end and the box's sign-in page and apps are not
-exposed directly to the internet. Connect does not provide access to other
-devices on the home network.
+**At home.** Any browser on your home network opens the box at its own address,
+such as `https://maplehouse.zoomriya.app`, with a proper padlock.
 
-Guests use a separate, read-only route to the albums selected by the owner.
-The box opens an internet-facing route only while a share link is active;
-when that is not possible, the guest's browser tries WebRTC hole punching.
-If direct paths still fail, a WebRTC relay can forward the encrypted share
-traffic as the last option. The relay can carry only the share session, not
-the box's dashboard or other apps.
+![The order in which connections are tried. Family devices start on the relay and try six direct paths at once; the first that works takes over. Guests try the box directly, then a browser-to-box connection, then the relay.](docs/paths.svg)
 
-For the network details and connection diagrams, see [How it works](docs/how-it-works.md).
+## What you need
 
-![Family devices start each connection through the relay, which passes the hole-punching signals; paths 1–6 are tried at once and the first that works takes over. Guests load a page from share.zoomriya.net, then try the box directly or by WebRTC hole punching, with a relay as the last option for the read-only album session.](docs/paths.svg)
+- **The box plugged into your router with a cable.** Wi-Fi isn't supported for
+  the box itself. Setup checks this.
+- **The ZOOMRIYA app** on each phone, and the desktop app on laptops if you want
+  to use the box in your normal browser away from home.
+- Nothing on the router, in most homes.
 
 ## Where it works
 
-- **At home,** always, from any browser.
-- **Away from home, with the app:** designed to work on most networks without
-  setup: on any network that lets the app reach the relay over HTTPS. Most
-  connections then move to a direct path; behind strict NAT or blocked UDP
-  they stay on the relay.
-- **For guests:** a direct connection is preferred when the box can open a
-  route through its router. Otherwise, the browser tries WebRTC and, as the
-  last option, a relay. The owner is told when a share will use a relay.
+At home, always. Away from home, the app works on almost any network that
+lets you browse the web, because the relay is reached over the same kind of
+connection as a website. A few networks block everything except approved
+sites; those won't work.
 
-The full tables for different home and guest networks are in
-[Where it works](docs/where-it-works.md).
+Guests can usually open a link. When your home can't accept a direct
+connection and their network is strict too, the relay carries the album. If
+even that is blocked, the page tells them so, and you're warned about this
+when you make the link.
+
+The details, network by network, are in [Where it works](docs/where-it-works.md).
+
+## Privacy
+
+- Your photos, messages and files travel encrypted between your device and
+  your box. Nobody in the middle can read them: not your internet provider,
+  not the relay, not us.
+- The relay sees that a device is talking to a box, from which addresses,
+  when, and how much. It doesn't see what. We'll say who runs it and what it
+  keeps. You can switch it off, or run your own.
+- Photo and video backups wait for a direct connection. They never go through
+  our relay. On a relay of your own, a switch lets them.
+- The box's sign-in page and apps are never on the open internet.
+
+What each part could and couldn't do if it were broken into is in the
+[security model](docs/security.md).
 
 ## Read more
 
-| Document | What's in it |
+| Page | What's in it |
 |---|---|
-| [How it works](docs/how-it-works.md) | Connection mechanisms, data paths, box names, diagrams, and components |
-| [Where it works](docs/where-it-works.md) | Home internet types, what works on each setup, guests' networks, what never works |
-| [Desktop app](docs/desktop.md) | The local proxy and PAC file, autostart, key storage, packaging |
-| [Sharing, names and certificates](docs/sharing-and-names.md) | Guest links, the order of attempts, box names and domains, certificates |
-| [Security model](docs/security.md) | What each party can and can't do if compromised |
-| [Plan and layout](docs/plan.md) | Build phases and the code layout |
-| [Testing at scale](docs/testing.md) | How we test 1,000 families over two months before release |
+| [How it works](docs/how-it-works.md) | Connections step by step, the box's name, and the parts of the system |
+| [Where it works](docs/where-it-works.md) | Home internet types, what works on each, guests' networks, what never works |
+| [Desktop app](docs/desktop.md) | How laptops use the box in a normal browser |
+| [Sharing, names and certificates](docs/sharing-and-names.md) | Guest links, box names, your own domain, your own server, certificates |
+| [Security model](docs/security.md) | What each part could and couldn't do if it were compromised |
+| [Plan and layout](docs/plan.md) | What we're building in which order, and where the code goes |
+| [Testing at scale](docs/testing.md) | How we'll test 1,000 families over two months before release |
 
 ## Building
 
@@ -107,12 +97,16 @@ cargo build
 cargo test
 ```
 
-The Rust version is pinned in `rust-toolchain.toml`; `rustup` picks it up. Dependencies are checked with `cargo deny check` against the licence policy in `deny.toml`.
+The Rust version is pinned in `rust-toolchain.toml`; `rustup` picks it up.
+`cargo deny check` checks dependencies against the licence policy in
+`deny.toml`.
 
 ## Security
 
-Please report vulnerabilities privately, as described in [SECURITY.md](SECURITY.md), never in a public issue.
+Please report vulnerabilities privately, as described in
+[SECURITY.md](SECURITY.md), never in a public issue.
 
 ## Licence
 
-[AGPL-3.0-only](LICENSE-AGPL-3.0). The ZOOMRIYA name and logo are not covered by the licence: see [TRADEMARKS.md](TRADEMARKS.md).
+[AGPL-3.0-only](LICENSE-AGPL-3.0). The ZOOMRIYA name and logo are not covered by
+the licence: see [TRADEMARKS.md](TRADEMARKS.md).

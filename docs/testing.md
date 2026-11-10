@@ -2,180 +2,176 @@
 
 Part of [ZOOMRIYA Connect](../README.md).
 
-Before release, ZOOMRIYA Connect is tested with **1,000 families over two
-months**. The test should show that relay-first connections work the way iroh
-intends, and what our relays carry and cost. It runs in three stages that share
-one description of the families:
+Before release, we test ZOOMRIYA Connect with 1,000 pretend families over two
+months. We want to know three things:
 
-| Stage | What runs | Time | Answers |
+- Do connections open quickly and go direct, the way iroh says they should?
+- What does our relay carry, and what does it cost?
+- What breaks over time?
+
+The test has three stages. All three use the same pretend families.
+
+| Stage | What runs | How long | What it tells us |
 |---|---|---|---|
-| 1. Traffic model | A simulation, no network | 60 days in about a minute | What the relay carries and costs; which assumptions matter most |
-| 2. Network lab | Real iroh endpoints, relays and control plane, behind emulated routers on one machine | 60 days of family life in 3 days | Whether connections open, go direct and recover; how the relay holds up |
-| 3. Two-month soak | The same lab at real speed against relays on the internet, plus real boxes and phones | 60 days | Slow faults: leaks, renewals, upgrades, address changes, real networks |
+| 1. Traffic model | A simulation, no real network | Two months in a minute | What the relay carries and costs, and which guesses matter most |
+| 2. Network lab | Real ZOOMRIYA Connect code behind pretend routers, on one machine | Two months of family life in 3 days | Whether connections open, go direct and recover, and how the relay copes |
+| 3. Two-month soak | The same lab at normal speed, against real relays on the internet, plus real boxes and phones | Two months | Slow problems: leaks, certificate renewals, upgrades, real networks |
 
-## The families
+## The pretend families
 
-One profile drives all three stages, generated from a fixed seed so every run
-can be repeated. These starting figures are guesses; step 8 of the
-[plan](plan.md) replaces them with what real homes report.
+The numbers below are our best guesses. Once real homes use ZOOMRIYA Connect,
+their (anonymous, opt-in) reports replace them. Every run starts from a fixed
+seed, so it can be repeated exactly.
 
-**Households**
-- 1,000 boxes, 2 to 6 members each (3.5 on average), and 1.5 paired devices
-  per member: about 5,000 phones and laptops.
+**Who they are.** 1,000 families, each with a box. 2 to 6 people per family
+(3.5 on average), with 1.5 phones or laptops each: about 5,000 devices.
 
-**Home networks**
+**Their home internet.**
 
-| Home network | Share |
+| Home internet | Share |
 |---|---|
-| Router with easy NAT | 55% |
-| Router with symmetric NAT | 10% |
-| Provider's CGNAT, easy | 15% |
-| Provider's CGNAT, symmetric | 10% |
-| Double NAT (provider gateway and own router) | 10% |
+| Router, easy | 55% |
+| Router, strict | 10% |
+| Shared address (CGNAT), easy | 15% |
+| Shared address (CGNAT), strict | 10% |
+| Two routers (the provider's and their own) | 10% |
 
-- On top of the table, 40% of homes also have working IPv6.
+40% of homes also have IPv6.
 
-**Away from home**
-- Mobile data (CGNAT, often symmetric, often IPv6): 60% of time away.
-- Someone else's Wi-Fi: 30%.
-- A network that blocks UDP (office, hotel): 10%.
+**Where they are when they're out.** On mobile data 60% of the time, on
+someone else's Wi-Fi 30%, and on a network that blocks UDP (an office or
+hotel) 10%.
 
-**A day**
-- Members are away 9 hours on weekdays and less at weekends.
-- While away, each member uses:
-  - 20 chat bursts
-  - a tracker report every 5 minutes while moving
-  - two photo-browsing sessions of 20 MB
-  - a 200 MB video every fifth day
-- Each member takes 15 photos (3 MB each) and one video (60 MB) a day. Their
-  backups wait for a direct path.
-- Each family shares 2 albums a month with 5 guests each, at 300 MB per guest.
+**A typical day.** People are out 9 hours on weekdays, less at weekends. While
+out, each person:
+- sends about 20 bursts of chat messages
+- reports their location every 5 minutes while moving
+- browses photos twice (20 MB each time)
+- watches a 200 MB video every fifth day
 
-**Events**
-- The provider changes the home's public address every 1 to 14 days.
-- Phones switch between Wi-Fi and mobile data 4 times a day.
-- Boxes restart weekly for updates.
-- A relay restarts during the run.
-- iroh gets one minor upgrade mid-run.
+Each person also takes 15 photos (3 MB each) and one video (60 MB) a day. Those
+are backed up once the connection is direct.
 
-## Stage 1: traffic model
+Each family shares 2 albums a month, with 5 guests each, at 300 MB per guest.
 
-A discrete-event simulation over 60 days. It follows each family's day and,
-for each connection, the network at each end and whether it goes direct. It
-reports:
+**Things that go wrong.** The internet provider changes the home's address
+every 1 to 14 days. Phones switch between Wi-Fi and mobile data 4 times a
+day. Boxes restart weekly for updates. A relay restarts during the test. iroh
+gets one update halfway through.
 
-- the relay's bytes per day and per month, and the busiest hour
-- how many endpoints hold a relay connection at once, and how many
-  connections stay on it
-- the share of family bytes that went direct
-- each family's relay use: the spread, and the top 1%
-- the monthly cost on our relay servers
+## Stage 1: the traffic model
 
-It also shows what changes the result most: 5%, 10% or 25% of connections
-staying on the relay; backups allowed on the relay or not; and per-family
-monthly limits of 20, 50 or 100 GB (the limit is still to be decided). It runs
-in CI and is built first; its figures are replaced by the lab's as they come
-in.
+A simulation that follows every family, day by day, for two months. For each
+person it picks where they are, which network they're on, and whether their
+connection goes direct. Then it adds up what they use.
 
-## Stage 2: network lab
+It reports:
+- how much the relay carries each day and each month, and in its busiest hour
+- how many devices are connected to the relay at once
+- how much of the family's data went direct
+- how much each family used the relay, including the heaviest 1%
+- what the relay servers cost each month
 
-Real ZOOMRIYA Connect endpoints on one large machine. Linux network
-namespaces stand in for homes and networks:
+It also shows what changes the answer most:
+- whether 5%, 10% or 25% of connections stay on the relay
+- whether backups are allowed on the relay
+- a monthly relay limit per family of 20, 50 or 100 GB (not decided yet)
 
-- **Each home** is a namespace with the box's endpoint behind an nftables NAT
-  of its type:
-  - easy NAT: `masquerade`
-  - symmetric NAT: `masquerade random,fully-random`
-  - CGNAT: a second, shared NAT namespace in front of many homes
-- **Away networks** are shared namespaces: a mobile network holds hundreds of
-  phones behind one symmetric CGNAT, as real ones do. The UDP-blocked network
-  drops all UDP.
-- **The internet** is a namespace with two relays (`iroh-relay`, standing in
-  for two regions), our `iroh-dns-server` and the control plane. `tc netem`
-  adds 20 to 150 ms of delay and up to 2% packet loss.
+It's in [`sim/model`](../sim/model) and runs with every change, in CI:
+`cargo run --release -p zoomriya-sim-model`.
 
-**Time is compressed 20 times:** the families' days from stage 1 are replayed
-so 60 days take 3 days. Only daily life is compressed. Keepalives, NAT
-timeouts and reconnects run at real speed, because they are what fails in
-practice. Transfers keep their real sizes. That's about 30 Mbit/s through the
-relays on average, which one machine handles.
+## Stage 2: the network lab
 
-**Measured**
-- time until the first byte (through the relay) and until the connection is
-  direct
-- connections still on the relay after 10 seconds, and connections that never
-  open
-- the relays' processor, memory, connections and bytes (`iroh-relay` exposes
-  metrics on port 9090)
-- the address-record server's queries
-- the control plane's admission checks: how many and how fast
-- the time to recover after a home's address changes or a relay restarts
-- stalls of more than 2 seconds that a person would notice
+Real ZOOMRIYA Connect code on one big machine. Linux network namespaces, which
+are like small separate networks inside one computer, stand in for homes and
+networks:
 
-## Stage 3: two-month soak
+- **Each home** is its own namespace, with the box behind a pretend router of
+  the right kind: easy, strict, or behind a provider's shared address.
+- **Places people go** are shared namespaces. A pretend mobile network holds
+  hundreds of phones behind one strict router, as real ones do. The pretend
+  office network blocks UDP.
+- **The internet** is one more namespace, holding two relays (as if in two
+  regions), our address server and our control plane. We add 20 to 150 ms of
+  delay and a little packet loss.
 
-The lab harness runs at real speed for 60 days. The families run in
-namespaces on a few load machines and reach staging relays over the real
-internet. Real participants join the same staging:
+**Two months in three days.** We replay the families' days 20 times faster.
+Only the daily life is sped up. Keep-alives, router timeouts and reconnects
+run at normal speed, because those are what really break. Uploads and
+downloads keep their real sizes.
 
-- 5 to 10 boxes in team members' homes
-- 20 or more phones on different mobile providers
+**What we measure:**
+- how long until the first data arrives, and until the connection is direct
+- connections still on the relay after 10 seconds, and ones that never open
+- the relays' processor, memory, connections and data (`iroh-relay` reports
+  these on port 9090)
+- how busy the address server and the control plane are
+- how long reconnecting takes after a home's address changes or a relay
+  restarts
+- any pause longer than 2 seconds that a person would notice
+
+## Stage 3: the two-month soak
+
+The same lab, at normal speed, for 60 days. The pretend families run on a few
+machines and reach our test relays over the real internet. Real people join
+in too:
+- 5 to 10 boxes in the team's homes
+- 20 or more phones on different mobile networks
 - laptops on office and hotel networks
 
-Two months is the minimum because some faults only show up slowly:
-
-- memory or connection leaks
-- the boxes' certificate renewals, around day 60 of each 90-day certificate
-- an iroh release
-- provider address changes
+Why two months? Some problems only show up slowly:
+- memory or connections slowly piling up
+- the boxes renewing their certificates (around day 60 of 90)
+- an iroh update
+- internet providers changing addresses
 - server maintenance
 
-**Setup and cost (DigitalOcean, about $230 a month, so about $460 for the
-run)**
+**What it costs** on DigitalOcean (November 2026 prices; check before
+starting):
 
-| Server | Cost a month |
+| Server | Each, per month |
 |---|---|
-| Two relays in two regions | $12 each |
-| One control plane and address-record server | $12 |
-| Four load machines with 8 processors each | about $48 each |
+| Two relays, in two regions | $12 |
+| One control plane and address server | $12 |
+| Four machines running the pretend families (8 processors each) | about $48 |
 
-The traffic fits in the servers' included allowance. Prices are from
-DigitalOcean's pricing as of 2026-11; check before starting.
+That's about $230 a month, so about $460 for the whole test. The traffic fits
+in what the servers include.
 
-Metrics go to a dashboard, with an alert for each pass mark below.
+Everything goes on one dashboard, with an alert for each goal below.
 
-## Pass marks
+## The goals
 
-Proposed; agree them before stage 2.
+These are suggestions. We'll agree them before stage 2.
 
-- **Opening:** at least 99.5% of connections from networks that can reach the
-  relay open within 3 seconds; the 95th percentile time to the first byte is
-  under 1 second.
-- **Going direct:** at least 85% of family bytes, backups apart, travel
-  direct. The share of families that stay on the relay is within 25% of the
+- **Quick to open:** 99.5% of connections open within 3 seconds, from any
+  network that can reach the relay. Most see their first data in under a
+  second.
+- **Mostly direct:** at least 85% of family data, not counting backups, goes
+  direct. The number of families stuck on the relay is within 25% of what the
+  model predicted.
+- **Backups:** none ever goes through our relay.
+- **Recovers fast:** after a home's address changes or a relay restarts,
+  connections are back within 30 seconds.
+- **The relay copes:** under half its processor at the busiest hour. Memory
+  stays flat over two months. Its traffic and cost are within 25% of the
   model.
-- **Backups:** none is ever sent through the relay.
-- **Recovery:** after a home's address changes or a relay restarts,
-  connections recover within 30 seconds (95th percentile).
-- **The relay:** under 50% of the processor at the busiest hour. Memory is
-  flat over the 60 days (less than 10% growth). Monthly traffic and cost are
-  within 25% of the model.
-- **Only our servers:** a packet capture shows no traffic to iroh's public
-  relays or address servers.
-- **Admission:** every unpaired endpoint is refused by the relay.
+- **Only our servers:** recorded network traffic shows nothing going to iroh's
+  public servers.
+- **Strangers stay out:** the relay refuses every unpaired device.
 - **Certificates:** every box renews its certificate.
 
-## What it can't show
+## What this can't tell us
 
-The real mix of providers and NAT types. The lab only checks behaviour under
-the mix we guessed. Real figures come from step 8 of the plan: anonymous,
-opt-in connection reports from the first homes.
+Which networks real families actually have. The lab only tests the mix we
+guessed. Real numbers come from the first homes, through anonymous, opt-in
+connection reports.
 
-## Layout
+## Where the code goes
 
 ```
 sim/
-  model/   the families and the traffic model (stage 1), run in CI
-  lab/     namespaces, NAT types, the driver that replays the families (stages 2 and 3)
-  soak/    staging servers, load machines, the dashboard and alerts (stage 3)
+  model/   the pretend families and the traffic model (stage 1), runs in CI
+  lab/     the namespaces, the pretend routers, and the code that plays out the families' days (stages 2 and 3)
+  soak/    the test servers, the family machines, the dashboard and alerts (stage 3)
 ```
