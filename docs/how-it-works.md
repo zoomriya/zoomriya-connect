@@ -25,14 +25,15 @@ inside the ZOOMRIYA app while it runs, and never leaves the phone.
 When you pair a phone, the box also gives it a pass: a few lines that say
 "this phone's key belongs to this box, until such-and-such a date", signed
 with the box's key. The box is the only one that can make a pass for itself.
-Not our servers, not the relay.
+Not our control plane, not the relay.
 
 ![How passes work, in four steps. 1: at home, you pair your phone, and the box gives it a pass signed by the box. 2: away from home, the phone shows its pass to the relay, which checks it by itself and lets the phone through to that box only; the box checks its own list and lets it in. 3: a stranger, or a copied pass, is turned away. 4: when you remove a lost phone, the box tells the relay straight away, and both turn it away. Passes last 30 days and renew by themselves.](passes.svg)
 
-The relay checks the pass, not our servers. So:
-- **Fewer questions to our servers.** The relay doesn't ask our control plane
-  about each device, so our servers don't learn which devices belong to your
-  box or when they connect.
+The relay checks the pass by itself, without asking our control plane. So:
+- **The control plane learns less.** It's never asked about your devices, so
+  it doesn't learn which ones belong to your box or when they connect. The
+  relay still sees which devices connect to your box, because it passes
+  their traffic along.
 - **It keeps working if our control plane is down.** The relay can check a
   pass on its own.
 - **Your own relay needs only your box.** See

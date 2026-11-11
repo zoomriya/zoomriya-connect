@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Generated: the steps play in turn, then loop. With reduced motion, the whole diagram shows at once. -->
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="880" viewBox="0 0 900 880" role="img" aria-label="How passes work, in four steps. 1: at home, you pair your phone, and the box gives it a pass signed by the box, saying this phone belongs to this box until a date. 2: away from home, the phone shows its pass to the relay. The relay checks it was signed by this box, is still in date and hasn't been removed, without asking ZOOMRIYA's servers, then lets the phone through to that box only. The box checks its own list and lets it in. 3: a stranger with no pass, or a copied pass, is turned away by the relay. 4: when you remove a lost phone, the box tells the relay straight away, and both turn it away. Passes last 30 days and renew by themselves each time the phone reaches the box.">
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="880" viewBox="0 0 900 880" role="img" aria-label="How passes work, in four steps. 1: at home, you pair your phone, and the box gives it a pass signed by the box, saying this phone belongs to this box until a date. 2: away from home, the phone shows its pass to the relay. The relay checks it was signed by this box, is still in date and hasn't been removed, without asking our control plane, then lets the phone through to that box only. The box checks its own list and lets it in. 3: a stranger with no pass, or a copied pass, is turned away by the relay. 4: when you remove a lost phone, the box tells the relay straight away, and both turn it away. Passes last 30 days and renew by themselves each time the phone reaches the box.">
 <style>
 svg{--surface:#fff;--zone:#f1f5f6;--fg:#15232a;--muted:#5b6c75;--line:#c3ced4;--data:#087f6e;--setup:#886516;--setup-soft:#fbf4df;--stop:#b3261e}
 @media(prefers-color-scheme:dark){svg{--surface:#162026;--zone:#121b20;--fg:#e2eaed;--muted:#93a5ad;--line:#33464f;--data:#56c5ae;--setup:#d8b45c;--setup-soft:#302a19;--stop:#f08c80}}
@@ -95,7 +95,7 @@ text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-
 <circle cx="668" cy="370" r="7" class="dot-data token a12"/>
 <g class="a13"><text x="755" y="418" text-anchor="middle" class="small data-text">✓ on my own list?</text>
 <text x="755" y="436" text-anchor="middle" class="small data-text bold">Come in.</text></g>
-<text x="40" y="484" class="small muted a14">The relay checks the pass by itself. It doesn't ask ZOOMRIYA's servers who your devices are.</text>
+<text x="40" y="484" class="small muted a14">The relay checks the pass by itself. It doesn't need to look your devices up anywhere else.</text>
 <g class="a15">
 <rect x="20" y="514" width="860" height="130" rx="12" class="zone"/>
 <circle cx="46" cy="542" r="12" class="num"/><text x="46" y="547" text-anchor="middle" class="num-text">3</text>
