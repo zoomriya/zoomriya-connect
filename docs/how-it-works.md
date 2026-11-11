@@ -40,7 +40,8 @@ the connection uses, and the phone makes a new everyday key every few weeks.
    open to the relay all the time. It also tells the control plane which
    relay it uses. The box signs this record, so nobody can send phones to the
    wrong place. Like iroh, the record never holds your home's internet
-   address.
+   address, unless you switch the relay off (see
+   [the relay](security.md#the-relay)).
 2. **You open the app.** The phone gets the box's record from the control
    plane. It remembers the record, so it can still find the box if the
    control plane is down.

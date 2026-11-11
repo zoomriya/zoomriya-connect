@@ -58,7 +58,7 @@ made.
 | **Keeps the list of paired devices** and checks every connection, however it came in | A pass or a server can never let a device in |
 | **Hands out and renews passes,** and tells the relay at once when a device is removed | The relay turns removed devices away too |
 | **Stays connected to the relay** | The box can be reached at any moment |
-| **Publishes its signed address record,** naming only its relay | Nobody can send phones to the wrong place, and the home's internet address isn't published |
+| **Publishes its signed address record,** naming only its relay. With the relay switched off, its own addresses instead, and Box Desktop says so | Nobody can send phones to the wrong place, and the home's internet address isn't published unless the family chooses no relay |
 | **Tells paired devices its addresses** over the connection, and again when they change | Phones can go direct from the start next time |
 | **Gets the box's certificate** and watches the public certificate logs | Warns you if anyone else gets one for your box's name |
 | **Opens and closes the guests' door,** and has it checked from outside | Guests get in only while a link is live, never to the sign-in page |
@@ -370,7 +370,7 @@ a link is live.
 | Decision | Instead of | Why it works |
 |---|---|---|
 | **Build on iroh** | Nebula, or a VPN | iroh runs inside the app, so there's no VPN prompt and it works beside a work VPN. Its relay works over HTTPS, so strict networks work too |
-| **The address record names only the relay** | Publishing the box's home and IPv6 addresses | iroh's default. The home's internet address stays private; paired devices learn it from the box itself |
+| **The address record names only the relay** | Publishing the box's home and IPv6 addresses | iroh's default. The home's internet address stays private; paired devices learn it from the box itself. With the relay off, the box publishes its addresses, or phones away would lose it when the home's address changes |
 | **iroh chooses the path; we measure** | Our own path choice | iroh already measures every path and moves to the fastest. Two choosers would fight |
 | **Connection history on the box,** anonymous reports to us only if agreed | A ZOOMRIYA dashboard of every device | Which device needs the relay is the family's business. Our servers never learn your devices |
 | **Try direct and the relay at once** | The relay first, or direct first and the relay after a wait | Direct from the start at home and on IPv6, and no wait behind a difficult router. Hole punching needs the relay anyway |

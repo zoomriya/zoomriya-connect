@@ -41,7 +41,7 @@ order, and where the code goes.
 | **Removed devices:** the box tells the relay at once, and on every reconnect | The relay refuses them too |
 | **Control plane:** tells relays which boxes are registered, never which devices | It doesn't learn your devices |
 | **Admin notes:** the box signs one for each admin's phone. The control plane accepts a name move or "stolen" only with one | Only admins can, and the control plane never keeps a device list |
-| **Finding the box:** our own address server (`iroh-dns-server`). The record names only the box's relay, as iroh does by default, so the home's internet address is never published. Apps keep the last signed record, and the box's own addresses, which the box sends them over the connection | Still works when it's down |
+| **Finding the box:** our own address server (`iroh-dns-server`). The record names only the box's relay, as iroh does by default, so the home's internet address is never published. With the relay switched off, the record holds the box's addresses instead, and Box Desktop says so. Apps keep the last signed record, and the box's own addresses, which the box sends them over the connection | Still works when it's down |
 | **A family's own relay:** learns its box from a one-time code typed into Box Desktop | Families can run their own |
 | **Device keys** in the security chip or key store, usable after the first unlock since the phone started (iOS's "after first unlock"). Backups off our relay | Passes renew in the background while the phone is locked |
 | **Web server:** connectd labels each connection with its device (PROXY protocol v2), on a local socket only connectd can use; TCP 443 never accepts labels. ZOOMRIYA ID locks a person for 15 minutes after 5 wrong passwords | Connections from away would otherwise look like the box, and share one sign-in limit |
@@ -107,6 +107,9 @@ order, and where the code goes.
 | An independent security review | |
 | The second DNS server for `ns2.zoomriya.net` running, at another hosting company | Box names don't depend on one server |
 | Write up [running your own server](sharing-and-names.md#your-own-server) | |
+| [Running the service](operations.md): hourly backups to another company and a monthly restore test, alerts, an on-call rota of at least two, the status page, DNS protected from floods, a schedule for changing our keys | We find out first, and can rebuild |
+| Boxes register again by themselves if their registration is missing, and take a new DNS update key when told | A restore that lost the last hour, or a leaked key, needs nothing from families |
+| Decide how long each server keeps what it sees, and put it on the privacy page | [What our servers keep](operations.md#what-our-servers-keep) |
 
 ### Always
 

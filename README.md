@@ -98,6 +98,7 @@ What each part could and couldn't do if someone broke into it is in the
 | [Sharing, names and certificates](docs/sharing-and-names.md) | Share links, box names, your own domain, your own server, certificates |
 | [Security model](docs/security.md) | What each part could and couldn't do if someone took it over |
 | [Plan and layout](docs/plan.md) | For developers: what we build in which order, and where the code goes |
+| [Running the service](docs/operations.md) | For whoever runs the servers: backups, alerts, being on call, protecting DNS, changing keys |
 | [Testing at scale](docs/testing.md) | For developers: how we'll test 1,000 families over two months before release |
 
 ## Building
