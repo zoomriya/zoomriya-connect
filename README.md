@@ -12,7 +12,7 @@ devices you've paired can get in.
 > we're building and why, so you can follow along and tell us where we're
 > wrong.
 
-![Phones and laptops connect to the box through ZOOMRIYA's relay, then switch to a direct path when one works. Guests open shared albums directly when they can, with the relay as the last resort. The control plane only helps devices find the box; it never sees your data.](docs/data-flow.svg)
+![Phones and laptops try the box directly and through ZOOMRIYA's relay at the same time, and switch to a direct path when one works. Guests open shared albums directly when they can, with the relay as the last resort. The control plane only helps devices find the box; it never sees your data.](docs/data-flow.svg)
 
 ## How it works, in short
 
@@ -20,10 +20,13 @@ devices you've paired can get in.
 scanning a QR code on the box's screen. After that, the ZOOMRIYA app on your
 phone or laptop can reach the box wherever you are.
 
-When you open the app, it connects through our relay first, so it's quick. The
-relay is a server that passes messages along. Behind the scenes, your phone
-and the box then try to reach each other directly, and usually manage within a
-few seconds. Once they do, your data goes straight between them and the relay
+When you open the app, it tries every way to the box at the same moment: your
+home network, IPv6, a port you've forwarded, and our relay, a server that
+passes messages along. Whichever answers first carries your data. At home, or
+when both ends have IPv6, that's usually the direct way, and the relay never
+carries anything. Otherwise the relay answers first, so the app still opens
+quickly, and behind the scenes your phone and the box try to reach each other
+directly. They usually manage within a few seconds. Once they do, the relay
 steps aside. If they can't, say on a strict office network, the relay keeps
 passing your data along. It's encrypted, so the relay can't read it.
 
@@ -45,7 +48,7 @@ else.
 **At home.** Any browser on your home network opens the box at its own
 address, such as `https://maplehouse.zoomriya.app`, with a proper padlock.
 
-![The order in which connections are tried. Family devices start on the relay and try up to five direct paths at once, with a sixth later if tests show it's needed; the first that works takes over. Guests try the box directly, then a browser-to-box connection, then the relay.](docs/paths.svg)
+![The order in which connections are tried. Family devices try the box's known addresses and the relay at the same moment, and the first to answer carries data; hole punching runs through the relay, and a direct path takes over when one works. Guests try the box directly, then a browser-to-box connection, then the relay.](docs/paths.svg)
 
 ## What you need
 

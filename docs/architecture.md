@@ -6,7 +6,7 @@ How ZOOMRIYA Connect is put together: each part, what it knows, and what each
 rule protects against. For a gentler tour, read [How it works](how-it-works.md)
 first. None of this is built yet.
 
-![Phones and laptops with the ZOOMRIYA app reach the box with pinned keys, and connectd hands them to the box's apps. Each connection starts through the relay and moves to a direct path when one works; the relay keeps forwarding encrypted traffic only if none does. Guests open a share link in any browser with nothing installed: over port 443 or by WebRTC hole punching, with a relay as the last option for the encrypted read-only share session. The sign-in page and apps are never on the internet. The control plane only serves the boxes' address records, passes guests' signals, answers DNS and serves the guest page; it carries no family or guest data.](architecture.svg)
+![Phones and laptops with the ZOOMRIYA app reach the box with pinned keys, and connectd hands them to the box's apps. Each connection tries the box's known addresses and the relay at once and moves to a direct path when one works; the relay keeps forwarding encrypted traffic only if none does. Guests open a share link in any browser with nothing installed: over port 443 or by WebRTC hole punching, with a relay as the last option for the encrypted read-only share session. The sign-in page and apps are never on the internet. The control plane only serves the boxes' address records, passes guests' signals, answers DNS and serves the guest page; it carries no family or guest data.](architecture.svg)
 
 ## The idea
 
@@ -32,9 +32,10 @@ by their keys, over QUIC, and survives switching networks.
 | **Holds the device's two keys** (below) | Proves the device is the device |
 | **Pins the box's key** from pairing, and refuses anything else, even with a valid certificate | A look-alike box can't fool it |
 | **Holds the pass** and shows it to the relay | Only paired devices use the relay |
-| **Finds the box** from its signed address record, and keeps the last one | Still works when the control plane is down |
-| **Picks the best path:** starts on the relay, tries every direct path at once, moves to the first that works | Opens fast, then goes direct |
+| **Finds the box** from its signed address record, which names its relay, and keeps the last one. Also remembers the box's own addresses (home, IPv6, the door, a forwarded port), which the box sends it over the connection | Still works when the control plane is down, and the home's address is never published |
+| **Picks the best path:** dials the relay and the box's addresses it already knows at the same moment. The first to answer carries data, and a direct path takes over when one works | Direct from the start when it can be, and never slower than the relay when it can't. A stale address just loses |
 | **Runs a local proxy** for the app's screens, or a laptop's browser | The box's apps work away from home |
+| **Leaves choosing the path to iroh,** and reports what iroh measured to the box (see [Measuring connections](#measuring-connections)) | iroh already picks the fastest path. We only show its numbers |
 
 The link never opens your traffic: the browser's own HTTPS connection to the
 box passes through it unopened, so there are two layers of encryption.
@@ -57,10 +58,12 @@ made.
 | **Keeps the list of paired devices** and checks every connection, however it came in | A pass or a server can never let a device in |
 | **Hands out and renews passes,** and tells the relay at once when a device is removed | The relay turns removed devices away too |
 | **Stays connected to the relay** | The box can be reached at any moment |
-| **Publishes its signed address record** | Nobody can send phones to the wrong place |
+| **Publishes its signed address record,** naming only its relay | Nobody can send phones to the wrong place, and the home's internet address isn't published |
+| **Tells paired devices its addresses** over the connection, and again when they change | Phones can go direct from the start next time |
 | **Gets the box's certificate** and watches the public certificate logs | Warns you if anyone else gets one for your box's name |
 | **Opens and closes the guests' door,** and has it checked from outside | Guests get in only while a link is live, never to the sign-in page |
 | **Hands connections on:** family to the web server through a local socket, guests to the album viewer | Each side reaches only its own service |
+| **Keeps each device's connection history,** on the box only, for Box Desktop | The family can see which device is stuck on the relay. Nobody else can |
 
 | Port | Who reaches it | Where it goes | What it fixes |
 |---|---|---|---|
@@ -98,15 +101,15 @@ The **album viewer** is a separate, small service for guests.
 
 ### The relay (on a server)
 
-iroh's relay, set up for ZOOMRIYA. Families can run their own. Reached over
+Built on iroh's relay library, with our own check for passes. Families can run their own. Reached over
 HTTPS on port 443, like a website, so it works on almost any network.
 
 | What it does | Why |
 |---|---|
-| **Starts every family connection** | The app opens quickly, before a direct path is found |
-| **Helps hole punching:** tells each side its public address, passes "reach out now" | Direct paths through home routers |
+| **Is tried alongside the direct paths** | When nothing direct answers at once, the app still opens quickly |
+| **Helps hole punching:** tells each side its public address, passes "reach out now" | Direct paths through home routers. Hole punching can't happen without it |
 | **Carries data when nothing direct works,** still end-to-end encrypted | Strict networks still work |
-| **Lets in only registered boxes and devices with a pass,** each only to its own box | Strangers can't use it |
+| **Lets in only registered boxes and devices with a pass,** each only to its own box. It reads the pass itself as each device connects, and drops a removed device's connections at once | Strangers can't use it |
 | **Keeps backups off** our relays | Big uploads wait for a direct path. A family's own relay can allow them |
 | **Carries guests' albums as a last resort** (TURN) | Guests on strict networks |
 
@@ -201,17 +204,55 @@ fetches the album from the box. The album never passes through it.
 
 ### Connecting away from home
 
-![How your phone connects to the box, step by step: the box stays in touch with the relay; the app asks which relay the box uses, or remembers it; it shows its pass and connects through the relay at once; the relay tells each side where the other is and both reach out together; usually within seconds the direct path takes over. If nothing direct works, the relay keeps passing the data along, still encrypted.](connecting.svg)
+![How your phone connects to the box, step by step: the box stays in touch with the relay and publishes a signed record naming that relay; the app gets that record, or remembers it; it tries the relay and the box's addresses it already knows at the same moment, and the first to answer carries your data; if the relay answered first, it tells each side where the other is and both reach out together; usually within seconds the direct path takes over. If nothing direct works, the relay keeps passing the data along, still encrypted.](connecting.svg)
 
 | Step | What happens |
 |---|---|
 | 1 | The app gets the box's address record, or uses the one it remembers, and checks the box's signature |
-| 2 | It shows its pass to the relay, which checks the signature, dates and removed list, and connects it to that box only |
-| 3 | Phone and box connect through the relay, each checking the other's key. The box checks its list. The app is in use |
-| 4 | Both try every direct path at once: home network, IPv6, hole punching, the door, a forwarded port. The first that works takes over |
+| 2 | At the same moment, it dials the relay and the box's addresses it already knows: found on the home network, or remembered from the last connection (home, IPv6, the door, a forwarded port). To the relay, it shows its pass. The relay checks the signature, dates and removed list, and connects it to that box only |
+| 3 | The first to answer carries data. Phone and box check each other's key on every path, and the box checks its list. The app is in use |
+| 4 | If the relay answered first, it passes the hole-punching messages. The first direct path that works takes over |
 | 5 | With under three weeks left on the pass, the app makes a new link key signed by the device key, and the box sends a new pass. The old link key stops working |
 
-![Family devices start on the relay and try up to five direct paths at once, with a sixth later if tests show it's needed; the first that works takes over. Guests try the box directly, then WebRTC, then the relay.](paths.svg)
+![Family devices try the box's known addresses and the relay at the same moment, and the first to answer carries data; hole punching runs through the relay, and a direct path takes over when one works. Guests try the box directly, then WebRTC, then the relay.](paths.svg)
+
+### Measuring connections
+
+iroh chooses the path: the lowest round-trip time wins, IPv6 is slightly
+preferred, the relay is the backup, and it only switches when another path is
+clearly better. It keeps measuring while the connection is in use. We don't
+choose paths ourselves. The link reads iroh's measurements and sends the box a
+summary after each connection. When it couldn't connect at all, it keeps a
+note and sends it the next time it does.
+
+| Number | From iroh | What it answers |
+|---|---|---|
+| Time to connect | When the first path works | Does the app open quickly? |
+| Time to direct | When the first direct path is chosen | How long does hole punching take? |
+| Round-trip time, relay and direct | Each path's round-trip time | Is direct really faster here? |
+| Time on the relay | Which path was chosen, and for how long | How much does this device depend on the relay? |
+| Path switches | Path changes | Is the connection unstable? |
+| Data direct and on the relay | Each path's stats | How much did the relay carry? |
+| Hole punching tried and worked | Path events | Which homes or networks block it? |
+| Couldn't connect, and why: no internet, relay unreachable, box offline, pass refused, timed out | The link's own record, sent the next time it connects | Who can't get in, and whose fault it is: the network, the relay, the box or the pass |
+| Dropped, and why: network change, relay restart, box restart, lost signal | Connection close reasons | Do connections break while people use them? |
+
+Beyond iroh, the link and the box also count:
+
+| Number | Counted by | What it answers |
+|---|---|---|
+| Passes that didn't renew in time, and why | The link and the box | Will a phone lose the relay soon? |
+| Couldn't get the address record, so used the remembered one | The link | Is the control plane failing? |
+| Switched to ZOOMRIYA's relay because the family's was down | The link | Is the family's own relay reliable? |
+| Backups waiting for a direct path, and for how long | The link | Are backups stuck on the relay? |
+| Time slowed by the relay's monthly limit | The box, from the relay | Is the limit too low? |
+| Guest links: opened, and over which way (door, WebRTC, relay), or failed | The album viewer, and the guest page's report to the box | Can guests actually see the album? |
+
+| Where the numbers go | Who sees them | What's in them |
+|---|---|---|
+| **The box** | The family, in Box Desktop: each device's history | Everything above, per device |
+| **Us**, only if the family agrees | ZOOMRIYA, to improve ZOOMRIYA Connect | Totals and kinds of network, never which box or device |
+| **The relay** | Whoever runs it | Data per box, which it measures itself for the limits. How many connections it refused, and why (no pass, expired, removed, unknown box), counted per box, never naming the device |
 
 ### Removing a device
 
@@ -307,7 +348,7 @@ Desktop once, and the pairing QR code passes it on.
 | | UDP 443 | Direct connections from paired devices |
 | **The box**, if you forwarded a port yourself | Router's TCP 443 → box's 8443 | Also paired devices, on networks that block UDP. Box Desktop shows the port |
 | **The box**, otherwise | Any UDP port | Hole punching, nothing opened |
-| **The relay** | TCP 443 | Starting and carrying connections |
+| **The relay** | TCP 443 | Hole punching, and carrying connections |
 | **The control plane** | TCP 443, and 53 (DNS) | Address records, setup messages, DNS for box names |
 
 The box opens nothing on your router except the guests' door, and only while
@@ -317,7 +358,7 @@ a link is live.
 
 | What | Rule | What it fixes |
 |---|---|---|
-| **iroh** | One exact version, never forked. The relay checks passes through iroh's access hook; if the hook can't see a pass, the device hands it over first. Upgraded every quarter, tested with the traffic recording | iroh changes often; a fork would need redoing on every update |
+| **iroh** | One exact version, 1.0 or later, never changed. The app sends its pass as the relay's token. Our relay uses iroh's relay library with our own access check, which sees the device's proven key and its pass. Upgraded every quarter, tested with the traffic recording | iroh's relay library has a hook for exactly this, so there's no fork to carry across each upgrade |
 | **Protocol versions** | Servers accept the current version and the one before. Older ones get *please update*, shown in plain words | Old boxes and apps fail clearly, not strangely |
 | **A new minimum version** | Announced in Box Desktop and the app months ahead | Nobody is cut off by surprise |
 | **The box's clock** | Passes are signed only when the clock is set from the internet, and never earlier than the software's date. The relay allows 10 minutes' difference | A wrong clock would sign passes that have already run out |
@@ -329,6 +370,11 @@ a link is live.
 | Decision | Instead of | Why it works |
 |---|---|---|
 | **Build on iroh** | Nebula, or a VPN | iroh runs inside the app, so there's no VPN prompt and it works beside a work VPN. Its relay works over HTTPS, so strict networks work too |
+| **The address record names only the relay** | Publishing the box's home and IPv6 addresses | iroh's default. The home's internet address stays private; paired devices learn it from the box itself |
+| **iroh chooses the path; we measure** | Our own path choice | iroh already measures every path and moves to the fastest. Two choosers would fight |
+| **Connection history on the box,** anonymous reports to us only if agreed | A ZOOMRIYA dashboard of every device | Which device needs the relay is the family's business. Our servers never learn your devices |
+| **Try direct and the relay at once** | The relay first, or direct first and the relay after a wait | Direct from the start at home and on IPv6, and no wait behind a difficult router. Hole punching needs the relay anyway |
+| **Our own access check in iroh's relay library** | Changing iroh's relay, or a separate check service | The library's hook sees the device's proven key and its pass, and can drop a removed device. iroh stays unchanged, so upgrades stay quick |
 | **Two keys per device:** the chip's key signs a link key | One key in the chip | Most chips can't hold iroh's Ed25519 key. The chip's key still decides, and a copied link key dies with the next pass |
 | **Recovery by pairing again at home**, with an admin's phone moving the name | A recovery phrase for ZOOMRIYA Connect | Families keep nothing extra. It takes a minute per phone, which they'd spend on a new box anyway |
 | **The box only trusts its own list** | Trusting the relay or control plane | A server that's broken into still can't let a device in |
@@ -356,7 +402,7 @@ Most of the connection work is iroh's. Ours:
 
 | Part | Why it's ours |
 |---|---|
-| Passes, and the relay's checks | iroh's relay has no passes |
+| Passes, and the relay's access check, plugged into iroh's relay library | iroh's relay has no passes |
 | Signed address records | The box signs with its own key |
 | TCP on the door's port, for families who forward a port | iroh's direct paths are UDP only |
 | The guests' door, album viewer and guest page | Guests use browsers, not iroh |

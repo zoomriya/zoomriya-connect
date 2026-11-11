@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="750" viewBox="0 0 900 750" role="img" aria-label="How your phone connects to the box, step by step. 1: the box keeps a connection open to the relay all the time. 2: you open the app, and it asks the control plane which relay the box uses, or uses what it remembers from last time. 3: the phone shows its pass and connects to the box through the relay, about as quickly as opening a web page. 4: the relay tells each side where the other is, and both reach out at the same moment (hole punching). 5: usually within seconds, a direct path takes over and the relay drops out. If nothing direct works, the relay keeps passing the data along, still encrypted.">
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="860" viewBox="0 0 900 860" role="img" aria-label="How your phone connects to the box, step by step. 1: the box keeps a connection open to the relay all the time, and publishes a signed record naming that relay, never the home's address. 2: you open the app, and it gets that record from the control plane, or uses the one it remembers. 3: it tries the relay and, at the same moment, the box's addresses it already knows, found on the home network or remembered from the last connection, showing its pass to the relay. The first to answer carries your data; at home or over IPv6 that is usually the direct one. 4: if the relay answered first, it tells each side where the other is, and both reach out at the same moment (hole punching). 5: usually within seconds, a direct path takes over and the relay drops out. If nothing direct works, the relay keeps passing the data along, still encrypted.">
 <style>
 svg{--surface:#fff;--zone:#f1f5f6;--fg:#15232a;--muted:#5b6c75;--line:#c3ced4;--data:#087f6e;--data-soft:#e4f4f0;--setup:#886516;--setup-soft:#fbf4df}
 @media(prefers-color-scheme:dark){svg{--surface:#162026;--zone:#121b20;--fg:#e2eaed;--muted:#93a5ad;--line:#33464f;--data:#56c5ae;--data-soft:#172e2a;--setup:#d8b45c;--setup-soft:#302a19}}
@@ -18,7 +18,7 @@ text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-
   <marker id="d" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="var(--data)"/></marker>
   <marker id="s" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="var(--setup)"/></marker>
 </defs>
-<rect width="900" height="750" rx="14" fill="var(--surface)"/>
+<rect width="900" height="860" rx="14" fill="var(--surface)"/>
 <text x="30" y="42" class="title">How your phone connects to the box</text>
 <text x="30" y="66" class="small muted">Read from top to bottom. Green: your data, always encrypted. Gold: setup messages.</text>
 
@@ -27,57 +27,62 @@ text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-
 <rect x="290" y="88" width="140" height="40" rx="9" class="head"/><text x="360" y="114" text-anchor="middle" class="lane">Control plane</text>
 <rect x="505" y="88" width="130" height="40" rx="9" class="head"/><text x="570" y="114" text-anchor="middle" class="lane">Relay</text>
 <rect x="725" y="88" width="130" height="40" rx="9" class="head"/><text x="790" y="114" text-anchor="middle" class="lane">Your box</text>
-<line x1="150" y1="128" x2="150" y2="602" class="life"/>
-<line x1="360" y1="128" x2="360" y2="602" class="life"/>
-<line x1="570" y1="128" x2="570" y2="602" class="life"/>
-<line x1="790" y1="128" x2="790" y2="602" class="life"/>
+<line x1="150" y1="128" x2="150" y2="704" class="life"/>
+<line x1="360" y1="128" x2="360" y2="704" class="life"/>
+<line x1="570" y1="128" x2="570" y2="704" class="life"/>
+<line x1="790" y1="128" x2="790" y2="704" class="life"/>
 
 <!-- 1 -->
 <circle cx="40" cy="160" r="12" class="num"/><text x="40" y="165" text-anchor="middle" class="num-text">1</text>
-<text x="62" y="165" class="step halo">The box stays in touch with the relay, all the time</text>
-<path d="M578 192H782" class="setup" marker-start="url(#s)" marker-end="url(#s)"/>
-<text x="680" y="184" text-anchor="middle" class="small setup-text halo">always open, over HTTPS</text>
+<text x="62" y="165" class="step halo">The box stays in touch with the relay, and says which one it uses</text>
+<path d="M578 194H782" class="setup" marker-start="url(#s)" marker-end="url(#s)"/>
+<text x="680" y="186" text-anchor="middle" class="small setup-text halo">always open, over HTTPS</text>
+<path d="M782 226H368" class="setup" marker-end="url(#s)"/>
+<text x="470" y="218" text-anchor="middle" class="small setup-text halo">signed record: relay X (never the home's address)</text>
 
 <!-- 2 -->
-<circle cx="40" cy="232" r="12" class="num"/><text x="40" y="237" text-anchor="middle" class="num-text">2</text>
-<text x="62" y="237" class="step halo">You open the app. It asks which relay the box uses, or remembers it</text>
-<path d="M158 266H352" class="setup" marker-end="url(#s)"/>
-<text x="255" y="258" text-anchor="middle" class="small setup-text halo">Where's the box?</text>
-<path d="M352 296H158" class="setup" marker-end="url(#s)"/>
-<text x="255" y="288" text-anchor="middle" class="small setup-text halo">With relay X</text>
+<circle cx="40" cy="270" r="12" class="num"/><text x="40" y="275" text-anchor="middle" class="num-text">2</text>
+<text x="62" y="275" class="step halo">You open the app. It gets the box's record, or remembers it</text>
+<path d="M158 304H352" class="setup" marker-end="url(#s)"/>
+<text x="255" y="296" text-anchor="middle" class="small setup-text halo">Where's the box?</text>
+<path d="M352 334H158" class="setup" marker-end="url(#s)"/>
+<text x="255" y="326" text-anchor="middle" class="small setup-text halo">the signed record</text>
 
 <!-- 3 -->
-<circle cx="40" cy="340" r="12" class="num"/><text x="40" y="345" text-anchor="middle" class="num-text">3</text>
-<text x="62" y="345" class="step halo">Connected through the relay: about as quick as opening a web page</text>
-<path d="M158 376H562" class="data" marker-start="url(#d)"/>
-<path d="M578 376H782" class="data" marker-end="url(#d)"/>
-<text x="360" y="368" text-anchor="middle" class="small data-text halo">shows its pass, and you're in through the relay</text>
+<circle cx="40" cy="378" r="12" class="num"/><text x="40" y="383" text-anchor="middle" class="num-text">3</text>
+<text x="62" y="383" class="step halo">It tries the relay and the box's addresses it knows, all at once</text>
+<path d="M158 418H562" class="data-thin" marker-start="url(#d)"/>
+<path d="M578 418H782" class="data-thin" marker-end="url(#d)"/>
+<text x="360" y="410" text-anchor="middle" class="small data-text halo">through the relay, showing its pass</text>
+<path d="M158 452H782" class="data-thin" marker-start="url(#d)" marker-end="url(#d)"/>
+<text x="470" y="444" text-anchor="middle" class="small data-text halo">straight to addresses found at home, or remembered</text>
+<text x="62" y="480" class="small muted halo">The first to answer carries your data. At home or over IPv6 that's usually the direct one, and you're done.</text>
 
 <!-- 4 -->
-<circle cx="40" cy="420" r="12" class="num"/><text x="40" y="425" text-anchor="middle" class="num-text">4</text>
-<text x="62" y="425" class="step halo">The relay tells each side where the other is. Both reach out at once</text>
-<path d="M562 456H158" class="setup" marker-end="url(#s)"/>
-<text x="330" y="448" text-anchor="middle" class="small setup-text halo">The box is at …</text>
-<path d="M578 456H782" class="setup" marker-end="url(#s)"/>
-<text x="680" y="448" text-anchor="middle" class="small setup-text halo">The phone is at …</text>
-<path d="M158 490H782" class="data-thin" marker-start="url(#d)" marker-end="url(#d)"/>
-<text x="470" y="482" text-anchor="middle" class="small data-text halo">both send at the same moment (hole punching)</text>
+<circle cx="40" cy="522" r="12" class="num"/><text x="40" y="527" text-anchor="middle" class="num-text">4</text>
+<text x="62" y="527" class="step halo">If the relay answered first, it tells each side where the other is</text>
+<path d="M562 558H158" class="setup" marker-end="url(#s)"/>
+<text x="330" y="550" text-anchor="middle" class="small setup-text halo">The box is at …</text>
+<path d="M578 558H782" class="setup" marker-end="url(#s)"/>
+<text x="680" y="550" text-anchor="middle" class="small setup-text halo">The phone is at …</text>
+<path d="M158 592H782" class="data-thin" marker-start="url(#d)" marker-end="url(#d)"/>
+<text x="470" y="584" text-anchor="middle" class="small data-text halo">both send at the same moment (hole punching)</text>
 
 <!-- 5 -->
-<circle cx="40" cy="534" r="12" class="num"/><text x="40" y="539" text-anchor="middle" class="num-text">5</text>
-<text x="62" y="539" class="step halo">Usually within seconds, the direct path takes over</text>
-<path d="M158 570H782" class="data" marker-start="url(#d)" marker-end="url(#d)"/>
-<text x="470" y="562" text-anchor="middle" class="small data-text halo">your data goes straight between phone and box</text>
-<text x="570" y="594" text-anchor="middle" class="small muted halo">the relay drops out</text>
+<circle cx="40" cy="636" r="12" class="num"/><text x="40" y="641" text-anchor="middle" class="num-text">5</text>
+<text x="62" y="641" class="step halo">Usually within seconds, the direct path takes over</text>
+<path d="M158 672H782" class="data" marker-start="url(#d)" marker-end="url(#d)"/>
+<text x="470" y="664" text-anchor="middle" class="small data-text halo">your data goes straight between phone and box</text>
+<text x="570" y="696" text-anchor="middle" class="small muted halo">the relay drops out</text>
 
 <!-- otherwise -->
-<rect x="30" y="620" width="840" height="96" rx="12" class="zone"/>
-<text x="50" y="648" class="step">If nothing direct works</text>
-<text x="50" y="670" class="small muted">On a strict office network, say. Slower, but it works, and the relay still can't read anything.</text>
-<path d="M158 696H562" class="data" marker-start="url(#d)"/>
-<path d="M578 696H782" class="data" marker-end="url(#d)"/>
-<rect x="502" y="684" width="136" height="24" rx="6" fill="var(--surface)" stroke="var(--line)"/>
-<text x="570" y="701" text-anchor="middle" class="small data-text">relay passes it on</text>
-<text x="150" y="738" text-anchor="middle" class="small muted">phone</text>
-<text x="790" y="738" text-anchor="middle" class="small muted">box</text>
+<rect x="30" y="724" width="840" height="96" rx="12" class="zone"/>
+<text x="50" y="752" class="step">If nothing direct works</text>
+<text x="50" y="774" class="small muted">On a strict office network, say. Slower, but it works, and the relay still can't read anything.</text>
+<path d="M158 800H562" class="data" marker-start="url(#d)"/>
+<path d="M578 800H782" class="data" marker-end="url(#d)"/>
+<rect x="502" y="788" width="136" height="24" rx="6" fill="var(--surface)" stroke="var(--line)"/>
+<text x="570" y="805" text-anchor="middle" class="small data-text">relay passes it on</text>
+<text x="150" y="842" text-anchor="middle" class="small muted">phone</text>
+<text x="790" y="842" text-anchor="middle" class="small muted">box</text>
 </svg>

@@ -35,8 +35,8 @@ a separate guest or TV network.
   and the guests' door use it.
 - **UDP.** The kind of traffic hole punching uses. Some offices and hotels
   block it. TCP is the other kind. Websites normally use TCP.
-- **The relay.** Our server that starts every connection, and carries it when
-  nothing direct works. You reach it the same way you reach a website, so it
+- **The relay.** Our server, tried alongside the direct ways. It helps them
+  get through, and carries the connection when nothing direct works. You reach it the same way you reach a website, so it
   gets through almost everywhere.
 
 ## By your home's internet

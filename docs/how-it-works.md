@@ -34,24 +34,33 @@ the connection uses, and the phone makes a new everyday key every few weeks.
 
 ### Connecting
 
-![How your phone connects to the box, step by step: the box stays in touch with the relay; the app asks which relay the box uses, or remembers it; it shows its pass and connects through the relay at once; the relay tells each side where the other is and both reach out together; usually within seconds the direct path takes over. If nothing direct works, the relay keeps passing the data along, still encrypted.](connecting.svg)
+![How your phone connects to the box, step by step: the box stays in touch with the relay and publishes a signed record naming that relay; the app gets that record, or remembers it; it tries the relay and the box's addresses it already knows at the same moment, and the first to answer carries your data; if the relay answered first, it tells each side where the other is and both reach out together; usually within seconds the direct path takes over. If nothing direct works, the relay keeps passing the data along, still encrypted.](connecting.svg)
 
 1. **The box stays in touch with the relay.** It keeps a small connection
-   open to the relay all the time.
-2. **You open the app.** The phone asks the control plane which relay the box
-   uses, and reaches the box through it. This is about as quick as opening a
-   web page. The phone remembers the answer, so it can still find the box if
-   the control plane is down.
-3. **They try to go direct.** While you're already using the app, the relay
-   tells the phone and the box where the other one is. Both reach out at the
-   same moment, so each router sees a connection going out and lets the reply
-   come in. This is called hole punching.
-4. **The direct path takes over.** Usually within a few seconds, your data
+   open to the relay all the time. It also tells the control plane which
+   relay it uses. The box signs this record, so nobody can send phones to the
+   wrong place. Like iroh, the record never holds your home's internet
+   address.
+2. **You open the app.** The phone gets the box's record from the control
+   plane. It remembers the record, so it can still find the box if the
+   control plane is down.
+3. **It tries everything at once.** The phone tries the relay, and at the
+   same moment every address of the box it already knows: found on your home
+   network, or remembered from the last connection, when the box told it.
+   Whichever answers first carries your data. At home, or when both ends have
+   IPv6, that's usually the direct way, and you're done. An address that has
+   changed just doesn't answer, so nothing waits on it.
+4. **They go direct.** If the relay answered first, you're already using the
+   app through it. Meanwhile the relay tells the phone and the box where the
+   other one is. Both reach out at the same moment, so each router sees a
+   connection going out and lets the reply come in. This is called hole
+   punching, and it needs the relay to pass the messages.
+5. **The direct path takes over.** Usually within a few seconds, your data
    goes straight between the phone and the box, and the relay drops out.
-5. **If nothing direct works,** the relay keeps passing your data along. It's
+6. **If nothing direct works,** the relay keeps passing your data along. It's
    slower, but it works. Everything is encrypted, so the relay can't read it.
 
-In step 3, they try all of these at once:
+The direct ways it tries:
 
 - your home network, if you're at home
 - IPv6, if both ends have it
@@ -68,7 +77,17 @@ show it's worth it, we'll add cleverer tricks later.
 
 All of this is built on [iroh](https://github.com/n0-computer/iroh), an
 open-source library. iroh finds a device by its key, not by its internet
-address.
+address. It also keeps measuring every path while you use it, and moves to a
+faster one when there is one.
+
+### Seeing how it's going
+
+Box Desktop shows, for each phone and laptop, whether it's going direct or
+through the relay, how quickly it connected, and how fast it is. It also shows
+when a device couldn't connect or was cut off, and why. So if one
+phone always ends up on the relay, you can see it, and see why. These numbers
+stay on your box. We only get them if you agree to send anonymous reports,
+which never say whose box or which device.
 
 ### The box hands out passes
 
@@ -230,12 +249,12 @@ common routers.
 | Part | What it carries |
 |---|---|
 | **The direct path** | Your data, almost always |
-| **The relay** | The first moments of each connection. Your data only when nothing direct works, and it's encrypted, so the relay can't read it |
+| **The relay** | The first moments of a connection, when it answers before a direct path. Your data only when nothing direct works, and it's encrypted, so the relay can't read it |
 | **The control plane** | Where each box is, and setup messages for guests. Never your data |
 | **The guest page** (`share.zoomriya.net`) | The page a share link opens. The album itself comes from the box |
 | **DNS** | Names and addresses only |
 
-![What carries what. DNS and the control plane only help devices find each other. Family connections start on the relay and switch to a direct path when one works. Guests get the page from share.zoomriya.net and the album from the box.](data-flow.svg)
+![What carries what. DNS and the control plane only help devices find each other. Family devices try direct paths and the relay together, and a direct path takes over when one works. Guests get the page from share.zoomriya.net and the album from the box.](data-flow.svg)
 
 Inside the connection, your browser talks to the box's web server in its own
 encrypted connection. The app and connectd only pass it along, so neither of
@@ -245,7 +264,7 @@ them can read it.
 
 ### The order of attempts
 
-![Family devices start on the relay and try up to five direct paths at once, with a sixth later if tests show it's needed; the first that works takes over. Guests try the box directly, then WebRTC, then the relay.](paths.svg)
+![Family devices try the box's known addresses and the relay at the same moment, and the first to answer carries data; hole punching runs through the relay, and a direct path takes over when one works. Guests try the box directly, then WebRTC, then the relay.](paths.svg)
 
 ## The parts
 
@@ -256,5 +275,5 @@ fails, see [Architecture](architecture.md).
 |---|---|---|
 | **The link** | Inside the ZOOMRIYA app on phones (Android, iOS) and the desktop app (Linux, Windows, macOS) | Connects to the box and checks the box's key. The app's screens, or a laptop's browser, reach the box's apps through it |
 | **connectd** | The box | Lets in paired devices and nobody else. Hands out and renews their passes, and tells the relay when one is removed. Checks share links. Opens and closes the guests' door. Tells the control plane where the box is. Warns you if anyone else gets a certificate for the box's name |
-| **The relay** | A server run by ZOOMRIYA, or by your family | Starts each connection and helps with hole punching. Carries data only when nothing direct works. Lets in only boxes, and devices with a pass, and only to their own box |
+| **The relay** | A server run by ZOOMRIYA, or by your family | Is tried alongside the direct ways, and passes the messages for hole punching. Carries data only when nothing direct works. Lets in only boxes, and devices with a pass, and only to their own box |
 | **The control plane** | A server run by ZOOMRIYA, or by your family | Knows where each box is, answers DNS for box names, helps get certificates, checks from outside whether a box can be reached, and passes setup messages for guests |

@@ -163,7 +163,7 @@ address.
 |---|---|---|---|
 | `smith.ca` | Whatever you like | You, not ZOOMRIYA | Your website, your email, everything else. Never the box |
 | `connect.smith.ca` | Your server | The box and the apps, in the background | Lists your other names, knows where your box is, tells your relay which box is yours, and checks from outside whether the box can be reached |
-| `relay.smith.ca` | Your server | The box and the apps, in the background | Your relay: starts each connection, and carries it when nothing direct works |
+| `relay.smith.ca` | Your server | The box and the apps, in the background | Your relay: tried alongside the direct ways, helps with hole punching, and carries the connection when nothing direct works |
 | `share.smith.ca` | Your server | Guests | The page a share link opens, and the guests' relay |
 | `home.smith.ca` | Your box, on your home network | Your family, in a browser at home | Your box. `https://home.smith.ca` opens it with a proper padlock |
 

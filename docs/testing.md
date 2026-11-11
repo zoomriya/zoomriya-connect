@@ -11,7 +11,9 @@ months. We want to know three things:
 - What does our relay carry, and what does it cost?
 - What breaks over time?
 
-The test has three stages. All three use the same pretend families.
+The test has three stages. All three use the same pretend families. Alongside
+them, [benchmarks](#benchmarks-on-every-change) run on every change, and keep
+running after release.
 
 | Stage | What runs | How long | What it tells us |
 |---|---|---|---|
@@ -105,6 +107,8 @@ downloads keep their real sizes.
 
 **What we measure:**
 - how long until the first data arrives, and until the connection is direct
+- each path's round-trip time, path switches, and how much data went direct
+  or through the relay, read from iroh the same way the app does
 - connections still on the relay after 10 seconds, and ones that never open
 - the relays' processor, memory, connections and data (`iroh-relay` reports
   these on port 9090)
@@ -143,6 +147,64 @@ in what the servers include.
 
 Everything goes on one dashboard, with an alert for each goal below.
 
+## Benchmarks, on every change
+
+Like iroh's own benchmarks ([perf.iroh.computer](https://perf.iroh.computer)),
+a fixed set of tests runs on every change to `main`, and on request from a pull
+request. A change that makes ZOOMRIYA Connect slower shows up before it's
+released, not after. Unlike the three stages above, the benchmarks never stop:
+they keep running after release.
+
+They use the network lab's pretend routers, on one machine. Each test runs
+twice more on the same network: once with plain HTTPS to the box, and once
+with iroh alone, without our code. That shows what ZOOMRIYA Connect itself
+adds, and what's iroh's.
+
+**The networks:**
+
+| Network | Conditions |
+|---|---|
+| Good | 20 ms delay, no loss, 1 Gbit/s |
+| Far away | 200 ms delay, 1% loss |
+| On a train | 30 Mbit/s, 2% loss, sudden pauses of several seconds |
+| Box behind an easy router, phone on mobile data | Hole punching has to work |
+| Both behind strict routers | Must stay on the relay |
+| Office that blocks UDP | The relay over HTTPS, or a forwarded TCP port |
+
+**The paths:** every test runs direct, and again forced onto the relay.
+
+**What we measure:**
+
+| Number | Unit | What it answers |
+|---|---|---|
+| Time to connect | ms | Does the app open quickly? |
+| Time to direct | ms | How long does hole punching take? |
+| Round-trip time, direct and on the relay | ms | How much slower is the relay? |
+| Time to first byte of a page from the box | ms | How quick does the app feel? |
+| Download and upload speed | Mbit/s | Are photos and videos quick? |
+| Time to reconnect after a network change | ms | Does Wi-Fi to mobile data hurt? |
+| Couldn't connect, and why | % of attempts | Does it get in at all? |
+| Dropped, and why | per hour of use | Does it stay up? |
+| Guest links that open, and which way | % of opens | Can guests see the album? |
+| The relay's processor and memory, per 1,000 connections | %, MB | What will relays cost? |
+
+Each number is the middle of 5 runs. Every run is kept, by commit, and drawn
+over time on a public page like iroh's. If a number gets more than 10% worse
+than on `main`, the check fails and says so on the pull request.
+
+**After release,** small probes in several regions also measure the real
+service every 5 minutes, and alert us when it gets slow:
+
+| Probe | What it measures |
+|---|---|
+| Each of our relays | Round-trip time, time to connect, and failed or dropped connections, from each region |
+| A test box at the team's home | Time to connect, time to direct and speed, through our real relays |
+| The address server and DNS | How long an answer takes, and how many fail |
+| A test guest link | Opens through the door, WebRTC and the relay, and how long the first photo takes |
+
+The probes use test boxes and test devices only. Families' own numbers stay on
+their boxes (see [Measuring connections](architecture.md#measuring-connections)).
+
 ## The goals
 
 These are suggestions. We'll agree them before stage 2.
@@ -154,6 +216,10 @@ These are suggestions. We'll agree them before stage 2.
   direct. The number of families stuck on the relay is within 25% of what the
   model predicted.
 - **Backups:** none ever goes through our relay.
+- **Stays up:** under 0.5% of attempts fail on any network that can reach
+  the relay, and under one drop per 10 hours of use that the app doesn't
+  recover from by itself. Every failure and drop has a reason, never
+  "unknown".
 - **Recovers fast:** after a home's address changes or a relay restarts,
   connections are back within 30 seconds.
 - **The relay copes:** under half its processor at the busiest hour. Memory
@@ -171,6 +237,8 @@ These are suggestions. We'll agree them before stage 2.
   app is opened only once every three weeks; its pass still renews in the
   background. If it doesn't, passes get longer.
 - **Certificates:** every box renews its certificate.
+- **No slowdowns:** no benchmark gets more than 10% worse than on `main`
+  without a reason written in the change.
 
 ## What this can't tell us
 
@@ -185,4 +253,5 @@ sim/
   model/   the pretend families and the traffic model (stage 1), runs in CI
   lab/     the namespaces, the pretend routers, and the code that plays out the families' days (stages 2 and 3)
   soak/    the test servers, the family machines, the dashboard and alerts (stage 3)
+  bench/   the benchmarks: the networks, the comparison runs, the results page, and the probes after release
 ```

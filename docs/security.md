@@ -40,7 +40,7 @@ can, the box closes the door at once and tells you.
 
 ## The relay
 
-Every family connection starts on the relay, so whoever runs it learns who
+Every family device stays in touch with the relay, so whoever runs it learns who
 connects and when. It never learns what. We'll say who runs our relays, what
 they keep, and for how long. You can switch the relay off. Then, away from
 home, the app reaches the box only over IPv6 or a port you've forwarded. Or
