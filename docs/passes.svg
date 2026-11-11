@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated: the steps play in turn, then loop. With reduced motion, the whole diagram shows at once. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="880" viewBox="0 0 900 880" role="img" aria-label="How passes work, in four steps. 1: at home, you pair your phone, and the box gives it a pass signed by the box, saying this phone belongs to this box until a date. 2: away from home, the phone shows its pass to the relay. The relay checks it was signed by this box, is still in date and hasn't been removed, without asking ZOOMRIYA's servers, then lets the phone through to that box only. The box checks its own list and lets it in. 3: a stranger with no pass, or a copied pass, is turned away by the relay. 4: when you remove a lost phone, the box tells the relay straight away, and both turn it away. Passes last 30 days and renew by themselves each time the phone reaches the box.">
+<style>
+svg{--surface:#fff;--zone:#f1f5f6;--fg:#15232a;--muted:#5b6c75;--line:#c3ced4;--data:#087f6e;--setup:#886516;--setup-soft:#fbf4df;--stop:#b3261e}
+@media(prefers-color-scheme:dark){svg{--surface:#162026;--zone:#121b20;--fg:#e2eaed;--muted:#93a5ad;--line:#33464f;--data:#56c5ae;--setup:#d8b45c;--setup-soft:#302a19;--stop:#f08c80}}
+text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;fill:var(--fg);font-size:14px}
+.title{font-size:21px;font-weight:700}.lane{font-size:15px;font-weight:650}.step{font-size:15px;font-weight:600}.small{font-size:12.5px}.muted{fill:var(--muted)}.bold{font-weight:700}
+.zone{fill:var(--zone);stroke:var(--line);stroke-width:1.5}
+.node{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+.faded{opacity:.45}
+.pass{fill:var(--setup-soft);stroke:var(--setup);stroke-width:2}
+.data{fill:none;stroke:var(--data);stroke-width:4}
+.setup{fill:none;stroke:var(--setup);stroke-width:2.5;stroke-dasharray:8 6}
+.stop{fill:none;stroke:var(--stop);stroke-width:2.5}
+.cross{stroke:var(--stop);stroke-width:4;stroke-linecap:round}
+.data-text{fill:var(--data)}.setup-text{fill:var(--setup)}.stop-text{fill:var(--stop)}
+.num{fill:var(--fg)}.num-text{fill:var(--surface);font-size:13px;font-weight:700}
+.dot-data{fill:var(--data)}.dot-setup{fill:var(--setup)}.dot-stop{fill:var(--stop)}
+.token{opacity:0}
+@keyframes a1{0%,0.77%{opacity:0}2.69%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a1{animation:a1 26.0s infinite}
+@keyframes a2{0%,3.85%{opacity:0}5.77%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a2{animation:a2 26.0s infinite}
+@keyframes a3{0%,3.85%{opacity:0;transform:translate(200px,0px)}4.62%{opacity:1;transform:translate(200px,0px)}9.23%,94.0%{opacity:1;transform:translate(0,0)}98.0%,100%{opacity:0;transform:translate(0,0)}}.a3{animation:a3 26.0s infinite;animation-timing-function:ease-in-out}
+@keyframes a4{0%,10.77%{opacity:0}12.69%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a4{animation:a4 26.0s infinite}
+@keyframes a5{0%,17.31%{opacity:0}19.23%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a5{animation:a5 26.0s infinite}
+@keyframes a6{0%,20.00%{opacity:0}21.92%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a6{animation:a6 26.0s infinite}
+@keyframes a7{0%,20.00%{opacity:0;transform:translate(-60px,0px)}20.77%{opacity:1;transform:translate(-60px,0px)}25.38%,94.0%{opacity:1;transform:translate(0,0)}98.0%,100%{opacity:0;transform:translate(0,0)}}.a7{animation:a7 26.0s infinite;animation-timing-function:ease-in-out}
+@keyframes a8{0%,26.15%{opacity:0}28.08%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a8{animation:a8 26.0s infinite}
+@keyframes a9{0%,28.46%{opacity:0}30.38%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a9{animation:a9 26.0s infinite}
+@keyframes a10{0%,30.77%{opacity:0}32.69%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a10{animation:a10 26.0s infinite}
+@keyframes a11{0%,33.85%{opacity:0}35.77%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a11{animation:a11 26.0s infinite}
+@keyframes a12{0%,33.85%{opacity:0;transform:translate(-135px,0px)}34.62%{opacity:1;transform:translate(-135px,0px)}37.69%{opacity:1;transform:translate(0,0)}38.65%,100%{opacity:0;transform:translate(0,0)}}.a12{animation:a12 26.0s infinite;animation-timing-function:ease-in-out}
+@keyframes a13{0%,38.46%{opacity:0}40.38%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a13{animation:a13 26.0s infinite}
+@keyframes a14{0%,41.15%{opacity:0}43.08%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a14{animation:a14 26.0s infinite}
+@keyframes a15{0%,46.92%{opacity:0}48.85%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a15{animation:a15 26.0s infinite}
+@keyframes a16{0%,49.62%{opacity:0}51.54%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a16{animation:a16 26.0s infinite}
+@keyframes a17{0%,49.62%{opacity:0;transform:translate(-106px,0px)}50.38%{opacity:1;transform:translate(-106px,0px)}53.46%{opacity:1;transform:translate(0,0)}54.42%,100%{opacity:0;transform:translate(0,0)}}.a17{animation:a17 26.0s infinite;animation-timing-function:ease-in-out}
+@keyframes a18{0%,53.46%{opacity:0;transform:scale(0)}54.42%{opacity:1;transform:scale(1.4)}55.38%,94.0%{opacity:1;transform:scale(1)}98.0%,100%{opacity:0;transform:scale(1)}}.a18{animation:a18 26.0s infinite;transform-box:fill-box;transform-origin:center}
+@keyframes a19{0%,55.00%{opacity:0}56.92%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a19{animation:a19 26.0s infinite}
+@keyframes a20{0%,61.15%{opacity:0}63.08%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a20{animation:a20 26.0s infinite}
+@keyframes a21{0%,63.85%{opacity:0}65.77%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a21{animation:a21 26.0s infinite}
+@keyframes a22{0%,63.85%{opacity:0;transform:translate(135px,0px)}64.62%{opacity:1;transform:translate(135px,0px)}67.69%{opacity:1;transform:translate(0,0)}68.65%,100%{opacity:0;transform:translate(0,0)}}.a22{animation:a22 26.0s infinite;animation-timing-function:ease-in-out}
+@keyframes a23{0%,69.62%{opacity:0}71.54%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a23{animation:a23 26.0s infinite}
+@keyframes a24{0%,69.62%{opacity:0;transform:translate(-106px,0px)}70.38%{opacity:1;transform:translate(-106px,0px)}73.46%{opacity:1;transform:translate(0,0)}74.42%,100%{opacity:0;transform:translate(0,0)}}.a24{animation:a24 26.0s infinite;animation-timing-function:ease-in-out}
+@keyframes a25{0%,73.46%{opacity:0;transform:scale(0)}74.42%{opacity:1;transform:scale(1.4)}75.38%,94.0%{opacity:1;transform:scale(1)}98.0%,100%{opacity:0;transform:scale(1)}}.a25{animation:a25 26.0s infinite;transform-box:fill-box;transform-origin:center}
+@keyframes a26{0%,75.38%{opacity:0}77.31%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a26{animation:a26 26.0s infinite}
+@keyframes a27{0%,77.69%{opacity:0}79.62%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a27{animation:a27 26.0s infinite}
+@keyframes a28{0%,82.31%{opacity:0}84.23%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a28{animation:a28 26.0s infinite}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+<defs>
+  <marker id="d" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="var(--data)"/></marker>
+  <marker id="s" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="var(--setup)"/></marker>
+  <g id="mini"><rect x="0" y="0" width="34" height="24" rx="4" class="pass"/><path d="M6 8H28M6 14H22M6 19H18" stroke="var(--setup)" stroke-width="1.6"/></g>
+</defs>
+<rect width="900" height="880" rx="14" fill="var(--surface)"/>
+<text x="30" y="42" class="title">How your box lets your family in: passes</text>
+<text x="30" y="66" class="small muted">Gold: the pass. Green: let in. Red: turned away.</text>
+<g class="a1">
+<rect x="20" y="86" width="860" height="180" rx="12" class="zone"/>
+<circle cx="46" cy="114" r="12" class="num"/><text x="46" y="119" text-anchor="middle" class="num-text">1</text>
+<text x="68" y="119" class="step">At home, you pair your phone. The box gives it a pass.</text>
+<rect x="70" y="165" width="150" height="50" rx="10" class="node"/><text x="145" y="195" text-anchor="middle" class="lane">Your phone</text>
+<rect x="680" y="165" width="150" height="50" rx="10" class="node"/><text x="755" y="195" text-anchor="middle" class="lane">Your box</text>
+</g>
+<g class="a2"><path d="M676 190H566" class="setup" marker-end="url(#s)"/>
+<text x="621" y="180" text-anchor="middle" class="small setup-text">the box signs it</text></g>
+<g class="a3">
+<rect x="340" y="138" width="220" height="112" rx="10" class="pass"/>
+<text x="356" y="161" class="bold setup-text">PASS</text>
+<text x="356" y="182" class="small">This phone</text>
+<text x="356" y="199" class="small">belongs to Maple House's box</text>
+<text x="356" y="216" class="small">until 10 December</text>
+<text x="356" y="238" class="small bold setup-text">Signed: Maple House's box</text>
+</g>
+<g class="a4"><path d="M336 190H226" class="setup" marker-end="url(#s)"/>
+<text x="281" y="180" text-anchor="middle" class="small setup-text">it keeps it</text></g>
+<g class="a5">
+<rect x="20" y="282" width="860" height="216" rx="12" class="zone"/>
+<circle cx="46" cy="310" r="12" class="num"/><text x="46" y="315" text-anchor="middle" class="num-text">2</text>
+<text x="68" y="315" class="step">Away from home, the phone shows its pass to the relay.</text>
+<rect x="70" y="345" width="150" height="50" rx="10" class="node"/><text x="145" y="375" text-anchor="middle" class="lane">Your phone</text>
+<rect x="375" y="345" width="150" height="50" rx="10" class="node"/><text x="450" y="375" text-anchor="middle" class="lane">Relay</text>
+<rect x="680" y="345" width="150" height="50" rx="10" class="node"/><text x="755" y="375" text-anchor="middle" class="lane">Your box</text>
+</g>
+<g class="a6"><path d="M226 370H369" class="setup" marker-end="url(#s)"/>
+<text x="298" y="388" text-anchor="middle" class="small setup-text">shows its pass</text></g>
+<use href="#mini" x="281" y="334" class="a7"/>
+<text x="450" y="418" text-anchor="middle" class="small data-text a8">✓ signed by this box?</text>
+<text x="450" y="436" text-anchor="middle" class="small data-text a9">✓ still in date?</text>
+<text x="450" y="454" text-anchor="middle" class="small data-text a10">✓ not removed?</text>
+<g class="a11"><path d="M531 370H674" class="data" marker-end="url(#d)"/>
+<text x="602" y="360" text-anchor="middle" class="small data-text">lets it through,</text>
+<text x="602" y="390" text-anchor="middle" class="small data-text">to this box only</text></g>
+<circle cx="668" cy="370" r="7" class="dot-data token a12"/>
+<g class="a13"><text x="755" y="418" text-anchor="middle" class="small data-text">✓ on my own list?</text>
+<text x="755" y="436" text-anchor="middle" class="small data-text bold">Come in.</text></g>
+<text x="40" y="484" class="small muted a14">The relay checks the pass by itself. It doesn't ask ZOOMRIYA's servers who your devices are.</text>
+<g class="a15">
+<rect x="20" y="514" width="860" height="130" rx="12" class="zone"/>
+<circle cx="46" cy="542" r="12" class="num"/><text x="46" y="547" text-anchor="middle" class="num-text">3</text>
+<text x="68" y="547" class="step">A stranger, or someone with a copied pass, gets nowhere.</text>
+<rect x="70" y="572" width="150" height="50" rx="10" class="node"/><text x="145" y="602" text-anchor="middle" class="lane">A stranger</text>
+<rect x="375" y="572" width="150" height="50" rx="10" class="node"/><text x="450" y="602" text-anchor="middle" class="lane">Relay</text>
+<g class="faded"><rect x="680" y="572" width="150" height="50" rx="10" class="node"/><text x="755" y="602" text-anchor="middle" class="lane">Your box</text></g>
+</g>
+<g class="a16"><path d="M226 597H340" class="stop"/>
+<text x="285" y="587" text-anchor="middle" class="small stop-text">turned away</text></g>
+<circle cx="338" cy="597" r="7" class="dot-stop token a17"/>
+<path d="M346 588L362 606M362 588L346 606" class="cross a18"/>
+<g class="a19"><text x="545" y="594" class="small stop-text">no pass, or a pass</text>
+<text x="545" y="611" class="small stop-text">that isn't theirs</text></g>
+<g class="a20">
+<rect x="20" y="660" width="860" height="160" rx="12" class="zone"/>
+<circle cx="46" cy="688" r="12" class="num"/><text x="46" y="693" text-anchor="middle" class="num-text">4</text>
+<text x="68" y="693" class="step">You remove a lost phone. It's shut out at once.</text>
+<rect x="70" y="720" width="150" height="50" rx="10" class="node"/><text x="145" y="750" text-anchor="middle" class="lane">Lost phone</text>
+<rect x="375" y="720" width="150" height="50" rx="10" class="node"/><text x="450" y="750" text-anchor="middle" class="lane">Relay</text>
+<rect x="680" y="720" width="150" height="50" rx="10" class="node"/><text x="755" y="750" text-anchor="middle" class="lane">Your box</text>
+</g>
+<g class="a21"><path d="M676 745H531" class="setup" marker-end="url(#s)"/>
+<text x="603" y="733" text-anchor="middle" class="small setup-text">"I removed that phone"</text>
+<text x="603" y="763" text-anchor="middle" class="small setup-text">straight away</text></g>
+<circle cx="540" cy="745" r="7" class="dot-setup token a22"/>
+<g class="a23"><path d="M226 745H340" class="stop"/>
+<text x="285" y="735" text-anchor="middle" class="small stop-text">turned away</text></g>
+<circle cx="338" cy="745" r="7" class="dot-stop token a24"/>
+<path d="M346 736L362 754M362 736L346 754" class="cross a25"/>
+<text x="755" y="790" text-anchor="middle" class="small stop-text a26">and the box refuses it too</text>
+<text x="40" y="808" class="small muted a27">You remove it in Box Desktop. The box tells the relay at once.</text>
+<g class="a28"><use href="#mini" x="30" y="836"/>
+<text x="76" y="846" class="small"><tspan class="bold">Passes renew by themselves.</tspan> Each lasts 30 days. Whenever your phone reaches the box,</text>
+<text x="76" y="864" class="small">it quietly gets a fresh one. You never see this.</text></g>
+</svg>

@@ -14,8 +14,16 @@ Part of [ZOOMRIYA Connect](../README.md).
    and show the steps for common routers. Let owners switch guest access off.
 3. **[Build the family link](how-it-works.md).**
    - Run our own iroh relays, with iroh's public ones switched off. They let
-     in only boxes and their paired devices, and have address discovery
-     switched on (`enable_quic_addr_discovery`, which is off by default).
+     in only registered boxes, and devices with a pass from one of them, and
+     have address discovery switched on (`enable_quic_addr_discovery`, which
+     is off by default).
+   - [Passes](how-it-works.md#the-box-hands-out-passes): the box signs a
+     30-day pass for each paired device (device key, box key, expiry) and
+     renews it when less than three weeks are left. The relay checks the pass
+     itself, and lets each device reach only the box that signed it. The box
+     sends its list of removed devices whenever it connects to the relay, and
+     again at once when one is removed. The control plane tells relays only
+     which boxes are registered, never which devices.
    - Run our own address server (`iroh-dns-server`).
    - Build pairing, the link and the desktop proxy. Keep each device's iroh
      key locked by its secure chip or key store, and keep backups off our
@@ -68,7 +76,7 @@ Some of this exists; most is still to come.
 
 ```
 crates/
-  keys/           device and box keys, checking pinned keys, pairing
+  keys/           device and box keys, checking pinned keys, pairing, making and checking passes
   link/           the iroh connection (our relays only), the local proxy, TCP 443 for forwarded ports
   punch/          signed address records, finding the box at home; cleverer hole punching later, if needed
   portmap/        opening the guests' door on the router (UPnP, NAT-PMP, PCP), IPv6 firewall rules
@@ -78,7 +86,7 @@ desktop/          the desktop app: tray, start at sign-in, browser setup, instal
 guest-viewer/     the guest page and its WebRTC code
 connectd/         the box's side: port 443, device checks, share links, WebRTC for guests, address records
 control-plane/    address records (iroh-dns-server), DNS for box names, certificates, the outside check, guests' setup messages
-relay/            iroh-relay set up for ZOOMRIYA: who it lets in, limits, numbers; the guests' relay (TURN)
+relay/            iroh-relay set up for ZOOMRIYA: checking passes and removed devices, limits, numbers; the guests' relay (TURN)
 sim/              the 1,000-family test: traffic model, network lab, two-month soak
 docs/             these pages and the diagrams
 ```

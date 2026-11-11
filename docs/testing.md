@@ -158,7 +158,13 @@ These are suggestions. We'll agree them before stage 2.
   model.
 - **Only our servers:** recorded network traffic shows nothing going to iroh's
   public servers.
-- **Strangers stay out:** the relay refuses every unpaired device.
+- **Strangers stay out:** the relay refuses every unpaired device, every
+  expired or copied pass, and every pass from a box it doesn't know. A device
+  reaches only the box that made its pass.
+- **Removed means removed:** a removed device is refused by the box at once,
+  and by the relay within 5 seconds, or as soon as the box reconnects.
+- **Passes renew:** no family device loses the relay because its pass ran
+  out while it was in regular use.
 - **Certificates:** every box renews its certificate.
 
 ## What this can't tell us

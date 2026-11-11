@@ -136,7 +136,7 @@ address.
 | Name | Points at | Used by | What for |
 |---|---|---|---|
 | `smith.ca` | Whatever you like | You, not ZOOMRIYA | Your website, your email, everything else. Never the box |
-| `connect.smith.ca` | Your server | The box and the apps, in the background | Lists your other names, keeps your box's address record, tells the relay which devices to let in, and checks from outside whether the box can be reached |
+| `connect.smith.ca` | Your server | The box and the apps, in the background | Lists your other names, keeps your box's address record, tells the relay which box is yours, and checks from outside whether the box can be reached |
 | `relay.smith.ca` | Your server | The box and the apps, in the background | Your relay: starts each connection, and carries it when nothing direct works |
 | `share.smith.ca` | Your server | Guests | The page a share link opens, and the guests' relay |
 | `home.smith.ca` | Your box, on your home network | Your family, in a browser at home | Your box. `https://home.smith.ca` opens Family Hub with a proper padlock |
@@ -191,9 +191,10 @@ charge, some slow the server down, some switch it off.
 
 **Just a relay.** If you want your traffic on your own server but don't want
 to look after DNS, keep a ZOOMRIYA name and run only `relay.smith.ca`.
-ZOOMRIYA still finds your box, answers for its name and tells your relay which
-devices to let in. Your connections go through your relay, with no limits
-from us.
+ZOOMRIYA still finds your box and answers for its name. Your relay checks
+your devices' [passes](how-it-works.md#the-box-hands-out-passes) itself, so
+it never asks us who's allowed in. Your connections go through your relay,
+with no limits from us.
 
 ## Certificates
 

@@ -20,6 +20,43 @@ The phone's key is stored on the phone, locked by its secure chip: the
 Secure Enclave on an iPhone, the Keystore on Android. It's unlocked only
 inside the ZOOMRIYA app while it runs, and never leaves the phone.
 
+### The box hands out passes
+
+When you pair a phone, the box also gives it a pass: a few lines that say
+"this phone's key belongs to this box, until such-and-such a date", signed
+with the box's key. The box is the only one that can make a pass for itself.
+Not our servers, not the relay.
+
+![How passes work, in four steps. 1: at home, you pair your phone, and the box gives it a pass signed by the box. 2: away from home, the phone shows its pass to the relay, which checks it by itself and lets the phone through to that box only; the box checks its own list and lets it in. 3: a stranger, or a copied pass, is turned away. 4: when you remove a lost phone, the box tells the relay straight away, and both turn it away. Passes last 30 days and renew by themselves.](passes.svg)
+
+The relay checks the pass, not our servers. So:
+- **Fewer questions to our servers.** The relay doesn't ask our control plane
+  about each device, so our servers don't learn which devices belong to your
+  box or when they connect.
+- **It keeps working if our control plane is down.** The relay can check a
+  pass on its own.
+- **Your own relay needs only your box.** See
+  [your own server](sharing-and-names.md#your-own-server).
+
+A pass lasts 30 days. Whenever the phone reaches the box and its pass has
+less than three weeks left, the box quietly gives it a new one. You never see
+this.
+
+A pass gets a device through the relay, and no further. The box still checks
+every device against its own list of paired devices, on every connection.
+
+**Removing a device.** When an admin removes a phone, the box stops it at
+once. The box also tells its relay straight away, over the connection it
+keeps open, so the relay shuts the phone out too. If the relay was out of
+touch at that moment, the box tells it again as soon as they reconnect. And
+the phone's pass runs out within 30 days anyway, so nothing is left behind.
+
+**A phone that's been away a long time.** If a phone goes more than 30 days
+without reaching the box, its pass runs out and the relay won't let it in.
+The phone still connects at home, or over any direct path, because the box
+checks its own list. Once it does, it gets a new pass and the relay works
+again.
+
 ### Connecting
 
 The phone, the laptop app and the box all use
@@ -57,10 +94,11 @@ Some strict routers beat ordinary hole punching. If our
 
 ### What gets in
 
-Only paired devices. Our relay doesn't let strangers through at all, so
-through the relay they can't even reach the box. And a stranger who finds the
-box's address directly still can't connect: the box refuses any device it
-hasn't paired.
+Only paired devices. Our relay lets in only devices with a pass from their
+box, so through the relay strangers can't even reach the box. And a device
+with a pass can reach only the box that made it, never anyone else's. A
+stranger who finds the box's address directly still can't connect: the box
+refuses any device it hasn't paired.
 
 A connection reaches the box's apps and nothing else on your home network.
 It isn't a VPN. Your phone won't ask for VPN permission, and it works
@@ -72,9 +110,11 @@ The app and the box use only relays run by ZOOMRIYA, or by your family if you
 [run your own](sharing-and-names.md#your-own-server). iroh's public relays are
 switched off.
 
-Our relays let in only boxes and their paired devices. For each one, the
-relay asks our control plane. Each time we upgrade iroh, a test records the
-network traffic to make sure nothing goes anywhere else.
+Our relays let in only boxes and devices with a pass from one. When a box is
+set up, our control plane tells the relays it's a ZOOMRIYA box. That's all
+the relays learn from us. They check each device's pass for themselves.
+Each time we upgrade iroh, a test records the network traffic to make sure
+nothing goes anywhere else.
 
 ### Backups wait
 
@@ -145,6 +185,6 @@ You can use your own domain instead, such as `home.smith.ca`. See
 | Part | Where it runs | What it does |
 |---|---|---|
 | **The link** | Inside the ZOOMRIYA app on phones (Android, iOS) and in the desktop app (Linux, Windows, macOS) | Connects to the box and checks its key. The app's screens, or a laptop's browser, reach the box's apps through it |
-| **connectd** | The box | Lets in paired devices and nobody else. Checks share links. Opens and closes the door on the router for guests. Publishes the box's address record. Warns you if anyone else gets a certificate for the box's name |
-| **The relay** | A server run by ZOOMRIYA, or by your family | Starts each connection and helps with hole punching. Carries data only when nothing direct works. Lets in only boxes and their paired devices |
+| **connectd** | The box | Lets in paired devices and nobody else. Hands out and renews their passes, and tells the relay when a device is removed. Checks share links. Opens and closes the door on the router for guests. Publishes the box's address record. Warns you if anyone else gets a certificate for the box's name |
+| **The relay** | A server run by ZOOMRIYA, or by your family | Starts each connection and helps with hole punching. Carries data only when nothing direct works. Lets in only boxes, and devices with a pass from their box, and only to that box |
 | **The control plane** | A server run by ZOOMRIYA, or by your family | Keeps each box's address record, answers DNS for box names, helps get certificates, checks from outside whether a box can be reached, and passes setup messages for guests |
