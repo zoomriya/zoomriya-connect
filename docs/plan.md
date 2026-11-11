@@ -13,8 +13,8 @@ order, and where the code goes.
 |---|---|
 | Build `connectd`, the box's side | Everything else hangs off it |
 | One certificate per box, through DNS: Let's Encrypt first, Google Trust Services as the fallback. Ask Let's Encrypt for a higher limit before launch | `zoomriya.app` isn't on the Public Suffix List, so Let's Encrypt allows 50 new certificates a week across all boxes |
-| Run DNS for box names on the control plane: one server now | Simple to start |
-| Ready for a second DNS server: changes go out as zone transfers, and `ns2.zoomriya.net` is reserved (pointing at the same server until then) | Turning a second on is a setting, not a rebuild. Most registrars ask for two name servers |
+| Run DNS for box names on the control plane (`ns1.zoomriya.net`) | Simple to start |
+| **A second DNS server for `ns2.zoomriya.net`, planned for release,** at another hosting company. It copies the first through zone transfers. Until it's up, `ns2.` points at the same server | Names keep answering if one server or hosting company is down. Most registrars ask for two name servers |
 | Publish where the box is, and check it's on a cable | The box can't use Wi-Fi |
 
 ### 2. [Get ready for guests](where-it-works.md#guests)
@@ -101,6 +101,7 @@ order, and where the code goes.
 |---|---|
 | Test the album viewer's door hard | It's the only part facing the internet |
 | An independent security review | |
+| The second DNS server for `ns2.zoomriya.net` running, at another hosting company | Box names don't depend on one server |
 | Write up [running your own server](sharing-and-names.md#your-own-server) | |
 
 ### Always

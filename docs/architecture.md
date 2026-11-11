@@ -134,7 +134,7 @@ The coordinator. It never carries family data.
 | What it does | Why |
 |---|---|
 | **Keeps address records** (`iroh-dns-server`), signed by each box | It can serve them, never change them |
-| **Answers DNS for box names** under `zoomriya.app`. One server now; a second, at another hosting company, can be turned on later | Names keep answering if one is down |
+| **Answers DNS for box names** under `zoomriya.app`, from two servers by release: `ns1.zoomriya.net` on the control plane, and `ns2.zoomriya.net` on a second server at another hosting company, copying the first | Names keep answering if one is down |
 | **Puts Let's Encrypt's temporary DNS record**, with a key that works only for that box's name | Certificates without opening the router |
 | **Checks from outside** that the door works and the sign-in page can't be reached through it. Only ever checks the asking box's address | Catches a door that leaks, and can't be used to scan others |
 | **Passes guests' WebRTC setup messages,** never the album | Guests reach the box directly |
