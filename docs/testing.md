@@ -164,7 +164,9 @@ These are suggestions. We'll agree them before stage 2.
 - **Removed means removed:** a removed device is refused by the box at once,
   and by the relay within 5 seconds, or as soon as the box reconnects.
 - **Passes renew:** no family device loses the relay because its pass ran
-  out while it was in regular use.
+  out while it was in regular use. The real phones include an iPhone whose
+  app is opened only once every three weeks; its pass still renews in the
+  background. If it doesn't, passes get longer.
 - **Certificates:** every box renews its certificate.
 
 ## What this can't tell us

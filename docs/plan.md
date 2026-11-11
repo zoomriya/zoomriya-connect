@@ -19,7 +19,10 @@ Part of [ZOOMRIYA Connect](../README.md).
      is off by default).
    - [Passes](how-it-works.md#the-box-hands-out-passes): the box signs a
      30-day pass for each paired device (device key, box key, expiry) and
-     renews it when less than three weeks are left. The relay checks the pass
+     renews it when less than three weeks are left, over any connection to
+     the box, including the app's background work (backups, refresh). If the
+     soak test shows iPhones missing renewals, lengthen passes rather than
+     wake the app more often. The relay checks the pass
      itself, and lets each device reach only the box that signed it. The box
      sends its list of removed devices whenever it connects to the relay, and
      again at once when one is removed. The control plane tells relays only

@@ -39,9 +39,29 @@ The relay checks the pass by itself, without asking our control plane. So:
 - **Your own relay needs only your box.** See
   [your own server](sharing-and-names.md#your-own-server).
 
-A pass lasts 30 days. Whenever the phone reaches the box and its pass has
-less than three weeks left, the box quietly gives it a new one. You never see
-this.
+**How a pass is renewed.** A pass lasts 30 days. You never see it renewed:
+
+1. The phone connects to the box, any way at all: at home, over a direct
+   path, or through the relay with the pass it already has.
+2. The box checks the phone against its own list of paired devices, as it
+   does on every connection.
+3. If the pass has less than three weeks left, the box signs a new one, good
+   for 30 days from today, and sends it over the same encrypted connection.
+4. The phone keeps the new pass and drops the old one.
+
+The relay plays no part. It never makes passes, and it can't read the new
+one going past. It just sees it the next time the phone shows it.
+
+Renewing with three weeks left means a phone in use gets its new pass long
+before the old one runs out. It also renews in the background, whenever the
+app reaches the box without you opening it: for example, to back up new
+photos when you get home.
+
+Phones limit what apps do in the background, iPhones most of all. So a phone
+whose app is rarely opened might go 30 days without reaching the box. Our
+[tests](testing.md) watch for this on real phones. If it happens, we'll make
+passes last longer. That costs little, because removing a device works at
+once whatever the pass says.
 
 A pass gets a device through the relay, and no further. The box still checks
 every device against its own list of paired devices, on every connection.

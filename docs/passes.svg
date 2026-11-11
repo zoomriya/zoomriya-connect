@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated: the steps play in turn, then loop. With reduced motion, the whole diagram shows at once. -->
+<!-- Generated: the steps play in turn once, then the finished diagram stays. With reduced motion, the whole diagram shows at once. -->
 <svg xmlns="http://www.w3.org/2000/svg" width="900" height="880" viewBox="0 0 900 880" role="img" aria-label="How passes work, in four steps. 1: at home, you pair your phone, and the box gives it a pass signed by the box, saying this phone belongs to this box until a date. 2: away from home, the phone shows its pass to the relay. The relay checks it was signed by this box, is still in date and hasn't been removed, without asking our control plane, then lets the phone through to that box only. The box checks its own list and lets it in. 3: a stranger with no pass, or a copied pass, is turned away by the relay. 4: when you remove a lost phone, the box tells the relay straight away, and both turn it away. Passes last 30 days and renew by themselves each time the phone reaches the box.">
 <style>
 svg{--surface:#fff;--zone:#f1f5f6;--fg:#15232a;--muted:#5b6c75;--line:#c3ced4;--data:#087f6e;--setup:#886516;--setup-soft:#fbf4df;--stop:#b3261e}
@@ -18,34 +18,35 @@ text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-
 .num{fill:var(--fg)}.num-text{fill:var(--surface);font-size:13px;font-weight:700}
 .dot-data{fill:var(--data)}.dot-setup{fill:var(--setup)}.dot-stop{fill:var(--stop)}
 .token{opacity:0}
-@keyframes a1{0%,0.77%{opacity:0}2.69%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a1{animation:a1 26.0s infinite}
-@keyframes a2{0%,3.85%{opacity:0}5.77%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a2{animation:a2 26.0s infinite}
-@keyframes a3{0%,3.85%{opacity:0;transform:translate(200px,0px)}4.62%{opacity:1;transform:translate(200px,0px)}9.23%,94.0%{opacity:1;transform:translate(0,0)}98.0%,100%{opacity:0;transform:translate(0,0)}}.a3{animation:a3 26.0s infinite;animation-timing-function:ease-in-out}
-@keyframes a4{0%,10.77%{opacity:0}12.69%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a4{animation:a4 26.0s infinite}
-@keyframes a5{0%,17.31%{opacity:0}19.23%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a5{animation:a5 26.0s infinite}
-@keyframes a6{0%,20.00%{opacity:0}21.92%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a6{animation:a6 26.0s infinite}
-@keyframes a7{0%,20.00%{opacity:0;transform:translate(-60px,0px)}20.77%{opacity:1;transform:translate(-60px,0px)}25.38%,94.0%{opacity:1;transform:translate(0,0)}98.0%,100%{opacity:0;transform:translate(0,0)}}.a7{animation:a7 26.0s infinite;animation-timing-function:ease-in-out}
-@keyframes a8{0%,26.15%{opacity:0}28.08%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a8{animation:a8 26.0s infinite}
-@keyframes a9{0%,28.46%{opacity:0}30.38%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a9{animation:a9 26.0s infinite}
-@keyframes a10{0%,30.77%{opacity:0}32.69%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a10{animation:a10 26.0s infinite}
-@keyframes a11{0%,33.85%{opacity:0}35.77%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a11{animation:a11 26.0s infinite}
-@keyframes a12{0%,33.85%{opacity:0;transform:translate(-135px,0px)}34.62%{opacity:1;transform:translate(-135px,0px)}37.69%{opacity:1;transform:translate(0,0)}38.65%,100%{opacity:0;transform:translate(0,0)}}.a12{animation:a12 26.0s infinite;animation-timing-function:ease-in-out}
-@keyframes a13{0%,38.46%{opacity:0}40.38%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a13{animation:a13 26.0s infinite}
-@keyframes a14{0%,41.15%{opacity:0}43.08%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a14{animation:a14 26.0s infinite}
-@keyframes a15{0%,46.92%{opacity:0}48.85%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a15{animation:a15 26.0s infinite}
-@keyframes a16{0%,49.62%{opacity:0}51.54%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a16{animation:a16 26.0s infinite}
-@keyframes a17{0%,49.62%{opacity:0;transform:translate(-106px,0px)}50.38%{opacity:1;transform:translate(-106px,0px)}53.46%{opacity:1;transform:translate(0,0)}54.42%,100%{opacity:0;transform:translate(0,0)}}.a17{animation:a17 26.0s infinite;animation-timing-function:ease-in-out}
-@keyframes a18{0%,53.46%{opacity:0;transform:scale(0)}54.42%{opacity:1;transform:scale(1.4)}55.38%,94.0%{opacity:1;transform:scale(1)}98.0%,100%{opacity:0;transform:scale(1)}}.a18{animation:a18 26.0s infinite;transform-box:fill-box;transform-origin:center}
-@keyframes a19{0%,55.00%{opacity:0}56.92%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a19{animation:a19 26.0s infinite}
-@keyframes a20{0%,61.15%{opacity:0}63.08%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a20{animation:a20 26.0s infinite}
-@keyframes a21{0%,63.85%{opacity:0}65.77%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a21{animation:a21 26.0s infinite}
-@keyframes a22{0%,63.85%{opacity:0;transform:translate(135px,0px)}64.62%{opacity:1;transform:translate(135px,0px)}67.69%{opacity:1;transform:translate(0,0)}68.65%,100%{opacity:0;transform:translate(0,0)}}.a22{animation:a22 26.0s infinite;animation-timing-function:ease-in-out}
-@keyframes a23{0%,69.62%{opacity:0}71.54%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a23{animation:a23 26.0s infinite}
-@keyframes a24{0%,69.62%{opacity:0;transform:translate(-106px,0px)}70.38%{opacity:1;transform:translate(-106px,0px)}73.46%{opacity:1;transform:translate(0,0)}74.42%,100%{opacity:0;transform:translate(0,0)}}.a24{animation:a24 26.0s infinite;animation-timing-function:ease-in-out}
-@keyframes a25{0%,73.46%{opacity:0;transform:scale(0)}74.42%{opacity:1;transform:scale(1.4)}75.38%,94.0%{opacity:1;transform:scale(1)}98.0%,100%{opacity:0;transform:scale(1)}}.a25{animation:a25 26.0s infinite;transform-box:fill-box;transform-origin:center}
-@keyframes a26{0%,75.38%{opacity:0}77.31%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a26{animation:a26 26.0s infinite}
-@keyframes a27{0%,77.69%{opacity:0}79.62%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a27{animation:a27 26.0s infinite}
-@keyframes a28{0%,82.31%{opacity:0}84.23%,94.0%{opacity:1}98.0%,100%{opacity:0}}.a28{animation:a28 26.0s infinite}
+@keyframes fadein{from{opacity:0}to{opacity:1}}@keyframes slide{0%{opacity:0;transform:translate(var(--dx),var(--dy))}12%{opacity:1;transform:translate(var(--dx),var(--dy))}100%{opacity:1;transform:translate(0,0)}}@keyframes dot{0%{opacity:0;transform:translate(var(--dx),var(--dy))}12%{opacity:1;transform:translate(var(--dx),var(--dy))}80%{opacity:1;transform:translate(0,0)}100%{opacity:0;transform:translate(0,0)}}@keyframes pop{0%{opacity:0;transform:scale(0)}50%{opacity:1;transform:scale(1.4)}100%{opacity:1;transform:scale(1)}}
+.a1{animation:fadein .5s ease 0.2s both}
+.a2{animation:fadein .5s ease 1.0s both}
+.a3{--dx:200px;--dy:0px;animation:slide 1.4s ease-in-out 1.0s both}
+.a4{animation:fadein .5s ease 2.8s both}
+.a5{animation:fadein .5s ease 4.5s both}
+.a6{animation:fadein .5s ease 5.2s both}
+.a7{--dx:-60px;--dy:0px;animation:slide 1.4s ease-in-out 5.2s both}
+.a8{animation:fadein .5s ease 6.8s both}
+.a9{animation:fadein .5s ease 7.3999999999999995s both}
+.a10{animation:fadein .5s ease 8.0s both}
+.a11{animation:fadein .5s ease 8.8s both}
+.a12{--dx:-135px;--dy:0px;animation:dot 1.3s ease-in-out 8.8s both}
+.a13{animation:fadein .5s ease 10.0s both}
+.a14{animation:fadein .5s ease 10.7s both}
+.a15{animation:fadein .5s ease 12.2s both}
+.a16{animation:fadein .5s ease 12.9s both}
+.a17{--dx:-106px;--dy:0px;animation:dot 1.3s ease-in-out 12.9s both}
+.a18{animation:pop .5s ease-out 13.9s both;transform-box:fill-box;transform-origin:center}
+.a19{animation:fadein .5s ease 14.3s both}
+.a20{animation:fadein .5s ease 15.9s both}
+.a21{animation:fadein .5s ease 16.6s both}
+.a22{--dx:135px;--dy:0px;animation:dot 1.3s ease-in-out 16.6s both}
+.a23{animation:fadein .5s ease 18.1s both}
+.a24{--dx:-106px;--dy:0px;animation:dot 1.3s ease-in-out 18.1s both}
+.a25{animation:pop .5s ease-out 19.1s both;transform-box:fill-box;transform-origin:center}
+.a26{animation:fadein .5s ease 19.6s both}
+.a27{animation:fadein .5s ease 20.2s both}
+.a28{animation:fadein .5s ease 21.4s both}
 @media(prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
 <defs>
