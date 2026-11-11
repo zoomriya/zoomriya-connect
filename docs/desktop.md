@@ -18,6 +18,9 @@ The app runs a small helper on your laptop, called a proxy. A browser setting
 or your own domain) through the app, and everything else to the internet as
 usual.
 
+The proxy only carries the box's own names: its ZOOMRIYA name, your own
+domain if you use one, and its `.local` name. It refuses anything else.
+
 Your browser still talks to the box itself and checks its certificate. The
 address bar shows the box's real name. The app passes the traffic along, but
 can't read it.
@@ -63,8 +66,9 @@ the same way as a phone.
 
 ## What locks the key
 
-As on a phone, the app's key stays on the laptop, locked by the system's own
-key store.
+As on a phone, the app's device key stays on the laptop, locked by the
+system's own key store, and vouches for the everyday link key the connection
+uses.
 
 | System | Locked by |
 |---|---|

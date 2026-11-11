@@ -16,7 +16,8 @@ do if they took it over.
 |---|---|---|
 | **Our control plane** | Stop phones finding a box that has moved to another relay. Phones that already know where the box is, and have a pass, keep connecting. See when someone looks up a box, and from where. Serve a bad guest page. Because it answers DNS for box names, it could get a certificate for your box's name and pretend to be your box to a browser. The box watches the public list of certificates and tells you if that happens | Let a new device in. Read or change your data. Pretend to be your box to the app, which checks the box's key. Send your phone to the wrong place, because the box signs its own address |
 | **A relay** | See which devices connect to which box, when, from where, and how much data goes through. Slow connections down or drop them. Ignore a pass's date, or the box saying a device was removed | Read or quietly change your data, or a guest's album. Let a device into the box, which checks its own list every time. Make a pass |
-| **A copied pass** | Nothing. A pass names one device's key, and only that device can prove it has the key | Get through the relay, or into the box |
+| **A copied pass** | Nothing. A pass names one device's link key, and only that device can prove it has the key | Get through the relay, or into the box |
+| **A link key copied from a running app** | Connect as that device until its next new pass, at most 30 days, or until an admin removes it | Make a new link key, which needs the device key in the security chip |
 | **The network you're on** | Block or slow the connection | Read or change it. Connect as your phone |
 | **A lost phone or laptop** | Use the box until an admin removes it | Anything after that. The box refuses it at once and tells the relay to refuse it too. Its pass runs out within 30 days anyway |
 | **A leaked share link** | Show the albums in that link, until it runs out or you cancel it | Reach anything else on the box |
@@ -30,6 +31,12 @@ can use the same door as a direct way in, but the box checks every device's
 key and turns away anyone it hasn't paired, just as it does through the
 relay. If you don't want any door open, switch sharing off and the box closes
 it.
+
+The door leads to its own port on the box, never to the port the sign-in
+page uses at home, so a router that makes internet traffic look local can't
+open the sign-in page either. Each time the door opens, the control plane
+checks from outside that the sign-in page can't be reached through it. If it
+can, the box closes the door at once and tells you.
 
 ## The relay
 

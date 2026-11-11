@@ -2,333 +2,358 @@
 
 Part of [ZOOMRIYA Connect](../README.md).
 
-This page is for people who want to know how ZOOMRIYA Connect is put together:
-what each part is, what it does, what it knows, and how the parts work
-together. If you're thinking of running your own server, checking our
-security claims, or just curious, start here. For a gentler tour, read
-[How it works](how-it-works.md) first.
-
-None of this is built yet. It's the design we're building towards.
+How ZOOMRIYA Connect is put together: each part, what it knows, and what each
+rule protects against. For a gentler tour, read [How it works](how-it-works.md)
+first. None of this is built yet.
 
 ![Phones and laptops with the ZOOMRIYA app reach the box with pinned keys, and connectd hands them to the box's apps. Each connection starts through the relay and moves to a direct path when one works; the relay keeps forwarding encrypted traffic only if none does. Guests open a share link in any browser with nothing installed: over port 443 or by WebRTC hole punching, with a relay as the last option for the encrypted read-only share session. The sign-in page and apps are never on the internet. The control plane only serves the boxes' address records, passes guests' signals, answers DNS and serves the guest page; it carries no family or guest data.](architecture.svg)
 
-## The idea in one paragraph
+## The idea
 
-Your data lives on the box, and it only ever travels between the box and
-devices it trusts. Everything else in ZOOMRIYA Connect exists to help those two
-find each other and get a connection through home routers and strict
-networks. The servers in the middle, the control plane and the relay, can see
-that a connection happens, but never what's inside it, and neither of them
-can let a device in. Only the box decides who gets in.
+Your data lives on the box and only travels between the box and devices it
+trusts. The servers in the middle can see that a connection happens, never
+what's in it, and can never let a device in. Only the box decides.
 
-## Where things run
-
-The parts live in three places:
-
-| Where | Parts |
-|---|---|
-| **Your devices** | The link, inside the ZOOMRIYA app on phones and the desktop app on laptops |
-| **Your box** | connectd, the box's web server, and the album viewer for guests |
-| **Servers** (ZOOMRIYA's, or your own) | The control plane, the relay, and the guest page |
-
-The box itself doesn't need any of the servers. Everything on it keeps
-running if they're all down. Only reaching it from outside, and opening it by
-name in a browser, depend on them.
+| Where | Parts | Needed for |
+|---|---|---|
+| **Your devices** | The link, in the ZOOMRIYA app and the desktop app | Reaching the box |
+| **Your box** | connectd, the web server, the album viewer | Everything. The box keeps working if every server is down |
+| **Servers** (ours, or your own) | The control plane, the relay, the guest page | Reaching the box from outside, and opening it by name in a browser |
 
 ## The parts
 
 ### The link (on your phone or laptop)
 
-The link is the part of the ZOOMRIYA app that talks to the box. It's built on
-[iroh](https://github.com/n0-computer/iroh), which connects two devices by
-their keys rather than their internet addresses, and uses QUIC, an encrypted
-connection that can switch networks without dropping.
+Built on [iroh](https://github.com/n0-computer/iroh), which connects devices
+by their keys, over QUIC, and survives switching networks.
 
-What it does:
+| What it does | Why |
+|---|---|
+| **Holds the device's two keys** (below) | Proves the device is the device |
+| **Pins the box's key** from pairing, and refuses anything else, even with a valid certificate | A look-alike box can't fool it |
+| **Holds the pass** and shows it to the relay | Only paired devices use the relay |
+| **Finds the box** from its signed address record, and keeps the last one | Still works when the control plane is down |
+| **Picks the best path:** starts on the relay, tries every direct path at once, moves to the first that works | Opens fast, then goes direct |
+| **Runs a local proxy** for the app's screens, or a laptop's browser | The box's apps work away from home |
 
-- **Holds the device's key.** The key is made on the device and locked in its
-  security chip or key store: the Secure Enclave on an iPhone, the Keystore on
-  Android, the TPM or Keychain on a laptop. It never leaves the device.
-- **Pins the box's key.** It learns the box's key when you pair, and refuses
-  anything else that answers, even with a valid-looking certificate.
-- **Holds the device's pass** and shows it to the relay.
-- **Finds the box.** It asks the control plane for the box's signed address
-  record, and keeps the last one it saw, in case the control plane can't be
-  reached.
-- **Picks the best path.** It starts on the relay, tries every direct path at
-  once, and moves to the first one that works.
-- **Runs a local proxy.** The app's screens, or a laptop's browser, send their
-  requests to this proxy, and it carries them over the link to the box.
-
-The link never opens your traffic. Your browser, or the app's web view, makes
-its own HTTPS connection to the box's web server, checks the box's real
-certificate, and sends that connection through the link unopened. So two
-layers of encryption protect it: the link's, and the browser's own.
+The link never opens your traffic: the browser's own HTTPS connection to the
+box passes through it unopened, so there are two layers of encryption.
 
 ![Inside the link: your browser's encrypted connection to the box runs through the app and connectd, so neither of them can read it.](link.svg)
 
-On laptops, the [desktop app](desktop.md) adds a setting that sends only the
-box's addresses through the proxy. Everything else goes to the internet as
-usual.
+| Device key | Where it lives | What it's for | If it's copied |
+|---|---|---|---|
+| **Device key** | Made in the security chip (Secure Enclave, Keystore, TPM or Keychain). Never leaves it | The box pins it. It signs each new link key | It can't be |
+| **Link key** | In the app, locked by the chip while the app isn't running. New with each pass | iroh connects with it. iroh needs an Ed25519 key in memory, which most chips can't hold | Works until the next pass (at most 30 days), or until an admin removes the device |
 
 ### connectd (on the box)
 
-connectd is ZOOMRIYA Connect's part on the box. It's the only part that faces
-outside, and it's where every decision about who gets in is made.
+The only part that faces outside, and where every "who gets in" decision is
+made.
 
-What it does:
+| What it does | Why |
+|---|---|
+| **Holds the box's key.** Never leaves the box. Each signature says what it's for (address record or pass) | One kind of signature can't be passed off as another |
+| **Keeps the list of paired devices** and checks every connection, however it came in | A pass or a server can never let a device in |
+| **Hands out and renews passes,** and tells the relay at once when a device is removed | The relay turns removed devices away too |
+| **Stays connected to the relay** | The box can be reached at any moment |
+| **Publishes its signed address record** | Nobody can send phones to the wrong place |
+| **Gets the box's certificate** and watches the public certificate logs | Warns you if anyone else gets one for your box's name |
+| **Opens and closes the guests' door,** and has it checked from outside | Guests get in only while a link is live, never to the sign-in page |
+| **Hands connections on:** family to the web server, guests to the album viewer | Each side reaches only its own service |
 
-- **Holds the box's key.** Made at first setup, it never leaves the box. It
-  proves the box is the box, signs the box's address record, and signs
-  passes.
-- **Keeps the list of paired devices** and checks every connection against
-  it, whichever way the connection came in.
-- **Hands out passes,** renews them, and tells the relay straight away when a
-  device is removed.
-- **Keeps in touch with the relay,** with one small connection that's always
-  open, so the box can be reached at any moment.
-- **Publishes the box's address record** to the control plane: which relay
-  it uses, and the addresses it can be reached at. The box signs it, so
-  nobody can change it on the way.
-- **Gets the box's certificate,** with help from the control plane, and
-  watches the public certificate logs. It warns you if anyone else gets a
-  certificate for your box's name.
-- **Opens and closes the guests' door** on your router while share links are
-  live, and asks the control plane to check from outside that the door
-  really works.
-- **Hands connections on.** Family connections go to the box's web server,
-  guests' connections to the album viewer.
+| Port | Who reaches it | Where it goes | What it fixes |
+|---|---|---|---|
+| **UDP 443** | Paired devices, from anywhere | iroh. Anything else is turned away | |
+| **TCP 443** | The home network only | The web server | The router never sends internet traffic here. The outside check warns if someone forwards it by mistake |
+| **TCP 8443** | The internet, through the guests' door (the router's 443) | The album viewer, and paired devices on networks that block UDP. Never the web server | Some routers make internet traffic look local. connectd goes by the port, which no router can change |
+| **The door's own IPv6 address** | The internet, over IPv6 | The same as 8443 | IPv6 can't change ports, so the door gets its own address instead |
 
-connectd listens on port 443. Two kinds of traffic arrive there:
+### The web server and the album viewer (on the box)
 
-- **UDP** carries iroh connections from paired devices. Anything that can't
-  prove it's a paired device is turned away before it reaches anything else.
-- **TCP** carries HTTPS. From your home network, it goes to the box's web
-  server, as you'd expect. From the internet, it goes only to the album
-  viewer, and only while a share link is live. If you've forwarded port 443
-  yourself, paired devices can use TCP too, on networks that block UDP. The
-  start of each connection says which one it's for.
+The **web server** serves the sign-in page and all the apps, to your home
+network and the link. It's never reachable from the internet. Connections
+from the link reach it through connectd, labelled with the device they came
+from (PROXY protocol v2).
 
-### The box's web server and the album viewer (on the box)
+| Rule | What it fixes |
+|---|---|
+| Never trust a connection because it comes from the box | Every connection from away would otherwise look local |
+| ZOOMRIYA ID sign-in is always required | The label says which device, never who's signing in |
+| **5 wrong passwords lock that person's sign-in for 15 minutes**, wherever they come from. The admins' bell is told | Guessing stays slow, and family away from home don't share one limit |
+| The activity log names the device, such as *Mum's phone* | Instead of *the box* |
+| Removing a device signs out its sessions | A removed phone's open session ends too |
 
-The **web server** serves the box's sign-in page and all its apps. It answers
-your home network, and connections that come through the link. It's never
-reachable from the internet.
+The **album viewer** is a separate, small service for guests.
 
-The **album viewer** is a separate, much smaller service, just for guests. It:
-
-- only answers requests to view the albums in a share link (only reads, never
-  changes)
-- checks the link's token on every request
-- slows down and briefly blocks anyone guessing tokens
-- gives the same answer for a wrong, expired or cancelled link, so a guesser
-  learns nothing
-
-Keeping it separate means a mistake in the album viewer can't reach the
-sign-in page or the apps.
+| Rule | What it fixes |
+|---|---|
+| Only reads the albums in a share link, never changes anything | A guest can't touch anything else |
+| Checks the token on every request | A cancelled link stops at once |
+| Slows down and briefly blocks anyone guessing tokens | Guessing links |
+| The same answer for a wrong, expired or cancelled link | A guesser learns nothing |
+| Holds no certificate key: connectd handles guests' encryption | A break-in finds no key to pretend to be your box |
+| Separate from the web server | A mistake in it can't reach the sign-in page or apps |
 
 ### The relay (on a server)
 
-The relay is a server that both sides can always reach. We run iroh's relay,
-set up for ZOOMRIYA, and families can run their own.
+iroh's relay, set up for ZOOMRIYA. Families can run their own. Reached over
+HTTPS on port 443, like a website, so it works on almost any network.
 
-What it does:
+| What it does | Why |
+|---|---|
+| **Starts every family connection** | The app opens quickly, before a direct path is found |
+| **Helps hole punching:** tells each side its public address, passes "reach out now" | Direct paths through home routers |
+| **Carries data when nothing direct works,** still end-to-end encrypted | Strict networks still work |
+| **Lets in only registered boxes and devices with a pass,** each only to its own box | Strangers can't use it |
+| **Keeps backups off** our relays | Big uploads wait for a direct path. A family's own relay can allow them |
+| **Carries guests' albums as a last resort** (TURN) | Guests on strict networks |
 
-- **Starts every family connection.** The phone reaches the box through the
-  relay first, so the app opens quickly, before any direct path is found.
-- **Helps with hole punching.** It tells each side its own public address,
-  and passes the "reach out now" messages between them.
-- **Carries the data when nothing direct works,** still end-to-end encrypted.
-- **Keeps strangers off.** It lets in only registered boxes, and devices with
-  a valid pass, and connects each device only to the box that signed its
-  pass. It also keeps each box's list of removed devices.
-- **Keeps backups off** our relays. A family's own relay can allow them.
-- **Carries guests' albums as a last resort,** through a separate guests'
-  relay for WebRTC (a TURN server).
+It sees which devices connect to which box, when, from where, and how much.
+Never what's inside.
 
-You reach the relay over HTTPS on port 443, the same way you reach a website,
-which is why it works on almost any network.
+| Limit, per box, on our relays | What it fixes |
+|---|---|
+| **Monthly volume**, set from the [soak test](testing.md) (a home uses about 3 GB). Past it, the box is slowed, never cut off | The relay can't tell a backup from browsing, so it doesn't trust the app to hold back |
+| **Speed** | One box can't crowd out the others |
+| **Higher limits** for ready-made boxes, with a factory token | Self-installed boxes still work, with less to abuse |
+| **Box Desktop shows this month's use** | The family sees it before anything slows |
+| **No limits on a family's own relay** | Their server, their rules |
 
-What the relay sees: which devices connect to which box, when, from where, and
-how much data passes. What it never sees: what's in that data.
+| Guests' relay (TURN) rule | What it fixes |
+|---|---|
+| **Blocked addresses:** private, home and loopback, and our own servers | Using the relay to reach inside our network, or anyone's private network |
+| **Credentials per share session,** from the control plane, valid for an hour | A leaked credential reused for days, or for anything but that album |
+| **Per-guest speed and volume limit** | One guest using up the relay |
 
 ### The control plane (on a server)
 
-The control plane is the coordinator. It never carries family data.
+The coordinator. It never carries family data.
 
-What it does:
+| What it does | Why |
+|---|---|
+| **Keeps address records** (`iroh-dns-server`), signed by each box | It can serve them, never change them |
+| **Answers DNS for box names** under `zoomriya.app`. One server now; a second, at another hosting company, can be turned on later | Names keep answering if one is down |
+| **Puts Let's Encrypt's temporary DNS record**, with a key that works only for that box's name | Certificates without opening the router |
+| **Checks from outside** that the door works and the sign-in page can't be reached through it. Only ever checks the asking box's address | Catches a door that leaks, and can't be used to scan others |
+| **Passes guests' WebRTC setup messages,** never the album | Guests reach the box directly |
+| **Tells relays which boxes are registered,** never about devices | It doesn't learn your devices |
 
-- **Keeps boxes' address records.** We use iroh's address server
-  (`iroh-dns-server`) for this. Records are signed by each box, so the control
-  plane can store and serve them, but not change them.
-- **Answers DNS for box names** under `zoomriya.app`.
-- **Helps boxes get certificates.** It puts the temporary DNS record Let's
-  Encrypt asks for, using a key that works only for that box's own name.
-- **Checks from outside** whether a box's door really works.
-- **Passes setup messages for guests' WebRTC connections,** never the album.
-- **Tells the relays which boxes are registered.** It's never told about
-  devices.
+It sees when a box's address is looked up, and from where. Never your data,
+your devices, or the certificate key.
 
-What it sees: when a box's address is looked up, and from where. What it
-never sees: your data, your devices, or the box's certificate key.
+| Registering a box | What it fixes |
+|---|---|
+| One name per box | Grabbing many names |
+| Blocked words (bank, login, pay…) and look-alike brand names refused | Scam names with a real padlock |
+| A daily limit on new boxes per internet address | Scripts registering in bulk |
+| A released name waits 90 days | Taking a name someone just gave up |
+| Anyone can report a name, and we can switch it off | Abuse that gets past the rules |
+| A factory token in ready-made boxes, for higher relay limits | ZOOMRIYA OS is open source, so anyone can register a box |
 
 ### The guest page (on a server)
 
-The guest page, at `share.zoomriya.net`, is a static web page that opens a
-share link in the guest's browser. It loads, reads the token and the box's
-fingerprint from the part of the link after `#` (which browsers never send to
-the server), and fetches the album from the box. The album never passes
-through the guest page's server.
+A static page at `share.zoomriya.net`. It reads the token and the box's
+fingerprint from after the `#`, which browsers never send to the server, and
+fetches the album from the box. The album never passes through it.
 
 ## Keys and who trusts what
 
 | Key | Made on | Never leaves | Used for |
 |---|---|---|---|
-| **Device key** | Each phone or laptop | Its security chip or key store | Proving the device is the device |
-| **Box key** | The box, at first setup | The box | Proving the box is the box, signing its address record, signing passes |
-| **Certificate key** | The box | The box | The padlock in browsers, for the box's name, the guests' door, and your own domain |
-| **DNS update key** | Given to the box at setup | The box | Changing the box's own DNS record, and nobody else's |
-| **Share token** | The box, for each link | The link (after the `#`) | Opening the albums in that link |
+| **Device key** | Each phone or laptop, in its security chip | The chip | Signing link keys. The box pins it |
+| **Link key** | The app, with each pass | The device | iroh's connection. Named in the pass |
+| **Box key** | The box, at first setup | The box | Proving the box, signing address records and passes |
+| **Certificate key** | The box | The box | The padlock: the box's name and door, or your own domain and its door. connectd and the web server hold it, never the album viewer |
+| **DNS update key** | Given to the box at setup | The box | Changing the box's own DNS record only |
+| **Share token** | The box, per link | The link (after the `#`) | Opening that link's albums |
 
-The rules that follow from this:
-
-- **The box trusts only its own list.** A pass, a relay, or the control plane
-  can never get a device into the box.
-- **Devices trust only the box's key.** A valid certificate isn't enough. A
-  look-alike box with the right name but the wrong key is refused.
-- **The relay trusts the box's signature.** It lets a device through because
-  the box signed its pass, not because anyone else vouched for it.
-- **Nobody trusts the network in between.** Everything is encrypted end to
-  end.
+| Who | Trusts | So |
+|---|---|---|
+| **The box** | Only its own list | A pass, relay or control plane can never let a device in |
+| **Devices** | Only the box's key | A look-alike box with a valid certificate is refused |
+| **The relay** | The box's signature on a pass | Nobody else can vouch for a device |
+| **Nobody** | The network in between | Everything is encrypted end to end |
 
 ## How it all works together
 
 ### Setting up the box
 
-1. You pick a name at first setup, such as `maplehouse`.
-2. The box makes its key, and registers with the control plane. The control
-   plane tells our relays about the box.
-3. The box gets its certificate. Let's Encrypt asks for proof, the control
-   plane puts a temporary record in DNS, and the certificate arrives. Its key
-   was made on the box.
-4. The box opens its always-on connection to the relay, and publishes its
-   signed address record.
-5. `maplehouse.zoomriya.app` now points at the box on your home network.
+| Step | What happens |
+|---|---|
+| 1 | You pick a name, such as `maplehouse` |
+| 2 | The box makes its key and registers. The control plane tells our relays |
+| 3 | The box gets its certificate: the control plane puts the temporary DNS record, the key stays on the box |
+| 4 | The box connects to the relay and publishes its signed address record |
+| 5 | `maplehouse.zoomriya.app` points at the box on your home network |
 
 ### Pairing a phone
 
-1. The box shows a QR code on its screen. It holds the box's key, how to reach
-   it, and a one-time pairing secret.
-2. The app scans it, makes the phone's own key, and connects to the box on
-   your home network.
-3. Each side checks the other: the phone checks the box's key from the QR
-   code, and the box checks the one-time secret.
-4. The box adds the phone to its list and gives it its first pass.
+| Step | What happens |
+|---|---|
+| 1 | The box shows a QR code: its key, how to reach it, a one-time secret |
+| 2 | The app makes its device key in the chip and its first link key, and connects at home |
+| 3 | The phone checks the box's key from the QR code. The box checks the secret and the device key's signature on the link key |
+| 4 | The box lists the device key and gives a first pass for that link key |
 
 ### Connecting away from home
 
 ![How your phone connects to the box, step by step: the box stays in touch with the relay; the app asks which relay the box uses, or remembers it; it shows its pass and connects through the relay at once; the relay tells each side where the other is and both reach out together; usually within seconds the direct path takes over. If nothing direct works, the relay keeps passing the data along, still encrypted.](connecting.svg)
 
-1. The app asks the control plane for the box's address record, or uses the
-   one it remembers. It checks the box's signature on it.
-2. It connects to the box's relay, and shows its pass. The relay checks the
-   box's signature on the pass, the end date and the removed list, and
-   connects the phone to that box only.
-3. The phone and the box set up an encrypted connection through the relay,
-   each checking the other's key. The box checks its list. The app is now in
-   use.
-4. In the background, both sides try every direct path at once: the home
-   network, IPv6, hole punching, the box's open door, and TCP 443 if you've
-   forwarded it. The first that works takes over, and the relay drops out.
-5. If the phone's pass has less than three weeks left, the box sends a new
-   one over the connection.
+| Step | What happens |
+|---|---|
+| 1 | The app gets the box's address record, or uses the one it remembers, and checks the box's signature |
+| 2 | It shows its pass to the relay, which checks the signature, dates and removed list, and connects it to that box only |
+| 3 | Phone and box connect through the relay, each checking the other's key. The box checks its list. The app is in use |
+| 4 | Both try every direct path at once: home network, IPv6, hole punching, the door, a forwarded port. The first that works takes over |
+| 5 | With under three weeks left on the pass, the app makes a new link key signed by the device key, and the box sends a new pass. The old link key stops working |
 
 ![Family devices start on the relay and try up to five direct paths at once, with a sixth later if tests show it's needed; the first that works takes over. Guests try the box directly, then WebRTC, then the relay.](paths.svg)
 
 ### Removing a device
 
-1. An admin removes the phone in Box Desktop.
-2. The box drops it from its list. From now on, the box refuses it on every
-   path.
-3. The box tells the relay at once, and again each time it reconnects, so the
-   relay refuses it too.
-4. The box never renews its pass, which runs out within 30 days anyway.
+| Step | What happens |
+|---|---|
+| 1 | An admin removes it in Box Desktop |
+| 2 | The box refuses it on every path, and signs out its sessions |
+| 3 | The box tells the relay at once, and again on each reconnect |
+| 4 | The pass is never renewed, and runs out within 30 days anyway |
 
 ### A guest opens a link
 
-1. You make a share link. The box makes a token, and opens the guests' door:
-   it asks your router to open port 443, or opens it over IPv6, and points
-   the door's name, such as `maplehouse-share.zoomriya.app`, at your home.
-   The control plane checks from outside that it works, and the box tells you
-   what guests can expect.
-2. The guest opens the link. The page loads from `share.zoomriya.net`.
-3. The page tries, in order:
-   - **the door:** straight to the box's album viewer, over HTTPS
-   - **WebRTC:** the browser and the box punch through to each other, with the
-     control plane passing the setup messages. The page checks the box's
-     fingerprint from the link.
-   - **the guests' relay:** carrying the album, encrypted, as a last resort
-4. The album viewer checks the token on every request.
-5. When the last link runs out, the box closes the door and removes the
-   door's name.
+| Step | What happens |
+|---|---|
+| 1 | You make a link. The box makes a token and opens the door: the router's 443 to the box's 8443, or the door's IPv6 address. The door's name, such as `maplehouse-share.zoomriya.app`, points at your home |
+| 2 | The control plane checks from outside. If the sign-in page can be reached, the door closes at once and you're told. Otherwise you're told what guests can expect |
+| 3 | The guest opens the link. The page loads from `share.zoomriya.net` |
+| 4 | It tries the door, then WebRTC (checking the box's fingerprint from the link), then the guests' relay |
+| 5 | The album viewer checks the token on every request |
+| 6 | When the last link ends, the box closes the door and removes its name |
 
 ### At home
 
-At home, ZOOMRIYA Connect hardly takes part. `maplehouse.zoomriya.app` points
-at the box on your home network, so any browser opens it directly, with a
-proper padlock. Your browser still looks the name up in DNS, which our
-control plane answers. The app doesn't need even that: it finds the box on
-the home network by itself.
+`maplehouse.zoomriya.app` points at the box on your home network, so a browser
+opens it directly, with a proper padlock.
+
+| Way in at home | Needs DNS? | When it fails |
+|---|---|---|
+| Phone app, desktop app | No: they find the box on the home network | Never |
+| `maplehouse.zoomriya.app` in a browser without the app | Yes | Routers and DNS filters that throw away public answers pointing inside the home (a protection against DNS rebinding) |
+| `zoomriya-xxxx.local` | No, and it uses the box's own certificate | Never |
+
+When the name is thrown away, Box Desktop suggests the desktop app or the
+`.local` name, only when someone actually hits it.
 
 ## When things go wrong
 
 | If this fails | What still works | What stops |
 |---|---|---|
-| **The control plane** | Phones away from home that know where the box is, and have a pass. The app at home, which finds the box by itself | Finding a box that has moved to another relay. Opening the box's name in a browser, once saved DNS answers run out. New certificates. Guest links, which need its DNS and setup messages |
-| **The relay** | Direct paths, if the phone can find one without help: at home, over IPv6, through an open door or a forwarded port | Connections that need the relay to start or carry them. If you run your own relay, you can turn on **If my relay is down, use ZOOMRIYA's** |
-| **The box's internet** | Nothing from outside. Everything at home | All access from outside |
-| **The router won't open a door** | Family connections, which never need the door. Guests over WebRTC or the relay | Guests coming straight in |
-| **The network blocks UDP** | The relay, over HTTPS. A forwarded TCP 443 | Direct paths over UDP |
+| **The control plane** | Phones that remember the box's address and have a pass. The app at home | Finding a box that moved relay. The name in a browser, once saved answers run out. New certificates. Guest links |
+| **The relay** | Direct paths found without help: home, IPv6, the door, a forwarded port | Connections that need the relay. Own-relay families can turn on **If my relay is down, use ZOOMRIYA's** |
+| **The box's internet** | Everything at home | All access from outside |
+| **The router won't open a door** | Family connections. Guests over WebRTC or the relay | Guests coming straight in |
+| **The network blocks UDP** | The relay, over HTTPS. A forwarded port | Direct paths over UDP |
+| **The box itself** | Nothing from outside until a box is set up again | See below |
 
-More detail, network by network, is in [Where it works](where-it-works.md).
+More, network by network: [Where it works](where-it-works.md).
+
+### If the box is lost or restored
+
+Families keep nothing for ZOOMRIYA Connect. The box keeps its key in `/data`,
+never in backups. The box phrase (planned: *Recovery keys* in zoomriya-docs,
+`/developers/recovery/`) is for the box and its backups only.
+
+| What happened to the box | Its key | What the family does |
+|---|---|---|
+| **Off for a while** | Kept | Nothing. After 30 days away, phones renew their passes at home |
+| **A restore point, or Reset the system** | Kept | Nothing |
+| **Data restored from a backup, same box** | Kept | Nothing |
+| **Erased, or a new box, restored from a backup** | New | Pair phones again at home. An admin's phone moves the name |
+| **Box and every admin's phone lost** | Gone | Pick a new name |
+| **Stolen** | With the thief | An admin's phone marks it stolen. The relay and control plane refuse its key |
+| **Dies while a link is live** | | Nothing. The door's lease runs out and the router closes it |
+
+| What happened to the phone or laptop | Its keys | What to do |
+|---|---|---|
+| **The app is updated** | Kept | Nothing |
+| **A new phone, even restored from the old one's backup** | Not there: kept out of phone backups | Pair at home. Remove the old one in Box Desktop |
+| **The app reinstalled, or the phone reset** | Gone | Pair again at home |
+| **Lost or stolen** | Locked by its chip | An admin removes it |
+
+| Rule | What it fixes |
+|---|---|
+| Phones never accept a new box key by themselves. They say: *Your box has a new key. If you reset or replaced it, pair again at home.* | A look-alike box would look exactly the same |
+| Pairing happens only at home, at the box | A stolen backup or copied app can't add a device |
 
 ## Running your own
-
-You can replace our servers with your own, partly or fully:
 
 | What you run | What it replaces | See |
 |---|---|---|
 | **Just a relay** | Our relay. We still find your box and answer for its name | [Just a relay](sharing-and-names.md#your-own-server) |
-| **The full server** | Our relay, control plane and guest page. ZOOMRIYA's servers play no part | [Your own server](sharing-and-names.md#your-own-server) |
+| **The full server** | Our relay, control plane and guest page | [Your own server](sharing-and-names.md#your-own-server) |
 
-The box and the apps don't change. You type your server's address into Box
-Desktop once, and the pairing QR code passes it on to phones and laptops.
+The box and apps don't change. You type your server's address into Box
+Desktop once, and the pairing QR code passes it on.
 
 ## Ports at a glance
 
 | Where | Port | What for |
 |---|---|---|
-| **The box**, from your home network | TCP 443 | The web server (HTTPS) |
-| **The box**, from the internet, while a share link is live | TCP 443 | The album viewer for guests |
+| **The box**, from your home network | TCP 443 | The web server |
+| **The box**, from the internet, while a link is live | Router's TCP 443 → box's 8443 | The album viewer |
 | | UDP 443 | Direct connections from paired devices |
-| **The box**, if you forwarded port 443 | TCP 443 | Also paired devices, on networks that block UDP |
-| **The box**, otherwise | Any UDP port | Hole punching, which needs nothing opened |
-| **The relay** | TCP 443 (HTTPS) | Starting and carrying connections |
-| **The control plane** | TCP 443 (HTTPS), and 53 (DNS, UDP and TCP) | Address records, setup messages, DNS for box names |
+| **The box**, if you forwarded a port yourself | Router's TCP 443 → box's 8443 | Also paired devices, on networks that block UDP. Box Desktop shows the port |
+| **The box**, otherwise | Any UDP port | Hole punching, nothing opened |
+| **The relay** | TCP 443 | Starting and carrying connections |
+| **The control plane** | TCP 443, and 53 (DNS) | Address records, setup messages, DNS for box names |
 
-The box never asks your router to open anything except the guests' door,
-and only while a share link is live.
+The box opens nothing on your router except the guests' door, and only while
+a link is live.
+
+## Versions and updates
+
+| What | Rule | What it fixes |
+|---|---|---|
+| **iroh** | One exact version, never forked. The relay checks passes through iroh's access hook; if the hook can't see a pass, the device hands it over first. Upgraded every quarter, tested with the traffic recording | iroh changes often; a fork would need redoing on every update |
+| **Protocol versions** | Servers accept the current version and the one before. Older ones get *please update*, shown in plain words | Old boxes and apps fail clearly, not strangely |
+| **A new minimum version** | Announced in Box Desktop and the app months ahead | Nobody is cut off by surprise |
+| **The box's clock** | Passes are signed only when the clock is set from the internet, and never earlier than the software's date. The relay allows 10 minutes' difference | A wrong clock would sign passes that have already run out |
+| **Phones** | iOS 17 or later. Android with a system WebView that has proxy support, checked at start. Older phones: home only, and the app says so | Older web views can't use the link's proxy |
+
+## Decisions and why they work
+
+| Decision | Instead of | Why it works |
+|---|---|---|
+| **Build on iroh** | Nebula, or a VPN | iroh runs inside the app, so there's no VPN prompt and it works beside a work VPN. Its relay works over HTTPS, so strict networks work too |
+| **Two keys per device:** the chip's key signs a link key | One key in the chip | Most chips can't hold iroh's Ed25519 key. The chip's key still decides, and a copied link key dies with the next pass |
+| **Recovery by pairing again at home**, with an admin's phone moving the name | A recovery phrase for ZOOMRIYA Connect | Families keep nothing extra. It takes a minute per phone, which they'd spend on a new box anyway |
+| **The box only trusts its own list** | Trusting the relay or control plane | A server that's broken into still can't let a device in |
+| **The door on port 8443,** or its own IPv6 address | Deciding "home or internet" from the address | Routers can fake where traffic comes from, never which port it arrives on |
+| **One certificate per box,** held by connectd | One certificate with every name, in the album viewer | Fits Let's Encrypt's limits, doesn't link your own domain to ZOOMRIYA, and the part facing the internet holds no key |
+| **Let's Encrypt, with Google as the fallback** | One authority | Both free. Google covers Let's Encrypt's outages and weekly limit |
+| **`__Host-` cookies and `Origin` checks** | The Public Suffix List | Same protection for cookies, without months of waiting on an outside list |
+| **Public box names kept** | `.local` names only | Families get a real name and padlock. The apps and `.local` cover routers that block it |
+| **Our own DNS server,** a second later | Cloudflare | No record limits, no cost per box, and own domains keep the one-line NS option. A second server is a setting away |
+| **One NS record, or four CNAMEs** | One CNAME | One CNAME can't cover the certificate check or the door |
+| **Relay limits per box,** slowed not cut off | Trusting the app to hold back backups | The relay can't see what it carries, so it limits what it can measure |
+| **Rules for registering boxes** | Only real boxes may register | Self-installs stay free, and names and the relay stay hard to abuse |
+| **Device labels, and a 15-minute lock after 5 wrong passwords** | Trusting connections from the box | Every person and device is counted separately, and guessing stays slow |
+| **Desktop proxy carries only box names**, no per-user check | Checking each laptop user | Everyone still signs in to ZOOMRIYA ID, so a per-user check would add code without adding safety |
+| **Guest password optional,** off by default | Always on | Links are already unguessable. A password helps only when a link leaks, and costs guests effort |
+| **Two protocol versions accepted,** minimums announced early | Forcing updates | Old boxes and apps keep working long enough to update |
+| **10 minutes' clock allowance** | Exact times | Small clock differences never break passes, and a big one is caught before signing |
 
 ## What we build ourselves
 
-Most of the connection work is iroh's. Our own parts are:
+Most of the connection work is iroh's. Ours:
 
-- passes, and the relay's checks of them
-- the box's address records, signed with its own key
-- TCP 443 for families who forward a port, because iroh's direct paths use
-  UDP only
-- the guests' door, the album viewer, and the guest page
-- names, DNS and certificates for boxes
-- the outside check
+| Part | Why it's ours |
+|---|---|
+| Passes, and the relay's checks | iroh's relay has no passes |
+| Signed address records | The box signs with its own key |
+| TCP on the door's port, for families who forward a port | iroh's direct paths are UDP only |
+| The guests' door, album viewer and guest page | Guests use browsers, not iroh |
+| Names, DNS and certificates for boxes | |
+| The outside check | |
 
-Where the code for each part goes is in [Plan and layout](plan.md#where-the-code-goes).
+Where the code goes: [Plan and layout](plan.md#where-the-code-goes).

@@ -29,7 +29,8 @@ else can pretend to be your box.
 
 The phone's key stays on the phone, locked in its security chip: the Secure
 Enclave on an iPhone, the Keystore on Android. Only the ZOOMRIYA app can use
-it, and it never leaves the phone.
+it, and it never leaves the phone. It vouches for a second, everyday key that
+the connection uses, and the phone makes a new everyday key every few weeks.
 
 ### Connecting
 
@@ -198,6 +199,31 @@ Nothing on your router needs opening for this.
 
 You can use your own domain instead, such as `home.smith.ca`. See
 [names and domains](sharing-and-names.md#names-and-domains).
+
+### Opening the box at home
+
+| Device | What to open | Works on every router? |
+|---|---|---|
+| A phone | The ZOOMRIYA app | Yes |
+| A laptop with the [desktop app](desktop.md) | `maplehouse.zoomriya.app` in your browser | Yes |
+| A computer without the app | `maplehouse.zoomriya.app` | On most routers. If it won't open, use the next line |
+| A computer without the app, if the name won't open | `zoomriya-xxxx.local`, the box's home name. Box Desktop shows yours | Yes |
+
+**Why the name might not open without the app.** Your browser asks the
+internet's address book (DNS) where `maplehouse.zoomriya.app` is, and the
+answer is the box's address inside your home. Some routers, and ad or DNS
+filters, throw that kind of answer away on purpose, because a known attack
+uses it to reach devices inside homes. Your router is protecting you, but the
+name then can't be found.
+
+| Way in | Why it isn't affected |
+|---|---|
+| The phone app and the desktop app | They find the box on your home network by themselves, without asking DNS |
+| `zoomriya-xxxx.local` | Computers find `.local` names on the home network by themselves. It uses the box's own certificate, which you trust once (*Open the apps securely* in the user guide) |
+
+If you'd like the name to work on that computer too, install the desktop app.
+Or allow `zoomriya.app` in your router's settings: Box Desktop shows how for
+common routers.
 
 ## Who carries what
 

@@ -89,11 +89,37 @@ doesn't say who you are: a street or a word, not your surname.
 | Choice | The box's name | Who looks after its DNS | The relay |
 |---|---|---|---|
 | A ZOOMRIYA name (the default) | `maplehouse.zoomriya.app` | ZOOMRIYA | ZOOMRIYA's |
-| Your own domain, through ZOOMRIYA | `home.smith.ca`, pointed at your ZOOMRIYA name with a CNAME record at your DNS provider | ZOOMRIYA | ZOOMRIYA's |
+| Your own domain, through ZOOMRIYA | `home.smith.ca`, handed to ZOOMRIYA with one NS record at your DNS provider ([see below](#your-own-domain-through-zoomriya)) | ZOOMRIYA | ZOOMRIYA's |
 | [Your own server](#your-own-server) | `home.smith.ca` | Your server | Yours |
 
 Your own domain is just a domain. `home.smith.ca` doesn't tell anyone there's a
 ZOOMRIYA Box behind it.
+
+### Your own domain, through ZOOMRIYA
+
+You add records at your domain provider, wherever you bought `smith.ca`. No
+server of your own is needed: they point at names ZOOMRIYA already answers.
+Box Desktop shows the exact lines to copy, checks them, and says which one is
+wrong if something's missing.
+
+**One NS record**, if your provider allows it (most do):
+
+| Record | Points at | Covers |
+|---|---|---|
+| `home.smith.ca` NS | `ns1.zoomriya.net` | Everything under `home.smith.ca`: the box's name, the guests' door, and both certificate checks |
+
+**Four CNAME records**, only if your provider doesn't allow NS records for
+part of a domain:
+
+| Record | Points at | What for |
+|---|---|---|
+| `home.smith.ca` CNAME | `maplehouse.zoomriya.app` | The box's name |
+| `_acme-challenge.home.smith.ca` CNAME | `_acme-challenge.maplehouse.zoomriya.app` | The certificate check for the box's name |
+| `share.home.smith.ca` CNAME | `maplehouse-share.zoomriya.app` | The guests' door |
+| `_acme-challenge.share.home.smith.ca` CNAME | `_acme-challenge.maplehouse-share.zoomriya.app` | The certificate check for the door |
+
+A single CNAME on `home.smith.ca` isn't enough: it doesn't cover the names
+under it, which the certificate and the door need.
 
 On your own domain, the box always gets a name under it, like
 `home.smith.ca`. Never `smith.ca` itself: that stays for your website, your
@@ -209,8 +235,15 @@ for you, the way ZOOMRIYA's control plane does for our relays.
 The padlock in your browser comes from a certificate. Here's how the box gets
 one:
 
-- Let's Encrypt issues one certificate covering the box's name, the guests'
-  door, and any domain of your own.
+- Each box has one certificate, from Let's Encrypt, for its name and its
+  guests' door, such as `maplehouse.zoomriya.app` and
+  `maplehouse-share.zoomriya.app`.
+- If you use your own domain, the box's one certificate is for that instead:
+  `home.smith.ca` and `share.home.smith.ca`. Your ZOOMRIYA name isn't in it,
+  so the certificate doesn't tell anyone there's a ZOOMRIYA Box behind your
+  domain.
+- If Let's Encrypt can't issue one, the box gets it from Google Trust
+  Services instead. The padlock looks the same.
 - To prove the box owns those names, our control plane puts a temporary
   record in DNS, and removes it afterwards. Nothing on your router needs
   opening.
