@@ -141,8 +141,9 @@ out within 30 days anyway.
 
 **A phone that's been away a long time.** If a phone doesn't reach the box
 for more than 30 days, its pass runs out and the relay won't let it through.
-It can still connect at home, or over a direct path, because there the box
-only checks its own list. Then it gets a new pass, and the relay works again.
+It can still connect at home, or over a direct path that doesn't need the
+relay (IPv6, the guests' door, or a port you've forwarded), because there the
+box only checks its own list. Then it gets a new pass, and the relay works again.
 
 ### What gets in
 
@@ -251,7 +252,7 @@ common routers.
 |---|---|
 | **The direct path** | Your data, almost always |
 | **The relay** | The first moments of a connection, when it answers before a direct path. Your data only when nothing direct works, and it's encrypted, so the relay can't read it |
-| **The control plane** | Where each box is, and setup messages for guests. Never your data |
+| **The control plane** | Which relay each box uses, and setup messages for guests. Never your data |
 | **The guest page** (`share.zoomriya.net`) | The page a share link opens. The album itself comes from the box |
 | **DNS** | Names and addresses only |
 
@@ -277,4 +278,4 @@ fails, see [Architecture](architecture.md).
 | **The link** | Inside the ZOOMRIYA app on phones (Android, iOS) and the desktop app (Linux, Windows, macOS) | Connects to the box and checks the box's key. The app's screens, or a laptop's browser, reach the box's apps through it |
 | **connectd** | The box | Lets in paired devices and nobody else. Hands out and renews their passes, and tells the relay when one is removed. Checks share links. Opens and closes the guests' door. Tells the control plane where the box is. Warns you if anyone else gets a certificate for the box's name |
 | **The relay** | A server run by ZOOMRIYA, or by your family | Is tried alongside the direct ways, and passes the messages for hole punching. Carries data only when nothing direct works. Lets in only boxes, and devices with a pass, and only to their own box |
-| **The control plane** | A server run by ZOOMRIYA, or by your family | Knows where each box is, answers DNS for box names, helps get certificates, checks from outside whether a box can be reached, and passes setup messages for guests |
+| **The control plane** | A server run by ZOOMRIYA, or by your family | Knows which relay each box uses, answers DNS for box names, helps get certificates, checks from outside whether a box can be reached, and passes setup messages for guests |

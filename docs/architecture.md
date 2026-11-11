@@ -32,7 +32,7 @@ by their keys, over QUIC, and survives switching networks.
 | **Holds the device's two keys** (below) | Proves the device is the device |
 | **Pins the box's key** from pairing, and refuses anything else, even with a valid certificate | A look-alike box can't fool it |
 | **Holds the pass** and shows it to the relay | Only paired devices use the relay |
-| **Finds the box** from its signed address record, which names its relay, and keeps the last one. Also remembers the box's own addresses (home, IPv6, the door, a forwarded port), which the box sends it over the connection | Still works when the control plane is down, and the home's address is never published |
+| **Finds the box** from its signed address record, which names its relay, and keeps the last one. Also remembers the box's own addresses (home, IPv6, the door, a forwarded port), which the box sends it over the connection | Still works when the control plane is down, and the record doesn't publish the home's address |
 | **Picks the best path:** dials the relay and the box's addresses it already knows at the same moment. The first to answer carries data, and a direct path takes over when one works | Direct from the start when it can be, and never slower than the relay when it can't. A stale address just loses |
 | **Runs a local proxy** for the app's screens, or a laptop's browser | The box's apps work away from home |
 | **Leaves choosing the path to iroh,** and reports what iroh measured to the box (see [Measuring connections](#measuring-connections)) | iroh already picks the fastest path. We only show its numbers |
@@ -54,7 +54,7 @@ made.
 
 | What it does | Why |
 |---|---|
-| **Holds the box's key.** Never leaves the box. Each signature says what it's for (address record or pass) | One kind of signature can't be passed off as another |
+| **Holds the box's key.** Never leaves the box. Each signature says what it's for (address record, pass or admin note) | One kind of signature can't be passed off as another |
 | **Keeps the list of paired devices** and checks every connection, however it came in | A pass or a server can never let a device in |
 | **Hands out and renews passes,** and tells the relay at once when a device is removed | The relay turns removed devices away too |
 | **Stays connected to the relay** | The box can be reached at any moment |
@@ -168,9 +168,9 @@ fetches the album from the box. The album never passes through it.
 |---|---|---|---|
 | **Device key** | Each phone or laptop, in its security chip | The chip | Signing link keys. The box pins it |
 | **Link key** | The app, with each pass | The device | iroh's connection. Named in the pass |
-| **Box key** | The box, at first setup | The box | Proving the box, signing address records and passes |
+| **Box key** | The box, at first setup | The box | Proving the box, signing address records, passes and admin notes |
 | **Certificate key** | The box | The box | The padlock: the box's name and door, or your own domain and its door. connectd and the web server hold it, never the album viewer |
-| **DNS update key** | Given to the box at setup | The box | Changing the box's own DNS record only |
+| **DNS update key** | The box, at setup. The control plane keeps only its public half | The box | Changing the box's own DNS record only |
 | **Share token** | The box, per link | The link (after the `#`) | Opening that link's albums |
 | **Admin note** | The box, signed for each admin's phone | The phone | Lets that phone move the box's name or mark the box stolen. The control plane checks the box's signature on it, so it never keeps a list of devices |
 
@@ -209,7 +209,7 @@ fetches the album from the box. The album never passes through it.
 | Step | What happens |
 |---|---|
 | 1 | The app gets the box's address record, or uses the one it remembers, and checks the box's signature |
-| 2 | At the same moment, it dials the relay and the box's addresses it already knows: found on the home network, or remembered from the last connection (home, IPv6, the door, a forwarded port). To the relay, it shows its pass. The relay checks the signature, dates and removed list, and connects it to that box only |
+| 2 | At the same moment, it dials the relay and the box's addresses it already knows: found on the home network, or remembered from the last connection (home, IPv6, the door, a forwarded UDP port; a forwarded TCP port only when UDP gets no answer). To the relay, it shows its pass. The relay checks the signature, dates and removed list, and connects it to that box only |
 | 3 | The first to answer carries data. Phone and box check each other's key on every path, and the box checks its list. The app is in use |
 | 4 | If the relay answered first, it passes the hole-punching messages. The first direct path that works takes over |
 | 5 | With under three weeks left on the pass, the app makes a new link key signed by the device key, and the box sends a new pass. The old link key stops working |
@@ -346,7 +346,7 @@ Desktop once, and the pairing QR code passes it on.
 | **The box**, from your home network | TCP 443 | The web server (the gateway), not connectd |
 | **The box**, from the internet, while a link is live | Router's TCP 443 → box's 8443 | The album viewer |
 | | UDP 443 | Direct connections from paired devices |
-| **The box**, if you forwarded a port yourself | Router's TCP 443 → box's 8443 | Also paired devices, on networks that block UDP. Box Desktop shows the port |
+| **The box**, if you forwarded ports yourself | Router's UDP 443 → box's UDP 443, and TCP 443 → box's 8443 | Paired devices: UDP first, TCP on networks that block UDP. Box Desktop shows both |
 | **The box**, otherwise | Any UDP port | Hole punching, nothing opened |
 | **The relay** | TCP 443 | Hole punching, and carrying connections |
 | **The control plane** | TCP 443, and 53 (DNS) | Address records, setup messages, DNS for box names |

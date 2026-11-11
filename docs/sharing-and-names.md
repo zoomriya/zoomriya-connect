@@ -77,7 +77,7 @@ ZOOMRIYA uses a few domains, each for one job:
 |---|---|---|
 | `zoomriya.com` | The shop and help | Everyone |
 | `maplehouse.zoomriya.app` | Your box's name. You pick it. It points at the box on your home network, never at your home's address on the internet | Your family |
-| `zoomriya.net` | Our servers that help find your box (`connect.`, `ns1.`, the relays), and the guest page (`share.zoomriya.net`) | Guests see `share.zoomriya.net` in a link |
+| `zoomriya.net` | Our servers that help find your box (`connect.`, `ns1.`, `ns2.`, the relays), and the guest page (`share.zoomriya.net`) | Guests see `share.zoomriya.net` in a link |
 
 `zoomriya.app` holds only families' boxes. Box names are public, because every
 certificate is listed in public logs, and anyone can tell that a
@@ -106,7 +106,7 @@ wrong if something's missing.
 
 | Record | Points at | Covers |
 |---|---|---|
-| `home.smith.ca` NS | `ns1.zoomriya.net` | Everything under `home.smith.ca`: the box's name, the guests' door, and both certificate checks |
+| `home.smith.ca` NS | `ns1.zoomriya.net` and `ns2.zoomriya.net` | Everything under `home.smith.ca`: the box's name, the guests' door, and both certificate checks |
 
 **Four CNAME records**, only if your provider doesn't allow NS records for
 part of a domain:
@@ -127,9 +127,10 @@ email and everything else.
 
 The box's name never points at your home's address on the internet. Away from
 home, the app doesn't use the name to find the box, so pointing it at your
-home would only tell people where you live. The only thing that ever points
-at your home is the guests' door, which the box opens by itself while a share
-link is live.
+home would only tell people where you live. The only things that ever point
+at your home are the guests' door, which the box opens by itself while a share
+link is live, and, if you switch the relay off, the box's address record (see
+[the relay](security.md#the-relay)).
 
 ### Dynamic DNS from another company
 

@@ -31,7 +31,7 @@ order, and where the code goes.
 
 | Task | Why, or what it fixes |
 |---|---|
-| **Relays:** our own iroh relays, iroh's public ones off, address discovery on (`enable_quic_addr_discovery`) | Only boxes and paired devices use them |
+| **Relays:** our own iroh relays, iroh's public ones off, QUIC address discovery on (`QuicConfig` in the `iroh-relay` library) | Only boxes and paired devices use them |
 | **Relay limits:** monthly volume and speed per box, slowed but never cut off, shown in Box Desktop | The relay can't tell backups from browsing, so it doesn't trust the app |
 | **Registering boxes:** one name per box, blocked look-alike names, at most 10 a day per address (factory-token boxes don't count), 90 days before a released name is free, reporting, a factory token for ready-made boxes (one per box, one registration only) | Anyone can run ZOOMRIYA OS and register |
 | **Passes:** 30 days, naming the current link key, with a start and an end | Only paired devices get through the relay |
@@ -48,7 +48,7 @@ order, and where the code goes.
 | **Phones:** iOS 17 or later, Android with a WebView that has proxy support. Older phones: home only, and the app says so | Older web views can't use the link's proxy |
 | **iroh:** one exact version, 1.0 or later, never changed. The app sends its pass as the relay's token (`RelayMap::with_auth_token`). Our relay is built on the `iroh-relay` library with our own access check (`AccessControl`), which sees the device's proven key and its pass, and drops a removed device's live connections (`Clients::disconnect`). Upgrade every quarter, with the traffic recording | No fork to carry across each upgrade, and iroh changes often |
 | **Connecting:** dial the relay and the box's addresses the app already knows (found on the home network, or remembered from the last connection) at the same moment. The first to answer carries data; hole punching goes through the relay; a direct path takes over when one works | Direct from the start at home and on IPv6, no wait behind difficult routers, stale addresses just lose |
-| **Connection numbers:** iroh chooses the path; the link reads its measurements (time to connect and to direct, each path's round-trip time, time and data on the relay, path switches, hole punching), and records failed and dropped connections with their reasons, sending failures the next time it connects. Also counted: passes that didn't renew, address-record failures, switching to ZOOMRIYA's relay, backups waiting, time slowed by the relay limit, and guest links that opened or failed, by way and sends the box a summary after each connection. Box Desktop shows each device's history. Anonymous reports to us only if the family agrees, never naming a box or device | Families see why a device is slow, without us learning their devices |
+| **Connection numbers:** iroh chooses the path; the link reads its measurements (time to connect and to direct, each path's round-trip time, time and data on the relay, path switches, hole punching), and failed and dropped connections with their reasons, and sends the box a summary after each connection. Failures are sent the next time it connects. Also counted: passes that didn't renew, address-record failures, switching to ZOOMRIYA's relay, backups waiting, time slowed by the relay limit, and guest links that opened or failed, by way. Box Desktop shows each device's history. Anonymous reports to us only if the family agrees, never naming a box or device | Families see why a device is slow, without us learning their devices |
 | **Versions:** servers accept the current protocol version and the one before. New minimums announced months ahead | Old boxes and apps fail clearly |
 | If the soak test shows iPhones missing renewals, make passes longer | Rather than waking the app more often |
 | Cleverer hole punching, only if measurements show we need it | |
@@ -79,8 +79,8 @@ order, and where the code goes.
 | Task | Why, or what it fixes |
 |---|---|
 | Manual port forwards and IPv6 firewall rules | |
-| A direct path over TCP for families who forward a port: TLS with the same key checks, on the door's port 8443, never the web server's. Families type 8443; Box Desktop shows it | iroh's direct paths are UDP only |
-| On only when the outside check finds the forward working; used only when UDP is blocked | Matters most to families who switch the relay off |
+| A direct path over TCP for families who forward a port: TLS with the same key checks, on the door's port 8443, never the web server's. Families forward the router's UDP 443 to the box's UDP 443, and TCP 443 to the box's 8443; Box Desktop shows both | iroh's direct paths are UDP only |
+| On only when the outside check finds the forward working. The TCP path is tried only when UDP gets no answer | Matters most to families who switch the relay off |
 
 ### 7. [Own domains](sharing-and-names.md#your-own-domain-through-zoomriya)
 
@@ -108,7 +108,7 @@ order, and where the code goes.
 | The second DNS server for `ns2.zoomriya.net` running, at another hosting company | Box names don't depend on one server |
 | Write up [running your own server](sharing-and-names.md#your-own-server) | |
 | [Running the service](operations.md): hourly backups to another company and a monthly restore test, alerts, an on-call rota of at least two, the status page, DNS protected from floods, a schedule for changing our keys | We find out first, and can rebuild |
-| Boxes register again by themselves if their registration is missing, and take a new DNS update key when told | A restore that lost the last hour, or a leaked key, needs nothing from families |
+| Boxes register again by themselves if their registration is missing, proving the name with their certificate's key, and take a new DNS update key when told | A restore that lost the last hour, or a leaked key, needs nothing from families |
 | Decide how long each server keeps what it sees, and put it on the privacy page | [What our servers keep](operations.md#what-our-servers-keep) |
 
 ### Always

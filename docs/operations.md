@@ -40,7 +40,10 @@ The numbers on this page (how often, how fast) are suggestions, like the
 | Alert if the last backup is older than | 2 hours |
 
 A box that registered in the hour that was lost registers again by itself,
-with the same name, when it finds it's missing.
+with the same name, when it finds it's missing. Nobody else can take that name
+meanwhile: after a restore, a name with a certificate in the public logs from
+the last 90 days goes only to a box that proves it holds that certificate's
+key.
 
 ## Watching it
 
@@ -84,7 +87,8 @@ the law requires it.
 
 ## Protecting our DNS server
 
-Our DNS server answers the whole internet for `zoomriya.app`, so it has to
+Our DNS server answers the whole internet for `zoomriya.app`, and for
+families' own domains handed to us, so it has to
 cope with floods, and must never be used to flood others.
 
 | Risk | What we do |

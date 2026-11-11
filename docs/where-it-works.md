@@ -36,8 +36,9 @@ a separate guest or TV network.
 - **UDP.** The kind of traffic hole punching uses. Some offices and hotels
   block it. TCP is the other kind. Websites normally use TCP.
 - **The relay.** Our server, tried alongside the direct ways. It helps them
-  get through, and carries the connection when nothing direct works. You reach it the same way you reach a website, so it
-  gets through almost everywhere.
+  get through, and carries the connection when nothing direct works. You
+  reach it the same way you reach a website, so it gets through almost
+  everywhere.
 
 ## By your home's internet
 
@@ -51,7 +52,7 @@ means someone opening a share link.
 | Shared address (CGNAT), easy | Works | Direct | Usually direct | Relay | WebRTC, then the relay |
 | Shared address (CGNAT), strict | Works | Usually direct | Relay | Relay | WebRTC, then the relay |
 | Home and device both have IPv6 | Works | Usually direct | Usually direct | Relay | Direct for guests with IPv6 |
-| You forwarded port 443 to the box | Works | Direct | Direct | Direct, over TCP | Direct |
+| You forwarded port 443 (UDP and TCP) to the box | Works | Direct | Direct | Direct, over TCP | Direct |
 | Remote access switched off | Works | No | No | No | No |
 | Box on Wi-Fi | Not supported. Use a cable | | | | |
 
