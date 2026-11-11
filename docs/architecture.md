@@ -81,7 +81,7 @@ labelled with the device they came from (PROXY protocol v2).
 | Never trust a connection because it comes from the box | Every connection from away would otherwise look local |
 | Accept device labels only on connectd's local socket, never on TCP 443 | Any device on the Wi-Fi could otherwise send a fake label |
 | ZOOMRIYA ID sign-in is always required | The label says which device, never who's signing in |
-| **5 wrong passwords lock that person's sign-in for 15 minutes**, wherever they come from. The admins' bell is told | Guessing stays slow, and family away from home don't share one limit |
+| **5 wrong passwords lock that person's sign-in for 15 minutes**, wherever they come from, even with the right password. Written in the family's activity | Guessing stays slow, and family away from home don't share one limit |
 | The activity log names the device, such as *Mum's phone* | Instead of *the box* |
 | Removing a device signs out its sessions | A removed phone's open session ends too |
 
