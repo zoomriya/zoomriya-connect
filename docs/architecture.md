@@ -43,8 +43,8 @@ box passes through it unopened, so there are two layers of encryption.
 
 | Device key | Where it lives | What it's for | If it's copied |
 |---|---|---|---|
-| **Device key** | Made in the security chip (Secure Enclave, Keystore, TPM or Keychain). Never leaves it | The box pins it. It signs each new link key | It can't be |
-| **Link key** | In the app, locked by the chip while the app isn't running. New with each pass | iroh connects with it. iroh needs an Ed25519 key in memory, which most chips can't hold | Works until the next pass (at most 30 days), or until an admin removes the device |
+| **Device key** | Made in the security chip (Secure Enclave, Keystore, TPM or Keychain). Never leaves it. Usable once the phone has been unlocked after starting, not only while unlocked | The box pins it. It signs each new link key, also in the background with the phone locked | It can't be |
+| **Link key** | In the app, locked by the chip while the app isn't running, with the same "after first unlock" setting. New with each pass | iroh connects with it. iroh needs an Ed25519 key in memory, which most chips can't hold | Works until the next pass (at most 30 days), or until an admin removes the device |
 
 ### connectd (on the box)
 
@@ -60,25 +60,26 @@ made.
 | **Publishes its signed address record** | Nobody can send phones to the wrong place |
 | **Gets the box's certificate** and watches the public certificate logs | Warns you if anyone else gets one for your box's name |
 | **Opens and closes the guests' door,** and has it checked from outside | Guests get in only while a link is live, never to the sign-in page |
-| **Hands connections on:** family to the web server, guests to the album viewer | Each side reaches only its own service |
+| **Hands connections on:** family to the web server through a local socket, guests to the album viewer | Each side reaches only its own service |
 
 | Port | Who reaches it | Where it goes | What it fixes |
 |---|---|---|---|
 | **UDP 443** | Paired devices, from anywhere | iroh. Anything else is turned away | |
-| **TCP 443** | The home network only | The web server | The router never sends internet traffic here. The outside check warns if someone forwards it by mistake |
+| **TCP 443** | The home network only | Not connectd: the box's web server (the gateway) keeps it, as today | Nothing at home changes. The router never sends internet traffic here, and the outside check warns if someone forwards it by mistake |
 | **TCP 8443** | The internet, through the guests' door (the router's 443) | The album viewer, and paired devices on networks that block UDP. Never the web server | Some routers make internet traffic look local. connectd goes by the port, which no router can change |
-| **The door's own IPv6 address** | The internet, over IPv6 | The same as 8443 | IPv6 can't change ports, so the door gets its own address instead |
+| **The door's own IPv6 address** | The internet, over IPv6, when the router and provider allow it | The same as 8443 | IPv6 can't change ports, so the door gets its own address instead. Many routers can't open IPv6 doors, or give the box only one address: then there's no IPv6 door, and guests use the IPv4 door, WebRTC or the relay |
 
 ### The web server and the album viewer (on the box)
 
 The **web server** serves the sign-in page and all the apps, to your home
 network and the link. It's never reachable from the internet. Connections
-from the link reach it through connectd, labelled with the device they came
-from (PROXY protocol v2).
+from the link reach it through a local socket that only connectd can use,
+labelled with the device they came from (PROXY protocol v2).
 
 | Rule | What it fixes |
 |---|---|
 | Never trust a connection because it comes from the box | Every connection from away would otherwise look local |
+| Accept device labels only on connectd's local socket, never on TCP 443 | Any device on the Wi-Fi could otherwise send a fake label |
 | ZOOMRIYA ID sign-in is always required | The label says which device, never who's signing in |
 | **5 wrong passwords lock that person's sign-in for 15 minutes**, wherever they come from. The admins' bell is told | Guessing stays slow, and family away from home don't share one limit |
 | The activity log names the device, such as *Mum's phone* | Instead of *the box* |
@@ -123,7 +124,7 @@ Never what's inside.
 | Guests' relay (TURN) rule | What it fixes |
 |---|---|
 | **Blocked addresses:** private, home and loopback, and our own servers | Using the relay to reach inside our network, or anyone's private network |
-| **Credentials per share session,** from the control plane, valid for an hour | A leaked credential reused for days, or for anything but that album |
+| **Credentials per share session,** valid for an hour. The box asks the control plane for them after checking the guest's token, and sends them to the guest in the WebRTC setup messages | Guests can't ask for credentials themselves, because the control plane never sees the token. A leaked credential is useless after an hour, and for anything but that album |
 | **Per-guest speed and volume limit** | One guest using up the relay |
 
 ### The control plane (on a server)
@@ -138,6 +139,7 @@ The coordinator. It never carries family data.
 | **Checks from outside** that the door works and the sign-in page can't be reached through it. Only ever checks the asking box's address | Catches a door that leaks, and can't be used to scan others |
 | **Passes guests' WebRTC setup messages,** never the album | Guests reach the box directly |
 | **Tells relays which boxes are registered,** never about devices | It doesn't learn your devices |
+| **Moves a name, or marks a box stolen,** when an admin's phone shows its admin note, signed by the box | Only the family's admins can, and the control plane still keeps no list of devices |
 
 It sees when a box's address is looked up, and from where. Never your data,
 your devices, or the certificate key.
@@ -146,10 +148,10 @@ your devices, or the certificate key.
 |---|---|
 | One name per box | Grabbing many names |
 | Blocked words (bank, login, pay…) and look-alike brand names refused | Scam names with a real padlock |
-| A daily limit on new boxes per internet address | Scripts registering in bulk |
+| At most 10 new boxes a day per internet address. Boxes with a factory token don't count. Past it: *Too many new boxes from your internet connection today. Try again tomorrow.* | Scripts registering in bulk, without stopping honest families who share an address with many homes (CGNAT) |
 | A released name waits 90 days | Taking a name someone just gave up |
 | Anyone can report a name, and we can switch it off | Abuse that gets past the rules |
-| A factory token in ready-made boxes, for higher relay limits | ZOOMRIYA OS is open source, so anyone can register a box |
+| A factory token in ready-made boxes, for higher relay limits. One token per box, usable for one registration only | ZOOMRIYA OS is open source, so anyone can register a box. A token copied to other PCs is refused |
 
 ### The guest page (on a server)
 
@@ -167,6 +169,7 @@ fetches the album from the box. The album never passes through it.
 | **Certificate key** | The box | The box | The padlock: the box's name and door, or your own domain and its door. connectd and the web server hold it, never the album viewer |
 | **DNS update key** | Given to the box at setup | The box | Changing the box's own DNS record only |
 | **Share token** | The box, per link | The link (after the `#`) | Opening that link's albums |
+| **Admin note** | The box, signed for each admin's phone | The phone | Lets that phone move the box's name or mark the box stolen. The control plane checks the box's signature on it, so it never keeps a list of devices |
 
 | Who | Trusts | So |
 |---|---|---|
@@ -194,7 +197,7 @@ fetches the album from the box. The album never passes through it.
 | 1 | The box shows a QR code: its key, how to reach it, a one-time secret |
 | 2 | The app makes its device key in the chip and its first link key, and connects at home |
 | 3 | The phone checks the box's key from the QR code. The box checks the secret and the device key's signature on the link key |
-| 4 | The box lists the device key and gives a first pass for that link key |
+| 4 | The box lists the device key and gives a first pass for that link key. An admin's phone also gets an admin note |
 
 ### Connecting away from home
 
@@ -268,9 +271,9 @@ never in backups. The box phrase (planned: *Recovery keys* in zoomriya-docs,
 | **Off for a while** | Kept | Nothing. After 30 days away, phones renew their passes at home |
 | **A restore point, or Reset the system** | Kept | Nothing |
 | **Data restored from a backup, same box** | Kept | Nothing |
-| **Erased, or a new box, restored from a backup** | New | Pair phones again at home. An admin's phone moves the name |
+| **Erased, or a new box, restored from a backup** | New | Pair phones again at home. An admin's phone moves the name, with its admin note from the old box |
 | **Box and every admin's phone lost** | Gone | Pick a new name |
-| **Stolen** | With the thief | An admin's phone marks it stolen. The relay and control plane refuse its key |
+| **Stolen** | With the thief | An admin's phone marks it stolen, with its admin note. The relay and control plane refuse its key |
 | **Dies while a link is live** | | Nothing. The door's lease runs out and the router closes it |
 
 | What happened to the phone or laptop | Its keys | What to do |
@@ -283,7 +286,7 @@ never in backups. The box phrase (planned: *Recovery keys* in zoomriya-docs,
 | Rule | What it fixes |
 |---|---|
 | Phones never accept a new box key by themselves. They say: *Your box has a new key. If you reset or replaced it, pair again at home.* | A look-alike box would look exactly the same |
-| Pairing happens only at home, at the box | A stolen backup or copied app can't add a device |
+| Pairing happens only at home, at the box. Someone abroad who loses their phone waits until they're home. Later, an admin's phone may approve a new phone from away | A stolen backup or copied app can't add a device |
 
 ## Running your own
 
@@ -299,7 +302,7 @@ Desktop once, and the pairing QR code passes it on.
 
 | Where | Port | What for |
 |---|---|---|
-| **The box**, from your home network | TCP 443 | The web server |
+| **The box**, from your home network | TCP 443 | The web server (the gateway), not connectd |
 | **The box**, from the internet, while a link is live | Router's TCP 443 → box's 8443 | The album viewer |
 | | UDP 443 | Direct connections from paired devices |
 | **The box**, if you forwarded a port yourself | Router's TCP 443 → box's 8443 | Also paired devices, on networks that block UDP. Box Desktop shows the port |
@@ -318,6 +321,7 @@ a link is live.
 | **Protocol versions** | Servers accept the current version and the one before. Older ones get *please update*, shown in plain words | Old boxes and apps fail clearly, not strangely |
 | **A new minimum version** | Announced in Box Desktop and the app months ahead | Nobody is cut off by surprise |
 | **The box's clock** | Passes are signed only when the clock is set from the internet, and never earlier than the software's date. The relay allows 10 minutes' difference | A wrong clock would sign passes that have already run out |
+| **When the clock can't be set** | Box Desktop's bell says at once: *Your box can't get the time from the internet, so phones will stop working away from home in a few weeks. Check your internet connection.* | Otherwise passes quietly stop renewing, and phones lose the relay weeks later with no explanation |
 | **Phones** | iOS 17 or later. Android with a system WebView that has proxy support, checked at start. Older phones: home only, and the app says so | Older web views can't use the link's proxy |
 
 ## Decisions and why they work
@@ -328,6 +332,8 @@ a link is live.
 | **Two keys per device:** the chip's key signs a link key | One key in the chip | Most chips can't hold iroh's Ed25519 key. The chip's key still decides, and a copied link key dies with the next pass |
 | **Recovery by pairing again at home**, with an admin's phone moving the name | A recovery phrase for ZOOMRIYA Connect | Families keep nothing extra. It takes a minute per phone, which they'd spend on a new box anyway |
 | **The box only trusts its own list** | Trusting the relay or control plane | A server that's broken into still can't let a device in |
+| **Admin notes signed by the box** | Giving the control plane a list of admin phones | Only admins can move the name or mark the box stolen, and the control plane still never learns your devices |
+| **The gateway keeps TCP 443; connectd takes UDP 443 and TCP 8443** | connectd in front of everything | The gateway already serves HTTPS at home, so nothing at home changes, and connectd only handles outside traffic |
 | **The door on port 8443,** or its own IPv6 address | Deciding "home or internet" from the address | Routers can fake where traffic comes from, never which port it arrives on |
 | **One certificate per box,** held by connectd | One certificate with every name, in the album viewer | Fits Let's Encrypt's limits, doesn't link your own domain to ZOOMRIYA, and the part facing the internet holds no key |
 | **Let's Encrypt, with Google as the fallback** | One authority | Both free. Google covers Let's Encrypt's outages and weekly limit |
@@ -339,6 +345,7 @@ a link is live.
 | **Rules for registering boxes** | Only real boxes may register | Self-installs stay free, and names and the relay stay hard to abuse |
 | **Device labels, and a 15-minute lock after 5 wrong passwords** | Trusting connections from the box | Every person and device is counted separately, and guessing stays slow |
 | **Desktop proxy carries only box names**, no per-user check | Checking each laptop user | Everyone still signs in to ZOOMRIYA ID, so a per-user check would add code without adding safety |
+| **Guests' relay credentials asked for by the box** | Guests asking the control plane | The box is the only one that can check the token |
 | **Guest password optional,** off by default | Always on | Links are already unguessable. A password helps only when a link leaks, and costs guests effort |
 | **Two protocol versions accepted,** minimums announced early | Forcing updates | Old boxes and apps keep working long enough to update |
 | **10 minutes' clock allowance** | Exact times | Small clock differences never break passes, and a big one is caught before signing |
