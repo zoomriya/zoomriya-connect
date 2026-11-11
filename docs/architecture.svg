@@ -1,126 +1,128 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1000" viewBox="0 0 900 1000" role="img" aria-label="Phones and laptops with the ZOOMRIYA app reach the box with pinned keys, and connectd hands them to the box's apps. Each connection starts through the relay and moves to a direct path when one works; the relay keeps forwarding encrypted traffic only if none does. Guests open a share link in any browser with nothing installed: over port 443 or by WebRTC hole punching, with a relay as the last option for the encrypted read-only share session. The sign-in page and apps are never on the internet. The control plane only serves the boxes' address records, passes guests' signals, answers DNS and serves the guest page; it carries no family or guest data.">
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1024" viewBox="0 0 900 1024" role="img" aria-label="The parts of ZOOMRIYA Connect. At the top, three servers, run by ZOOMRIYA or by your family: the control plane, which keeps boxes' signed address records, answers DNS for box names, helps with certificates, checks from outside and passes guests' setup messages, and never carries your data; the relay, which starts each family connection, checks passes, helps with hole punching, carries data only when nothing direct works and is the guests' last resort, and sees who connects but never what; and the guest page, share.zoomriya.net, which serves the page a share link opens and never carries the album. In the middle, the devices: a phone or laptop with the ZOOMRIYA app asks the control plane where the box is and shows its pass to the relay; a guest's browser loads the guest page. The box keeps an always-on connection to the relay. Below, the home router: nothing is opened for the family, because hole punching gets through; the guests' door on port 443 is opened by the box only while a share link is live. At the bottom, the ZOOMRIYA Box: connectd on port 443 checks every device against the paired list and hands family connections to the web server, which is never on the internet, and guests' connections to the read-only album viewer.">
 <style>
-svg{--surface:#ffffff;--bg:#f4f6f7;--zone:#eaeff1;--fg:#15232a;--muted:#5b6c75;--line:#c3ced4;--link:#0d7a6b;--web:#2a5cb3;--web-soft:#e3ecfa;--ctl:#8a6a14;--never:#b23a2e}
-@media (prefers-color-scheme: dark){svg{--surface:#162026;--bg:#0e1518;--zone:#121b20;--fg:#e2eaed;--muted:#93a5ad;--line:#33464f;--link:#4cc3ae;--web:#7ea8f0;--web-soft:#17243a;--ctl:#d8b45c;--never:#ee7d6f}}
-.bg{fill:var(--surface)}
-text{fill:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:15px}
-.t{font-size:17px;font-weight:600}.m{fill:var(--muted)}.s{font-size:13.5px}.b{font-weight:600}
-.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13.5px}
-.zone{fill:var(--zone);stroke:var(--line)}.box{fill:var(--surface);stroke:var(--line)}
-.band{fill:var(--bg);stroke:var(--line);stroke-dasharray:3 4}
-.hl-link{fill:var(--surface);stroke:var(--link);stroke-width:2}
-.hl-web{fill:var(--web-soft);stroke:var(--web);stroke-width:2}
-.a-link{stroke:var(--link);stroke-width:4;fill:none}.a-web{stroke:var(--web);stroke-width:4;fill:none}
-.a-ctl{stroke:var(--ctl);stroke-width:2;stroke-dasharray:7 5;fill:none}
-.f-link{fill:var(--link)}.f-web{fill:var(--web)}.f-ctl{fill:var(--ctl)}
-.c-link{fill:var(--link)}.c-web{fill:var(--web)}.c-ctl{fill:var(--ctl)}.c-never{fill:var(--never)}
+svg{--surface:#fff;--zone:#f1f5f6;--fg:#15232a;--muted:#5b6c75;--line:#c3ced4;--data:#087f6e;--data-soft:#e4f4f0;--setup:#886516;--setup-soft:#fbf4df;--web:#285db1;--web-soft:#e8effb;--stop:#b3261e}
+@media(prefers-color-scheme:dark){svg{--surface:#162026;--zone:#121b20;--fg:#e2eaed;--muted:#93a5ad;--line:#33464f;--data:#56c5ae;--data-soft:#172e2a;--setup:#d8b45c;--setup-soft:#302a19;--web:#86aaf0;--web-soft:#19263c;--stop:#f08c80}}
+text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;fill:var(--fg);font-size:13px}
+.title{font-size:21px;font-weight:700}.h{font-size:15.5px;font-weight:700}.s{font-size:12.5px}.t{font-size:11.5px}.m{fill:var(--muted)}.b{font-weight:650}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
+.zone{fill:var(--zone);stroke:var(--line);stroke-width:1.5}
+.node{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+.setup-box{fill:var(--setup-soft);stroke:var(--setup);stroke-width:1.5}
+.data-box{fill:var(--data-soft);stroke:var(--data);stroke-width:1.5}
+.web-box{fill:var(--web-soft);stroke:var(--web);stroke-width:1.5}
+.data{fill:none;stroke:var(--data);stroke-width:4}
+.setup{fill:none;stroke:var(--setup);stroke-width:2.5;stroke-dasharray:8 6}
+.web{fill:none;stroke:var(--web);stroke-width:2.5;stroke-dasharray:4 5}
+.web-solid{fill:none;stroke:var(--web);stroke-width:4}
+.c-data{fill:var(--data)}.c-setup{fill:var(--setup)}.c-web{fill:var(--web)}.c-stop{fill:var(--stop)}
 </style>
-<rect class="bg" width="900" height="1000" rx="12"/>
 <defs>
-  <marker id="m-link" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="f-link"/></marker>
-  <marker id="m-web" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="f-web"/></marker>
-  <marker id="m-ctl" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="f-ctl"/></marker>
+  <marker id="d" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="var(--data)"/></marker>
+  <marker id="s" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="var(--setup)"/></marker>
+  <marker id="w" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="13" markerHeight="13" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="var(--web)"/></marker>
 </defs>
+<rect width="900" height="1024" rx="14" fill="var(--surface)"/>
 
-<!-- Control plane -->
-<rect class="box" x="20" y="20" width="860" height="104" rx="10"/>
-<text x="40" y="50" class="t">Control plane · zoomriya.net</text>
-<text x="40" y="76" class="m">signed address records · DNS for zoomriya.app · guest page · guest signals</text>
-<text x="40" y="104" class="s c-never">coordination only · cannot trust a device · relay is separate</text>
+<text x="30" y="40" class="title">ZOOMRIYA Connect: the parts</text>
+<text x="30" y="63" class="s m">Green: your data, encrypted end to end · Blue: guests · Gold dashed: finding the box, passes</text>
+<text x="30" y="88" class="t b m">SERVERS · ZOOMRIYA'S, OR YOUR OWN</text>
 
-<!-- Control plane to devices -->
-<line class="a-ctl" x1="156" y1="128" x2="156" y2="158" marker-start="url(#m-ctl)" marker-end="url(#m-ctl)"/>
-<line class="a-ctl" x1="450" y1="128" x2="450" y2="158" marker-start="url(#m-ctl)" marker-end="url(#m-ctl)"/>
-<line class="a-ctl" x1="743" y1="128" x2="743" y2="158" marker-start="url(#m-ctl)" marker-end="url(#m-ctl)"/>
-<text x="168" y="148" class="s c-ctl">where is the box?</text>
-<text x="462" y="148" class="s c-ctl">where is the box?</text>
-<text x="755" y="148" class="s c-ctl">guest page</text>
+<!-- servers -->
+<rect x="30" y="98" width="270" height="140" rx="12" class="setup-box"/>
+<text x="46" y="124" class="h">Control plane</text>
+<text x="46" y="149" class="s">Address records, signed by each box</text>
+<text x="46" y="170" class="s">DNS for box names · certificates</text>
+<text x="46" y="191" class="s">Outside check · guests' setup</text>
+<text x="46" y="222" class="s b c-setup">Never carries your data</text>
 
-<!-- Devices -->
-<rect class="hl-link" x="20" y="162" width="273" height="138" rx="10"/>
-<text x="38" y="190" class="t">Phone · ZOOMRIYA app</text>
-<text x="38" y="218">web view → proxy → link</text>
-<text x="38" y="242" class="m">key locked by the Secure</text>
-<text x="38" y="264" class="m">Enclave or Android Keystore</text>
-<text x="38" y="288" class="s c-link b">family member · full access</text>
+<rect x="315" y="98" width="270" height="140" rx="12" class="setup-box"/>
+<text x="331" y="124" class="h">Relay</text>
+<text x="331" y="149" class="s">Starts each family connection</text>
+<text x="331" y="170" class="s">Checks passes · helps hole punching</text>
+<text x="331" y="191" class="s">Carries data if nothing direct works</text>
+<text x="331" y="222" class="s b c-setup">Sees who, never what</text>
 
-<rect class="hl-link" x="313" y="162" width="273" height="138" rx="10"/>
-<text x="331" y="190" class="t">Laptop · desktop app</text>
-<text x="331" y="218">any browser → proxy → link</text>
-<text x="331" y="242" class="m">key locked by TPM or Keychain</text>
-<text x="331" y="264" class="m">starts at sign-in</text>
-<text x="331" y="288" class="s c-link b">family member · full access</text>
+<rect x="600" y="98" width="270" height="140" rx="12" class="web-box"/>
+<text x="616" y="124" class="h">Guest page</text>
+<text x="616" y="149" class="mono">share.zoomriya.net</text>
+<text x="616" y="170" class="s">The page a share link opens</text>
+<text x="616" y="191" class="s">Guests' relay, as a last resort</text>
+<text x="616" y="222" class="s b c-web">Never carries the album</text>
 
-<rect class="hl-web" x="606" y="162" width="274" height="138" rx="10"/>
-<text x="624" y="190" class="t">Guest · any browser</text>
-<text x="624" y="218">opens a share link</text>
-<text x="624" y="242" class="m">nothing installed</text>
-<text x="624" y="264" class="m">no account</text>
-<text x="624" y="288" class="s c-web b">one album · READ-ONLY</text>
+<!-- devices to servers -->
+<path d="M120 304V242" class="setup" marker-start="url(#s)" marker-end="url(#s)"/>
+<text x="130" y="277" class="t c-setup">where's the box?</text>
+<path d="M380 304V242" class="setup" marker-start="url(#s)" marker-end="url(#s)"/>
+<text x="390" y="277" class="t c-setup">shows its pass</text>
+<path d="M735 242V304" class="web" marker-end="url(#w)"/>
+<text x="745" y="277" class="t c-web">loads the page</text>
 
-<!-- Arrow labels -->
-<text x="303" y="336" text-anchor="middle" class="s c-link b">the link · relay, then direct</text>
-<text x="303" y="356" text-anchor="middle" class="s c-link">pinned keys both ways</text>
-<text x="731" y="336" text-anchor="end" class="s c-web b">HTTPS 443 direct,</text>
-<text x="731" y="356" text-anchor="end" class="s c-web">or WebRTC hole punch</text>
+<!-- devices -->
+<rect x="30" y="308" width="400" height="130" rx="12" class="data-box"/>
+<text x="46" y="335" class="h">Phone or laptop · ZOOMRIYA app</text>
+<text x="46" y="360" class="s">Its key, locked in the security chip or key store</text>
+<text x="46" y="381" class="s">The link: knows the box's key, holds the pass</text>
+<text x="46" y="402" class="s m">On laptops: browser → desktop app → link</text>
+<text x="46" y="426" class="s b c-data">Paired · full access</text>
 
-<!-- Internet -->
-<rect class="band" x="20" y="384" width="860" height="52" rx="8"/>
-<text x="36" y="416" class="b">Internet</text>
-<text x="176" y="416" class="m">relay first · then direct</text>
-<text x="470" y="416" class="m">relay forwards encrypted data</text>
+<rect x="600" y="308" width="270" height="130" rx="12" class="web-box"/>
+<text x="616" y="335" class="h">Guest · any browser</text>
+<text x="616" y="360" class="s">Opens a share link</text>
+<text x="616" y="381" class="s">Nothing installed, no account</text>
+<text x="616" y="402" class="s m">Checks the box's fingerprint</text>
+<text x="616" y="426" class="s b c-web">One album · read only</text>
 
-<!-- Router -->
-<rect class="box" x="20" y="456" width="860" height="72" rx="8"/>
-<text x="36" y="486" class="b">Home</text>
-<text x="36" y="508" class="b">router</text>
-<text x="176" y="486" class="s c-link">apps: nothing opened</text>
-<text x="176" y="508" class="s m">hole punching gets through</text>
-<text x="470" y="486" class="s c-web">443: opened by the box, TCP and UDP</text>
-<text x="470" y="508" class="s c-web">only while a share link is live</text>
-<text x="760" y="486" class="s m">UPnP, NAT-PMP,</text>
-<text x="760" y="508" class="s m">PCP or IPv6</text>
+<!-- home router -->
+<rect x="20" y="490" width="860" height="56" rx="10" class="zone"/>
+<text x="36" y="523" class="b">Home router</text>
+<text x="212" y="512" class="s c-data">nothing opened for the family:</text>
+<text x="212" y="532" class="s c-data">hole punching gets through</text>
+<text x="530" y="512" class="s c-web">guests' door, port 443,</text>
+<text x="530" y="532" class="s c-web">only while a link is live</text>
+<text x="747" y="512" class="t m">UPnP, NAT-PMP,</text>
+<text x="747" y="532" class="t m">PCP or IPv6</text>
 
-<!-- Home -->
-<rect class="zone" x="20" y="548" width="860" height="432" rx="12"/>
-<rect class="box" x="34" y="562" width="832" height="404" rx="10"/>
-<text x="52" y="590" class="t">ZOOMRIYA Box · wired by Ethernet</text>
+<!-- the box -->
+<rect x="20" y="562" width="860" height="420" rx="12" class="zone"/>
+<text x="36" y="588" class="h">ZOOMRIYA Box</text>
 
-<!-- connectd -->
-<rect class="box" x="50" y="606" width="800" height="120" rx="8"/>
-<text x="68" y="634" class="t">connectd · port 443</text>
-<text x="68" y="660" class="s c-link">UDP: iroh endpoint · paired devices only · strangers refused</text>
-<text x="68" y="684" class="s c-web">TCP 443 (HTTPS) from the internet → the album viewer; paired devices too, if you forwarded it</text>
-<text x="68" y="708" class="s m">from the home network → the web server (HTTPS), as usual</text>
+<!-- box <-> relay, always on -->
+<path d="M515 242V614" class="setup" marker-start="url(#s)" marker-end="url(#s)"/>
+<text x="525" y="376" class="t c-setup">always on:</text>
+<text x="525" y="392" class="t c-setup">box ↔ relay</text>
 
-<!-- Main paths -->
-<line class="a-link" x1="156" y1="300" x2="156" y2="602" marker-end="url(#m-link)"/>
-<line class="a-link" x1="450" y1="300" x2="450" y2="602" marker-end="url(#m-link)"/>
-<line class="a-web" x1="743" y1="300" x2="743" y2="602" marker-end="url(#m-web)"/>
+<!-- devices to the box -->
+<path d="M200 442V614" class="data" marker-start="url(#d)" marker-end="url(#d)"/>
+<text x="212" y="460" class="t b c-data">direct path, or through the relay</text>
+<path d="M735 442V614" class="web-solid" marker-end="url(#w)"/>
+<text x="747" y="460" class="t b c-web">door, WebRTC,</text>
+<text x="747" y="475" class="t b c-web">or guests' relay</text>
 
-<!-- Box to control plane -->
-<path class="a-ctl" d="M850,640 H872 V72 H884" marker-start="url(#m-ctl)"/>
 
-<!-- connectd to the two servers -->
-<line class="a-link" x1="245" y1="726" x2="245" y2="778" marker-end="url(#m-link)"/>
-<text x="257" y="758" class="s c-link">links · home</text>
-<line class="a-web" x1="655" y1="726" x2="655" y2="778" marker-end="url(#m-web)"/>
-<text x="667" y="758" class="s c-web">guests</text>
+<rect x="40" y="618" width="820" height="136" rx="10" class="node"/>
+<text x="56" y="644" class="h">connectd · port 443</text>
+<text x="56" y="669" class="s"><tspan class="b c-data">UDP:</tspan> paired devices only. Checks every device against the box's own list; signs and renews passes</text>
+<text x="56" y="692" class="s"><tspan class="b c-web">TCP (HTTPS):</tspan> from home → the web server; from the internet → the album viewer, only while a link is live</text>
+<text x="56" y="715" class="s m">Publishes the box's signed address record · gets its certificate and watches the public logs</text>
+<text x="56" y="738" class="s m">Opens and closes the guests' door, and asks the control plane to check it from outside</text>
 
-<!-- Web server and apps -->
-<rect class="hl-link" x="50" y="782" width="390" height="166" rx="8"/>
-<text x="68" y="810" class="t">Web server · the box's apps</text>
-<text x="68" y="836" class="mono">https://maplehouse.zoomriya.app</text>
-<text x="68" y="860">one origin, one sign-in</text>
-<text x="68" y="884" class="m">at home, or through the link</text>
-<text x="68" y="930" class="s c-never b">✕ never on the internet</text>
+<path d="M240 754V792" class="data" marker-end="url(#d)"/>
+<path d="M660 754V792" class="web-solid" marker-end="url(#w)"/>
 
-<!-- Share listener -->
-<rect class="hl-web" x="460" y="782" width="390" height="166" rx="8"/>
-<text x="478" y="810" class="t">Share listener</text>
-<text x="478" y="836">share routes only · GET, HEAD</text>
-<text x="478" y="860">token checked on every request</text>
-<text x="478" y="884" class="m">rate-limited · no sign-in, no apps</text>
-<text x="478" y="930" class="c-web b">one album · READ-ONLY</text>
+<rect x="40" y="796" width="400" height="166" rx="10" class="data-box"/>
+<text x="56" y="822" class="h">Web server · the box's apps</text>
+<text x="56" y="846" class="mono">maplehouse.zoomriya.app</text>
+<text x="56" y="870" class="s">The sign-in page and every app</text>
+<text x="56" y="892" class="s m">At home, or through the link</text>
+<text x="56" y="940" class="s b c-stop">✕ Never on the internet</text>
+
+<rect x="460" y="796" width="400" height="166" rx="10" class="web-box"/>
+<text x="476" y="822" class="h">Album viewer · for guests</text>
+<text x="476" y="846" class="s">Shows the albums in a link, never changes them</text>
+<text x="476" y="870" class="s">Checks the token on every request</text>
+<text x="476" y="892" class="s m">Slows down and briefly blocks guessers</text>
+<text x="476" y="940" class="s b c-web">One album · read only</text>
+
+<text x="30" y="1008" class="t m">This is the plan: ZOOMRIYA Connect isn't built yet.</text>
 </svg>

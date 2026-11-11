@@ -89,6 +89,7 @@ What each part could and couldn't do if someone broke into it is in the
 | Page | What's in it |
 |---|---|
 | [How it works](docs/how-it-works.md) | Pairing, passes, connecting step by step, the box's name, and the parts |
+| [Architecture](docs/architecture.md) | For advanced users: every part, the keys, how they work together, and what happens when one fails |
 | [Where it works](docs/where-it-works.md) | Types of home internet, what works on each, guests' networks, what never works |
 | [Desktop app](docs/desktop.md) | How laptops use the box in a normal browser |
 | [Sharing, names and certificates](docs/sharing-and-names.md) | Share links, box names, your own domain, your own server, certificates |

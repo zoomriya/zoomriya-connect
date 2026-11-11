@@ -223,6 +223,9 @@ them can read it.
 
 ## The parts
 
+For the full picture, with every part, the keys and what happens when one
+fails, see [Architecture](architecture.md).
+
 | Part | Where it runs | What it does |
 |---|---|---|
 | **The link** | Inside the ZOOMRIYA app on phones (Android, iOS) and the desktop app (Linux, Windows, macOS) | Connects to the box and checks the box's key. The app's screens, or a laptop's browser, reach the box's apps through it |
