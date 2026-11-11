@@ -33,7 +33,7 @@ text{fill:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvet
           <!-- nodes -->
           <rect class="box" x="20" y="90" width="170" height="120" rx="8"/>
           <text x="105" y="118" text-anchor="middle" class="t">Web view</text>
-          <text x="105" y="188" text-anchor="middle" class="mono">x7k2q.zoomriya.app</text>
+          <text x="105" y="188" text-anchor="middle" class="mono">maplehouse.zoomriya.app</text>
           <rect class="box" x="250" y="90" width="170" height="120" rx="8"/>
           <text x="335" y="118" text-anchor="middle" class="t">Local proxy</text>
           <text x="335" y="188" text-anchor="middle" class="m s">in the app</text>

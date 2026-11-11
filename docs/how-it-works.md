@@ -2,124 +2,133 @@
 
 Part of [ZOOMRIYA Connect](../README.md).
 
-This page follows a connection from the moment you open the app to the moment
-you see your photos. Most of it isn't built yet. This is the plan.
+This page follows your phone from the moment you open the app to the moment
+you see your photos. None of it is built yet. This is the plan.
+
+A few names you'll meet:
+
+- **The box:** your ZOOMRIYA Box at home.
+- **The relay:** a server of ours that passes messages between your phone and
+  the box when they can't reach each other directly. Families can run their
+  own.
+- **The control plane:** another server of ours. It tells your phone how to
+  find the box. It never carries your photos or messages.
+- **connectd:** the part of ZOOMRIYA Connect that runs on the box.
 
 ## Your phone and the box
 
 ### Pairing
 
-You pair a phone once, at home. The box shows a QR code on its screen. You
-scan it with the ZOOMRIYA app.
+You pair a phone once, at home. The box shows a QR code on its screen, and
+you scan it with the ZOOMRIYA app.
 
-Now the phone knows the box's key, and the box knows the phone's. Each one
-checks the other's key every time they connect. So a phone the box doesn't
-know can't get in, and nobody can pretend to be your box.
+From then on, the phone and the box know each other's keys. A key works like
+a signature that only one device can make. They check each other's key every
+time they connect. So a phone the box doesn't know can't get in, and nothing
+else can pretend to be your box.
 
-The phone's key is stored on the phone, locked by its secure chip: the
-Secure Enclave on an iPhone, the Keystore on Android. It's unlocked only
-inside the ZOOMRIYA app while it runs, and never leaves the phone.
-
-### The box hands out passes
-
-When you pair a phone, the box also gives it a pass: a few lines that say
-"this phone's key belongs to this box, until such-and-such a date", signed
-with the box's key. The box is the only one that can make a pass for itself.
-Not our control plane, not the relay.
-
-![How passes work, in four steps. 1: at home, you pair your phone, and the box gives it a pass signed by the box. 2: away from home, the phone shows its pass to the relay, which checks it by itself and lets the phone through to that box only; the box checks its own list and lets it in. 3: a stranger, or a copied pass, is turned away. 4: when you remove a lost phone, the box tells the relay straight away, and both turn it away. Passes last 30 days and renew by themselves.](passes.svg)
-
-The relay checks the pass by itself, without asking our control plane. So:
-- **The control plane learns less.** It's never asked about your devices, so
-  it doesn't learn which ones belong to your box or when they connect. The
-  relay still sees which devices connect to your box, because it passes
-  their traffic along.
-- **It keeps working if our control plane is down.** The relay can check a
-  pass on its own.
-- **Your own relay needs only your box.** See
-  [your own server](sharing-and-names.md#your-own-server).
-
-**How a pass is renewed.** A pass lasts 30 days. You never see it renewed:
-
-1. The phone connects to the box, any way at all: at home, over a direct
-   path, or through the relay with the pass it already has.
-2. The box checks the phone against its own list of paired devices, as it
-   does on every connection.
-3. If the pass has less than three weeks left, the box signs a new one, good
-   for 30 days from today, and sends it over the same encrypted connection.
-4. The phone keeps the new pass and drops the old one.
-
-The relay plays no part. It never makes passes, and it can't read the new
-one going past. It just sees it the next time the phone shows it.
-
-Renewing with three weeks left means a phone in use gets its new pass long
-before the old one runs out. It also renews in the background, whenever the
-app reaches the box without you opening it: for example, to back up new
-photos when you get home.
-
-Phones limit what apps do in the background, iPhones most of all. So a phone
-whose app is rarely opened might go 30 days without reaching the box. Our
-[tests](testing.md) watch for this on real phones. If it happens, we'll make
-passes last longer. That costs little, because removing a device works at
-once whatever the pass says.
-
-A pass gets a device through the relay, and no further. The box still checks
-every device against its own list of paired devices, on every connection.
-
-**Removing a device.** When an admin removes a phone, the box stops it at
-once. The box also tells its relay straight away, over the connection it
-keeps open, so the relay shuts the phone out too. If the relay was out of
-touch at that moment, the box tells it again as soon as they reconnect. And
-the phone's pass runs out within 30 days anyway, so nothing is left behind.
-
-**A phone that's been away a long time.** If a phone goes more than 30 days
-without reaching the box, its pass runs out and the relay won't let it in.
-The phone still connects at home, or over any direct path, because the box
-checks its own list. Once it does, it gets a new pass and the relay works
-again.
+The phone's key stays on the phone, locked in its security chip: the Secure
+Enclave on an iPhone, the Keystore on Android. Only the ZOOMRIYA app can use
+it, and it never leaves the phone.
 
 ### Connecting
 
-The phone, the laptop app and the box all use
-[iroh](https://github.com/n0-computer/iroh). iroh finds a device by its key,
-not by its internet address.
+![How your phone connects to the box, step by step: the box stays in touch with the relay; the app asks which relay the box uses, or remembers it; it shows its pass and connects through the relay at once; the relay tells each side where the other is and both reach out together; usually within seconds the direct path takes over. If nothing direct works, the relay keeps passing the data along, still encrypted.](connecting.svg)
 
-![How your phone connects to the box, step by step: the box stays in touch with the relay; the app asks which relay the box uses; it connects through the relay at once; the relay tells each side where the other is and both reach out together; usually within seconds the direct path takes over. If nothing direct works, the relay keeps passing the data along, still encrypted.](connecting.svg)
-
-1. **The box stays in touch with the relay.** It keeps a small connection open
-   to our relay all the time.
-2. **You open the app.** The phone looks up which relay the box uses and
-   connects to the box through it. This is about as quick as opening a web
-   page.
+1. **The box stays in touch with the relay.** It keeps a small connection
+   open to the relay all the time.
+2. **You open the app.** The phone asks the control plane which relay the box
+   uses, and reaches the box through it. This is about as quick as opening a
+   web page. The phone remembers the answer, so it can still find the box if
+   the control plane is down.
 3. **They try to go direct.** While you're already using the app, the relay
-   tells each side where the other one is. Then both try to reach each other
-   at the same moment. This is called hole punching. Each router sees a
-   connection going out, so it lets the reply come in.
-4. **The direct path takes over.** As soon as one works, your data goes
-   straight between your phone and the box. The relay drops out. This usually
-   takes a few seconds.
+   tells the phone and the box where the other one is. Both reach out at the
+   same moment, so each router sees a connection going out and lets the reply
+   come in. This is called hole punching.
+4. **The direct path takes over.** Usually within a few seconds, your data
+   goes straight between the phone and the box, and the relay drops out.
 5. **If nothing direct works,** the relay keeps passing your data along. It's
-   slower, but it works. It's still encrypted, so the relay can't read it.
+   slower, but it works. Everything is encrypted, so the relay can't read it.
 
-In step 3, they try:
-- the home network, if you're at home
+In step 3, they try all of these at once:
+
+- your home network, if you're at home
 - IPv6, if both ends have it
 - ordinary hole punching
-- the box's open port, if it has one (while a share link is live, or if you
-  forwarded a port yourself)
-- TCP port 443, if you forwarded it, for networks that block UDP. This one is
-  our own addition: iroh's direct paths use UDP only
+- the box's open door, if it has one: the
+  [guests' door](#guests-and-share-links) while a share link is live, or a
+  port you've forwarded yourself
+- TCP port 443, if you've forwarded it, for networks that block UDP (the kind
+  of traffic hole punching uses). iroh doesn't do this one, so we add it
+  ourselves
 
-Some strict routers beat ordinary hole punching. If our
-[tests](testing.md) show it's worth it, we'll add cleverer tricks later.
+Some strict routers stop ordinary hole punching. If our [tests](testing.md)
+show it's worth it, we'll add cleverer tricks later.
+
+All of this is built on [iroh](https://github.com/n0-computer/iroh), an
+open-source library. iroh finds a device by its key, not by its internet
+address.
+
+### The box hands out passes
+
+When you pair a phone, the box also gives it a pass. It's a short note that
+says "this phone belongs to this box, until such-and-such a date", signed by
+the box. Only your box can make passes for itself. Not us, and not the relay.
+
+![How passes work, in four steps. 1: at home, you pair your phone, and the box gives it a pass signed by the box. 2: away from home, the phone shows its pass to the relay, which checks it by itself and lets the phone through to that box only; the box checks its own list and lets it in. 3: a stranger, or a copied pass, is turned away. 4: when you remove a lost phone, the box tells the relay straight away, and both turn it away. Passes last 30 days and renew by themselves.](passes.svg)
+
+Away from home, the phone shows its pass to the relay. The relay checks the
+box's signature by itself, then lets the phone through, but only to that
+box. The box checks the phone against its own list of paired devices, as it
+does every time. A pass gets a phone through the relay, never into the box.
+
+Because the relay checks passes by itself:
+
+- **Our control plane knows less.** It's never asked about your devices, so
+  it doesn't learn which ones are yours or when they connect. The relay still
+  sees which devices connect to your box, because it passes their traffic
+  along.
+- **Things keep working when the control plane is down.** The relay checks
+  passes on its own, and your phone remembers where the box was last time.
+  The box signs that note, so an old copy can't be faked. Only a box that has
+  moved to another relay can't be found until the control plane is back.
+- **Your own relay only needs your box.** See
+  [your own server](sharing-and-names.md#your-own-server).
+
+**Renewing a pass.** A pass lasts 30 days and renews itself, without you
+noticing:
+
+1. Your phone connects to the box in any way: at home, directly, or through
+   the relay.
+2. The box checks that the phone is still on its list.
+3. If the pass has less than three weeks left, the box sends a new one, good
+   for another 30 days.
+
+The relay plays no part in this. It never makes passes.
+
+The app also reaches the box in the background now and then, for example to
+back up new photos when you get home. So passes renew even if you rarely open
+the app. Phones limit what apps can do in the background, iPhones most of
+all, so our [tests](testing.md) check this on real phones. If passes run out
+too often, we'll make them last longer. That's safe, because removing a phone
+works at once, whatever its pass says.
+
+**Removing a phone.** When an admin removes a phone, the box refuses it
+straight away and tells the relay to refuse it too. If the relay can't be
+reached at that moment, the box tells it as soon as it can. And the pass runs
+out within 30 days anyway.
+
+**A phone that's been away a long time.** If a phone doesn't reach the box
+for more than 30 days, its pass runs out and the relay won't let it through.
+It can still connect at home, or over a direct path, because there the box
+only checks its own list. Then it gets a new pass, and the relay works again.
 
 ### What gets in
 
-Only paired devices. Our relay lets in only devices with a pass from their
-box, so through the relay strangers can't even reach the box. And a device
-with a pass can reach only the box that made it, never anyone else's. A
-stranger who finds the box's address directly still can't connect: the box
-refuses any device it hasn't paired.
+Only your paired devices. The relay lets through only devices with a pass,
+and only to the box that made the pass. Someone who finds the box's address
+some other way still can't get in: the box refuses any device it hasn't
+paired.
 
 A connection reaches the box's apps and nothing else on your home network.
 It isn't a VPN. Your phone won't ask for VPN permission, and it works
@@ -131,54 +140,61 @@ The app and the box use only relays run by ZOOMRIYA, or by your family if you
 [run your own](sharing-and-names.md#your-own-server). iroh's public relays are
 switched off.
 
-Our relays let in only boxes and devices with a pass from one. When a box is
-set up, our control plane tells the relays it's a ZOOMRIYA box. That's all
-the relays learn from us. They check each device's pass for themselves.
-Each time we upgrade iroh, a test records the network traffic to make sure
-nothing goes anywhere else.
+Our relays let in only ZOOMRIYA Boxes, and devices with a pass from one. When
+a box is set up, the control plane tells the relays about it. That's all the
+relays learn from us. Each time we update iroh, a test records the network
+traffic to make sure nothing goes anywhere else.
 
 ### Backups wait
 
-Browsing photos, chat, the tracker and the rest all work over the relay.
-Backing up new photos and videos waits until the connection is direct, or
-until you're home. This keeps big uploads off the relay.
+Looking at photos, chat, the tracker and everything else work through the
+relay. Backing up new photos and videos waits until the connection is
+direct, or until you're home. This keeps big uploads off the relay.
 
-If you [run your own relay](sharing-and-names.md#your-own-server), you get a
-switch, **Back up over the relay**, to let backups use it too.
+If you [run your own relay](sharing-and-names.md#your-own-server), a switch
+called **Back up over the relay** lets backups use it too.
 
 ## Guests and share links
 
-A share link opens one album in any browser. Read only, nothing to install,
-no account.
+A share link opens one album in any browser. Guests can only look. They don't
+install anything or make an account.
 
-While a link is live, the box asks your router to open port 443 (using UPnP,
-NAT-PMP or PCP), or opens it over IPv6. That door leads only to the album
-viewer, never to the sign-in page or the apps. When the last link expires,
-the box closes the door.
+While a link is live, the box asks your router to open a door on port 443,
+the port every secure website uses. Routers let devices ask for this in a few
+standard ways (UPnP, NAT-PMP or PCP). If your home has IPv6, the box opens
+the door there too. The door has two sides:
+
+- **Guests' browsers** reach only the album viewer through it. Never the
+  sign-in page, and never the apps.
+- **Your own paired devices** can use it as one more direct way in. The box
+  turns away anyone it hasn't paired, as always.
+
+When the last link runs out, the box closes the door.
 
 If the router won't open a door, the guest's browser and the box try to reach
-each other with WebRTC. That's what browsers use for video calls. If that
+each other with WebRTC, which is what browsers use for video calls. If that
 fails too, the relay carries the album, encrypted. For guests, the relay is
 the last resort.
 
-The box tries IPv6 first. If your home has IPv6, guests who also have it come
-straight in. This works even when your provider shares one IPv4 address
-between many homes (that's called CGNAT).
+The box tries IPv6 first. When your home and the guest both have IPv6, the
+guest comes straight in. This works even when your provider shares one
+internet address between many homes (that's called CGNAT).
 
 More in [Sharing with guests](sharing-and-names.md#sharing-with-guests).
 
 ## The box's name
 
 Each box has a name, such as `maplehouse.zoomriya.app`. The name points at the
-box on your home network, never at your home's public address.
+box on your home network, never at your home's address on the internet.
 
 At home, your browser opens the box by its name, with a proper padlock. Away
-from home, the app doesn't use the name. It looks up the box's signed address
-record instead, which says which relay the box uses.
+from home, the app doesn't use the name. It asks the control plane where the
+box is instead.
 
-The padlock certificate comes from Let's Encrypt. Its private key is made on
-the box and never leaves it. To prove the box owns its name, our control plane
-puts a temporary record in DNS. Nothing on your router needs opening for this.
+The padlock comes from a certificate, issued by Let's Encrypt. Its secret key
+is made on the box and never leaves it. To prove the box owns its name, our
+control plane puts a temporary record in DNS, the internet's address book.
+Nothing on your router needs opening for this.
 
 You can use your own domain instead, such as `home.smith.ca`. See
 [names and domains](sharing-and-names.md#names-and-domains).
@@ -188,24 +204,28 @@ You can use your own domain instead, such as `home.smith.ca`. See
 | Part | What it carries |
 |---|---|
 | **The direct path** | Your data, almost always |
-| **The relay** | The first moments of each connection. Your data only when nothing direct works. It's encrypted, so the relay can't read it |
-| **The control plane** | Which relay each box uses, and setup messages for guests. Never your data |
-| **The guest page** (`share.zoomriya.net`) | The viewer page only. The album itself comes from the box |
+| **The relay** | The first moments of each connection. Your data only when nothing direct works, and it's encrypted, so the relay can't read it |
+| **The control plane** | Where each box is, and setup messages for guests. Never your data |
+| **The guest page** (`share.zoomriya.net`) | The page a share link opens. The album itself comes from the box |
 | **DNS** | Names and addresses only |
 
-![What carries what. DNS and the control plane only help devices find each other. Family connections start on the relay and switch to a direct path when one works. Guests get the viewer page from share.zoomriya.net and the album from the box.](data-flow.svg)
+![What carries what. DNS and the control plane only help devices find each other. Family connections start on the relay and switch to a direct path when one works. Guests get the page from share.zoomriya.net and the album from the box.](data-flow.svg)
+
+Inside the connection, your browser talks to the box's web server in its own
+encrypted connection. The app and connectd only pass it along, so neither of
+them can read it.
 
 ![Inside the link: your browser's encrypted connection to the box runs through the app and connectd, so neither of them can read it.](link.svg)
 
 ### The order of attempts
 
-![Family devices start on the relay and try six direct paths at once; the first that works takes over. Guests try the box directly, then WebRTC, then the relay.](paths.svg)
+![Family devices start on the relay and try up to five direct paths at once, with a sixth later if tests show it's needed; the first that works takes over. Guests try the box directly, then WebRTC, then the relay.](paths.svg)
 
 ## The parts
 
 | Part | Where it runs | What it does |
 |---|---|---|
-| **The link** | Inside the ZOOMRIYA app on phones (Android, iOS) and in the desktop app (Linux, Windows, macOS) | Connects to the box and checks its key. The app's screens, or a laptop's browser, reach the box's apps through it |
-| **connectd** | The box | Lets in paired devices and nobody else. Hands out and renews their passes, and tells the relay when a device is removed. Checks share links. Opens and closes the door on the router for guests. Publishes the box's address record. Warns you if anyone else gets a certificate for the box's name |
-| **The relay** | A server run by ZOOMRIYA, or by your family | Starts each connection and helps with hole punching. Carries data only when nothing direct works. Lets in only boxes, and devices with a pass from their box, and only to that box |
-| **The control plane** | A server run by ZOOMRIYA, or by your family | Keeps each box's address record, answers DNS for box names, helps get certificates, checks from outside whether a box can be reached, and passes setup messages for guests |
+| **The link** | Inside the ZOOMRIYA app on phones (Android, iOS) and the desktop app (Linux, Windows, macOS) | Connects to the box and checks the box's key. The app's screens, or a laptop's browser, reach the box's apps through it |
+| **connectd** | The box | Lets in paired devices and nobody else. Hands out and renews their passes, and tells the relay when one is removed. Checks share links. Opens and closes the guests' door. Tells the control plane where the box is. Warns you if anyone else gets a certificate for the box's name |
+| **The relay** | A server run by ZOOMRIYA, or by your family | Starts each connection and helps with hole punching. Carries data only when nothing direct works. Lets in only boxes, and devices with a pass, and only to their own box |
+| **The control plane** | A server run by ZOOMRIYA, or by your family | Knows where each box is, answers DNS for box names, helps get certificates, checks from outside whether a box can be reached, and passes setup messages for guests |

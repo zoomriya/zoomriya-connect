@@ -2,6 +2,8 @@
 
 Part of [ZOOMRIYA Connect](../README.md).
 
+This page is for the people building ZOOMRIYA Connect.
+
 Before release, we test ZOOMRIYA Connect with 1,000 pretend families over two
 months. We want to know three things:
 
@@ -20,11 +22,11 @@ The test has three stages. All three use the same pretend families.
 ## The pretend families
 
 The numbers below are our best guesses. Once real homes use ZOOMRIYA Connect,
-their (anonymous, opt-in) reports replace them. Every run starts from a fixed
-seed, so it can be repeated exactly.
+their reports (anonymous, and only if they agree) replace them. Every run
+starts from the same random seed, so it can be repeated exactly.
 
 **Who they are.** 1,000 families, each with a box. 2 to 6 people per family
-(3.5 on average), with 1.5 phones or laptops each: about 5,000 devices.
+(3.5 on average), each with 1.5 phones or laptops: about 5,000 devices.
 
 **Their home internet.**
 
@@ -96,8 +98,9 @@ networks:
   delay and a little packet loss.
 
 **Two months in three days.** We replay the families' days 20 times faster.
-Only the daily life is sped up. Keep-alives, router timeouts and reconnects
-run at normal speed, because those are what really break. Uploads and
+Only daily life is sped up. The small "still here" messages, router
+timeouts and reconnects run at normal speed, because those are what really
+break. Uploads and
 downloads keep their real sizes.
 
 **What we measure:**
@@ -160,7 +163,7 @@ These are suggestions. We'll agree them before stage 2.
   public servers.
 - **Strangers stay out:** the relay refuses every unpaired device, every
   expired or copied pass, and every pass from a box it doesn't know. A device
-  reaches only the box that made its pass.
+  reaches only the box that signed its pass.
 - **Removed means removed:** a removed device is refused by the box at once,
   and by the relay within 5 seconds, or as soon as the box reconnects.
 - **Passes renew:** no family device loses the relay because its pass ran
@@ -172,8 +175,8 @@ These are suggestions. We'll agree them before stage 2.
 ## What this can't tell us
 
 Which networks real families actually have. The lab only tests the mix we
-guessed. Real numbers come from the first homes, through anonymous, opt-in
-connection reports.
+guessed. Real numbers will come from the first homes, through connection
+reports that are anonymous and only sent if the family agrees.
 
 ## Where the code goes
 

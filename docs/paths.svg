@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1016" viewBox="0 0 900 1016" role="img" aria-label="How a connection reaches the box. Family devices start each connection through the relay, which tells each side its public address and passes the hole-punching signals; six direct paths are tried at once and the first that works takes over. The relay keeps forwarding end-to-end encrypted traffic only if none does. Guests load a page from share.zoomriya.net, then try direct HTTPS and WebRTC hole punching. A relay forwards the encrypted, read-only share session as the last option.">
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1016" viewBox="0 0 900 1016" role="img" aria-label="How a connection reaches the box. Family devices start each connection through the relay, which tells each side its public address and passes the hole-punching signals; up to five direct paths are tried at once (a sixth, harder hole punching, comes later if tests show it's needed) and the first that works takes over. The relay keeps forwarding end-to-end encrypted traffic only if none does. Guests load a page from share.zoomriya.net, then try direct HTTPS and WebRTC hole punching. A relay forwards the encrypted, read-only share session as the last option.">
 <style>
 svg{--surface:#ffffff;--zone:#eef2f4;--fg:#15232a;--muted:#5b6c75;--line:#c3ced4;--link:#0d7a6b;--web:#2a5cb3;--relay:#8a6a14;--never:#b23a2e}
 @media (prefers-color-scheme: dark){svg{--surface:#162026;--zone:#121b20;--fg:#e2eaed;--muted:#93a5ad;--line:#33464f;--link:#4cc3ae;--web:#7ea8f0;--relay:#d8b45c;--never:#ee7d6f}}
@@ -34,7 +34,7 @@ text{fill:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvet
 
 <!-- ===================== Family ===================== -->
 <text x="20" y="38" class="t">Family: phone or laptop to the box</text>
-<text x="20" y="62" class="s m">The relay (R) starts the connection at once; paths 1–6 are tried together, and the first that works takes over.</text>
+<text x="20" y="62" class="s m">The relay (R) starts the connection at once; the direct paths are tried together, and the first that works takes over.</text>
 
 <rect class="zone" x="20" y="80" width="150" height="474" rx="10"/>
 <text x="95" y="290" text-anchor="middle" class="h">Phone</text>
@@ -44,7 +44,7 @@ text{fill:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvet
 
 <rect class="zone" x="730" y="80" width="150" height="474" rx="10"/>
 <text x="805" y="290" text-anchor="middle" class="h">ZOOMRIYA</text>
-<text x="805" y="310" text-anchor="middle" class="h">box</text>
+<text x="805" y="310" text-anchor="middle" class="h">Box</text>
 <text x="805" y="334" text-anchor="middle" class="s m">connectd</text>
 <text x="805" y="352" text-anchor="middle" class="s m">at home</text>
 
@@ -72,7 +72,7 @@ text{fill:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvet
 <!-- row 4 -->
 <circle cx="205" cy="300" r="12" class="c-link"/><text x="205" y="305" text-anchor="middle" class="n">4</text>
 <text x="228" y="305" class="h">Harder hole punching</text>
-<text x="228" y="323" class="s m">later, if measured useful: port prediction · many sockets · TCP open</text>
+<text x="228" y="323" class="s m">later, only if tests show it's needed: port prediction · many sockets</text>
 <line x1="182" y1="338" x2="716" y2="338" class="l-link" marker-end="url(#a-link)"/>
 <circle cx="190" cy="338" r="6" class="c-link dot fam" style="animation-delay:.3s"/>
 
@@ -110,7 +110,7 @@ text{fill:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvet
 <text x="95" y="816" text-anchor="middle" class="s m">a share link</text>
 
 <rect class="zone" x="730" y="654" width="150" height="340" rx="10"/>
-<text x="805" y="774" text-anchor="middle" class="h">ZOOMRIYA box</text>
+<text x="805" y="774" text-anchor="middle" class="h">ZOOMRIYA Box</text>
 <text x="805" y="798" text-anchor="middle" class="s m">share listener</text>
 <text x="805" y="816" text-anchor="middle" class="s m">one album, read-only</text>
 

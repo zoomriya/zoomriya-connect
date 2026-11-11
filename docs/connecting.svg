@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="750" viewBox="0 0 900 750" role="img" aria-label="How your phone connects to the box, step by step. 1: the box keeps a connection open to the relay all the time. 2: you open the app, and it asks the control plane which relay the box uses. 3: the phone connects to the box through the relay, about as quickly as opening a web page. 4: the relay tells each side where the other is, and both reach out at the same moment (hole punching). 5: usually within seconds, a direct path takes over and the relay drops out. If nothing direct works, the relay keeps passing the data along, still encrypted.">
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="750" viewBox="0 0 900 750" role="img" aria-label="How your phone connects to the box, step by step. 1: the box keeps a connection open to the relay all the time. 2: you open the app, and it asks the control plane which relay the box uses, or uses what it remembers from last time. 3: the phone shows its pass and connects to the box through the relay, about as quickly as opening a web page. 4: the relay tells each side where the other is, and both reach out at the same moment (hole punching). 5: usually within seconds, a direct path takes over and the relay drops out. If nothing direct works, the relay keeps passing the data along, still encrypted.">
 <style>
 svg{--surface:#fff;--zone:#f1f5f6;--fg:#15232a;--muted:#5b6c75;--line:#c3ced4;--data:#087f6e;--data-soft:#e4f4f0;--setup:#886516;--setup-soft:#fbf4df}
 @media(prefers-color-scheme:dark){svg{--surface:#162026;--zone:#121b20;--fg:#e2eaed;--muted:#93a5ad;--line:#33464f;--data:#56c5ae;--data-soft:#172e2a;--setup:#d8b45c;--setup-soft:#302a19}}
@@ -40,7 +40,7 @@ text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-
 
 <!-- 2 -->
 <circle cx="40" cy="232" r="12" class="num"/><text x="40" y="237" text-anchor="middle" class="num-text">2</text>
-<text x="62" y="237" class="step halo">You open the app. It asks which relay the box uses</text>
+<text x="62" y="237" class="step halo">You open the app. It asks which relay the box uses, or remembers it</text>
 <path d="M158 266H352" class="setup" marker-end="url(#s)"/>
 <text x="255" y="258" text-anchor="middle" class="small setup-text halo">Where's the box?</text>
 <path d="M352 296H158" class="setup" marker-end="url(#s)"/>
@@ -51,7 +51,7 @@ text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-
 <text x="62" y="345" class="step halo">Connected through the relay: about as quick as opening a web page</text>
 <path d="M158 376H562" class="data" marker-start="url(#d)"/>
 <path d="M578 376H782" class="data" marker-end="url(#d)"/>
-<text x="470" y="368" text-anchor="middle" class="small data-text halo">you're in, through the relay</text>
+<text x="360" y="368" text-anchor="middle" class="small data-text halo">shows its pass, and you're in through the relay</text>
 
 <!-- 4 -->
 <circle cx="40" cy="420" r="12" class="num"/><text x="40" y="425" text-anchor="middle" class="num-text">4</text>
