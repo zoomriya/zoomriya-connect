@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="730" viewBox="0 0 1000 730" role="img" aria-label="Planned ZOOMRIYA Connect data flow. DNS answers names only: the box name points at its home-network address, and the guests' door at the home's public address only while a share link is live. The control plane serves the boxes' address records and guests' setup messages only. Family connections start through the relay and move to a direct path when one works; the relay keeps forwarding encrypted traffic only if none does. Guests use a relay only as the last option. Whoever runs the relay sees who connects and when, but never what, because everything is encrypted end to end.">
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="756" viewBox="0 0 1000 756" role="img" aria-label="Planned ZOOMRIYA Connect data flow. DNS answers names only: the box name points at its home-network address, and the guests' door at the home's public address only while a share link is live. The control plane serves the boxes' address records and guests' setup messages only. Family connections start through the relay and move to a direct path when one works; the relay keeps forwarding encrypted traffic only if none does. Guests use a relay only as the last option. Whoever runs the relay sees who connects and when, but never what, because everything is encrypted end to end.">
 <style>
 svg{--surface:#fff;--bg:#f4f6f7;--zone:#eaf0f2;--fg:#15232a;--muted:#5b6c75;--line:#c3ced4;--direct:#087f6e;--direct-soft:#e4f4f0;--control:#886516;--control-soft:#fbf4df;--web:#285db1;--web-soft:#e8effb;--warning:#a13a2f}
 @media(prefers-color-scheme:dark){svg{--surface:#162026;--bg:#0e1518;--zone:#121b20;--fg:#e2eaed;--muted:#93a5ad;--line:#33464f;--direct:#56c5ae;--direct-soft:#172e2a;--control:#d8b45c;--control-soft:#302a19;--web:#86aaf0;--web-soft:#19263c;--warning:#ee7d6f}}
@@ -11,10 +11,11 @@ text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-
 </style>
 <defs>
   <marker id="arrow-direct" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="var(--direct)"/></marker>
-  <marker id="arrow-control" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="var(--control)"/></marker>
-  <marker id="arrow-web" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="var(--web)"/></marker>
+  <marker id="arrow-control" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="var(--control)"/></marker>
+  <marker id="arrow-web" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M0 0L10 5L0 10Z" fill="var(--web)"/></marker>
+  <marker id="head-direct" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="var(--direct)"/></marker>
 </defs>
-<rect width="1000" height="700" rx="14" fill="var(--surface)"/>
+<rect width="1000" height="756" rx="14" fill="var(--surface)"/>
 <text x="30" y="40" class="title">ZOOMRIYA Connect · who carries what</text>
 <text x="30" y="65" class="small muted">Solid green: your data · dashed gold: finding each other · dotted blue: the guest page</text>
 
@@ -39,14 +40,13 @@ text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-
 <rect x="30" y="286" width="940" height="74" rx="10" fill="var(--bg)" stroke="var(--line)"/>
 <text x="50" y="317" class="head">Finding each other</text>
 <text x="50" y="343" class="small muted">Phones look up where the box is (and remember it); the relay checks passes and helps with hole punching.</text>
-<path d="M205 232V278" class="control-line" marker-start="url(#arrow-control)" marker-end="url(#arrow-control)"/>
-<path d="M500 232V278" class="control-line" marker-start="url(#arrow-control)" marker-end="url(#arrow-control)"/>
-<path d="M815 232V278" class="web-line" marker-end="url(#arrow-web)"/>
+<path d="M165 236V280" class="control-line" marker-start="url(#arrow-control)" marker-end="url(#arrow-control)"/>
+<path d="M500 236V280" class="control-line" marker-start="url(#arrow-control)" marker-end="url(#arrow-control)"/>
 
 <rect x="30" y="394" width="940" height="40" rx="8" fill="var(--bg)" stroke="var(--line)"/>
-<text x="50" y="420" class="small bold">INTERNET · direct paths preferred</text>
-<rect x="565" y="400" width="385" height="28" rx="7" class="control"/>
-<text x="757" y="419" text-anchor="middle" class="tiny bold control-text">Relay · starts each connection, then direct</text>
+<text x="190" y="420" class="small bold">INTERNET · direct paths preferred</text>
+<rect x="560" y="400" width="230" height="28" rx="7" class="control"/>
+<text x="675" y="419" text-anchor="middle" class="tiny bold control-text">Relay · starts each connection</text>
 
 <rect x="30" y="478" width="270" height="148" rx="12" class="direct"/>
 <text x="50" y="512" class="head">Family device</text>
@@ -66,17 +66,16 @@ text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-
 <text x="720" y="568" class="small">A separate, read-only album viewer</text>
 <text x="720" y="604" class="small bold direct-text">Home data stays here</text>
 
-<path d="M300 550V646H700V550" class="direct-line" marker-start="url(#arrow-direct)" marker-end="url(#arrow-direct)"/>
-<text x="500" y="638" text-anchor="middle" class="small bold direct-text">Direct, encrypted paths take over</text>
-<path d="M635 584H692" class="direct-line" marker-start="url(#arrow-direct)" marker-end="url(#arrow-direct)"/>
-<text x="664" y="608" text-anchor="middle" class="tiny direct-text">the album</text>
-<path d="M815 232V450H635V470" class="web-line" marker-end="url(#arrow-web)"/>
-<text x="720" y="442" class="tiny web-text">the page</text>
-<path d="M165 360V470" class="control-line" marker-start="url(#arrow-control)" marker-end="url(#arrow-control)"/>
-<path d="M500 360V470" class="control-line" marker-start="url(#arrow-control)" marker-end="url(#arrow-control)"/>
-<path d="M835 360V470" class="control-line" marker-start="url(#arrow-control)" marker-end="url(#arrow-control)"/>
-<text x="510" y="454" class="tiny control-text">Finding each other</text>
+<path d="M165 629V648Q165 658 175 658H825Q835 658 835 648V629" class="direct-line" marker-start="url(#head-direct)" marker-end="url(#head-direct)"/>
+<text x="500" y="681" text-anchor="middle" class="small bold direct-text">Your data: direct and encrypted, once a direct path works</text>
+<path d="M697 556H639" fill="none" stroke="var(--direct)" stroke-width="2.5" marker-end="url(#head-direct)"/>
+<text x="667.5" y="545" text-anchor="middle" class="tiny direct-text">album</text>
+<path d="M905 232V452H600V472" class="web-line" marker-end="url(#arrow-web)"/>
+<text x="913" y="382" class="tiny web-text">the page</text>
+<path d="M165 364V474" class="control-line" marker-start="url(#arrow-control)" marker-end="url(#arrow-control)"/>
+<path d="M500 364V474" class="control-line" marker-start="url(#arrow-control)" marker-end="url(#arrow-control)"/>
+<path d="M835 364V474" class="control-line" marker-start="url(#arrow-control)" marker-end="url(#arrow-control)"/>
 
-<text x="30" y="680" class="small bold warning">The relay starts each family connection and stays only if nothing direct works. It sees who, never what.</text>
-<text x="30" y="697" class="tiny muted">This is the plan: ZOOMRIYA Connect isn't built yet.</text>
+<text x="30" y="716" class="small bold warning">The relay starts each family connection and stays only if nothing direct works. It sees who, never what.</text>
+<text x="30" y="736" class="tiny muted">This is the plan: ZOOMRIYA Connect isn't built yet.</text>
 </svg>
