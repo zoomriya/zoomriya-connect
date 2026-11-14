@@ -20,8 +20,30 @@ do if they took it over.
 | **A link key copied from a running app** | Connect as that device until its next new pass, at most 30 days, or until an admin removes it | Make a new link key, which needs the device key in the security chip |
 | **The network you're on** | Block or slow the connection | Read or change it. Connect as your phone |
 | **A lost phone or laptop** | Use the box until an admin removes it | Anything after that. The box refuses it at once and tells the relay to refuse it too. Its pass runs out within 30 days anyway |
+| **The extension's add-on store, or our signing key** | Ship a bad version of the extension that reads what paired laptops see | Reach phones, or the box without a paired laptop |
+| **A browser on a paired laptop, broken into** | Use the extension's key while it's broken into, as with a stolen laptop | Copy the key out: the browser won't export it |
 | **A leaked share link** | Show the albums in that link, until it runs out or you cancel it | Reach anything else on the box |
 | **Anyone on the internet** | Reach the album viewer while a share link is live, and poke at it. Knock on the family side of the door, which turns them away | Reach the sign-in page or any app, which are never on the internet. Get past the family side without being paired. Open an album without its link. Change anything |
+
+## With your own Cloudflare Tunnel
+
+With [option 4](sharing-and-names.md#your-own-cloudflare-tunnel), Cloudflare
+takes the relay's and control plane's place. Phones keep the ZOOMRIYA app, and
+laptops the browser extension.
+
+| What | They could | They couldn't |
+|---|---|---|
+| **Cloudflare** | See which name is used, when, from where and how much. See and change the photos in shared albums, and the guest page. Slow down or block everything from outside | Open or change the family's sealed traffic. Let a device in, because the box checks its own list. Reach the sign-in page or any app, which the tunnel never leads to |
+| **Your Cloudflare account** | Everything Cloudflare could, and send your names somewhere else | Fool the app or the extension, which check the box's key. Let a device in |
+| **The box's tunnel key, if copied** | Pretend to be the box to guests, and so show them other photos | Fool the app or the extension, which check the box's key. Read family data |
+| **A copied pairing code** | Nothing once it's used or a few minutes have passed. It only works at home, on the home network | Pair from away. Act as the key |
+| **A copied pairing code from an admin,** after switching option | Nothing without the device it was made for: it only works for a device already on the box's list, with that device's key | Add a new device. Act as the key |
+| **A lost phone or laptop** | Use the box until an admin removes it | Anything after that. The box refuses it at once |
+| **Anyone on the internet** | Reach the album viewer through `share.` while a link is live, and knock on the family door, which turns them away | Reach the sign-in page or any app. Open an album without its link |
+
+**What it adds.** With ZOOMRIYA Connect, the relay can't read guest albums.
+Through Cloudflare, it can. And the sealing through Cloudflare is our own work,
+next to iroh's, so it gets its own independent security review before release.
 
 ## The open door for guests
 

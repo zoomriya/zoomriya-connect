@@ -18,7 +18,8 @@ devices you've paired can get in.
 
 **For your family.** You pair your phone with the box once, at home, by
 scanning a QR code on the box's screen. After that, the ZOOMRIYA app on your
-phone or laptop can reach the box wherever you are.
+phone can reach the box wherever you are. On a laptop, the ZOOMRIYA browser
+extension does the same.
 
 When you open the app, it tries every way to the box at the same moment: your
 home network, IPv6, a port you've forwarded, and our relay, a server that
@@ -48,14 +49,23 @@ else.
 **At home.** Any browser on your home network opens the box at its own
 address, such as `https://maplehouse.zoomriya.app`, with a proper padlock.
 
+**Without our servers.** Families can run ZOOMRIYA Connect's server side
+themselves. Or, if they don't want to look after a server, the box can use
+their own Cloudflare Tunnel instead. The same phone app and laptop extension
+work with both. Then Cloudflare is always in the middle, and can see the photos in
+shared albums. See [Four ways to reach your box](docs/sharing-and-names.md#four-ways-to-reach-your-box).
+
+![Four ways to reach the box from outside: a ZOOMRIYA name, your own domain through ZOOMRIYA, your own ZOOMRIYA Connect server, or your own Cloudflare Tunnel. In every option nothing is set up on the router.](docs/options.svg)
+
 ![The order in which connections are tried. Family devices try the box's known addresses and the relay at the same moment, and the first to answer carries data; hole punching runs through the relay, and a direct path takes over when one works. Guests try the box directly, then a browser-to-box connection, then the relay.](docs/paths.svg)
 
 ## What you need
 
 - **The box plugged into your router with a cable.** The box itself can't use
   Wi-Fi. Setup checks this.
-- **The ZOOMRIYA app** on each phone. On laptops, the desktop app, if you want
-  to use the box in your normal browser away from home.
+- **The ZOOMRIYA app** on each phone, and the **ZOOMRIYA browser extension** on
+  each laptop (Chrome, Edge or Firefox), if you want to use the box away from
+  home.
 - Nothing on the router, in most homes.
 
 ## Where it works
@@ -83,6 +93,8 @@ The details, network by network, are in [Where it works](docs/where-it-works.md)
 - Photo and video backups wait for a direct connection. They never go through
   our relay. On a relay of your own, a switch lets them.
 - The box's sign-in page and apps are never on the open internet.
+- With your own Cloudflare Tunnel, Cloudflare sees who connects and when, and
+  the photos in shared albums. Family data stays sealed by the app and the extension.
 
 What each part could and couldn't do if someone broke into it is in the
 [security model](docs/security.md).
@@ -94,8 +106,8 @@ What each part could and couldn't do if someone broke into it is in the
 | [How it works](docs/how-it-works.md) | Pairing, passes, connecting step by step, the box's name, and the parts |
 | [Architecture](docs/architecture.md) | For advanced users: every part, the keys, how they work together, and what happens when one fails |
 | [Where it works](docs/where-it-works.md) | Types of home internet, what works on each, guests' networks, what never works |
-| [Desktop app](docs/desktop.md) | How laptops use the box in a normal browser |
-| [Sharing, names and certificates](docs/sharing-and-names.md) | Share links, box names, your own domain, your own server, certificates |
+| [Laptops](docs/laptops.md) | The browser extension: how laptops reach the box in every option, and the checks it depends on |
+| [Sharing, names and certificates](docs/sharing-and-names.md) | Share links, box names, the four ways to reach your box (your own domain, your own server, your own Cloudflare Tunnel), certificates |
 | [Security model](docs/security.md) | What each part could and couldn't do if someone took it over |
 | [Plan and layout](docs/plan.md) | For developers: what we build in which order, and where the code goes |
 | [Running the service](docs/operations.md) | For whoever runs the servers: backups, alerts, being on call, protecting DNS, changing keys |

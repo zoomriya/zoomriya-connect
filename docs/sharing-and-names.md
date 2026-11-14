@@ -84,13 +84,23 @@ certificate is listed in public logs, and anyone can tell that a
 `zoomriya.app` name belongs to a ZOOMRIYA Box. So setup suggests a name that
 doesn't say who you are: a street or a word, not your surname.
 
-### Three ways to name your box
+### Four ways to reach your box
 
-| Choice | The box's name | Who looks after its DNS | The relay |
+![Four ways to reach the box from outside. Options 1 to 3 are ZOOMRIYA Connect, with ZOOMRIYA's servers or your own in the middle; devices go direct when they can, and the middle sees who and when, never what. Option 4 is your own Cloudflare Tunnel: phones use the ZOOMRIYA app and laptops the ZOOMRIYA browser extension, everything goes through Cloudflare, and Cloudflare can see shared guest albums. In every option nothing is set up on the router.](options.svg)
+
+| Option | The box's name | Who looks after its DNS | In the middle |
 |---|---|---|---|
-| A ZOOMRIYA name (the default) | `maplehouse.zoomriya.app` | ZOOMRIYA | ZOOMRIYA's |
-| Your own domain, through ZOOMRIYA | `home.smith.ca`, handed to ZOOMRIYA with one NS record at your DNS provider ([see below](#your-own-domain-through-zoomriya)) | ZOOMRIYA | ZOOMRIYA's |
-| [Your own server](#your-own-server) | `home.smith.ca` | Your server | Yours |
+| 1. A ZOOMRIYA name (the default) | `maplehouse.zoomriya.app` | ZOOMRIYA | ZOOMRIYA's relay |
+| 2. Your own domain, through ZOOMRIYA | `home.smith.ca`, handed to ZOOMRIYA with one NS record at your DNS provider ([see below](#your-own-domain-through-zoomriya)) | ZOOMRIYA | ZOOMRIYA's relay |
+| 3. [Your own server](#your-own-server) | `home.smith.ca` | Your server | Your relay |
+| 4. [Your own Cloudflare Tunnel](#your-own-cloudflare-tunnel) | `home.smith.ca` | Cloudflare, on your account | Cloudflare |
+
+| Option | Suits families who | Upkeep |
+|---|---|---|
+| 1 | Want it to just work | None |
+| 2 | Want their own name | A few DNS records |
+| 3 | Don't want ZOOMRIYA involved at all | A server of their own: updates, certificates, the bill |
+| 4 | Don't want ZOOMRIYA involved, and don't want to look after a server | A Cloudflare account and a domain |
 
 Your own domain is just a domain. `home.smith.ca` doesn't tell anyone there's a
 ZOOMRIYA Box behind it.
@@ -142,7 +152,10 @@ it ever opens to the internet is the read-only album viewer. And if your
 provider shares your address (CGNAT), dynamic DNS can't help anyway.
 
 If you'd rather not depend on ZOOMRIYA, [run your own server](#your-own-server)
-instead. Everything keeps working, and nothing is exposed.
+instead. Everything keeps working, and nothing is exposed. Or, if you don't
+want to look after a server either, use
+[your own Cloudflare Tunnel](#your-own-cloudflare-tunnel): nothing on your
+router is opened, and the sign-in page and apps still stay off the internet.
 
 ### Your own server
 
@@ -231,6 +244,146 @@ and devices with a pass from it, and nobody else. The code works once, and
 only for a few minutes. With the full server, your own `connect.` does this
 for you, the way ZOOMRIYA's control plane does for our relays.
 
+### Your own Cloudflare Tunnel
+
+For families who want neither ZOOMRIYA's servers nor a server of their own to
+look after. You bring a domain and your own Cloudflare account. The box keeps
+an outgoing connection open to Cloudflare, called a Cloudflare Tunnel, so
+nothing on your router is opened. ZOOMRIYA's servers play no part.
+
+This isn't ZOOMRIYA Connect: there's no relay, no hole punching and no
+control plane. Cloudflare sits in the middle every time.
+
+![Option 4, your own Cloudflare Tunnel. Cloudflare, on your own account, has two names: home.smith.ca goes to the family door on the box, and share.home.smith.ca goes to the album viewer only. The ZOOMRIYA app on a phone, or the ZOOMRIYA browser extension on a laptop, seals everything for the box; a guest's browser needs nothing. The router opens nothing, because the box dials out. In the box, cloudflared hands family requests to connectd, which checks the device's key, then to the web server, which is never on the internet; guest requests go only to the album viewer. Cloudflare can see shared guest albums, but can't open the family's sealed requests.](cloudflare-tunnel.svg)
+
+**How it compares**
+
+| | ZOOMRIYA Connect (options 1–3) | Your own Cloudflare Tunnel (option 4) |
+|---|---|---|
+| In the middle | A relay, only when nothing direct works | Cloudflare, always |
+| What the middle sees | Who connects, when, how much | Which name, when, how much, **and the photos in shared albums** |
+| Laptops away from home | The ZOOMRIYA [browser extension](laptops.md) | The same extension. It supports both |
+| Phones away from home | The ZOOMRIYA app | The same ZOOMRIYA app. It supports both |
+| Family data | Encrypted between the device and the box | Sealed for the box by the app or the extension. Cloudflare can't open it |
+| Guests | Direct, WebRTC, then the relay | Always through Cloudflare |
+| The router | Nothing to set up. The box opens the guests' door by itself while a link is live | Nothing opened at all |
+| Upkeep | None, or your own server | Your Cloudflare account and domain |
+| Cost | Ours, or your server's | Between you and Cloudflare |
+
+**You trust Cloudflare instead of us.** Before you switch it on, Box Desktop
+says plainly what Cloudflare can see: which name is used, when and how much,
+and the photos in any album you share.
+
+**Names.** For the domain `smith.ca`:
+
+| Name | Points at | Used by | What for |
+|---|---|---|---|
+| `smith.ca` | Whatever you like | You, not ZOOMRIYA | Your website, your email, everything else. Never the box |
+| `home.smith.ca` | Cloudflare, then the tunnel to the family door on the box | The ZOOMRIYA app and the browser extension | Family access away from home. Cloudflare only ever passes on sealed traffic |
+| `share.home.smith.ca` | Cloudflare, then the tunnel to the album viewer only | Guests | Share links. Never the sign-in page or the apps |
+
+The two names go to two different places on the box, and browsers keep
+different names apart, as with ZOOMRIYA Connect.
+
+**Setting it up.** In Box Desktop, under ZOOMRIYA Connect, you choose **Use my
+own Cloudflare Tunnel** and connect your Cloudflare account and domain. The box
+keeps only a key limited to its own tunnel and names, and you can withdraw it
+from Cloudflare at any time.
+
+**The ZOOMRIYA app.** The same app works with ZOOMRIYA Connect and with your
+own Cloudflare Tunnel. Only the way it reaches the box changes:
+
+| | ZOOMRIYA Connect | Your own Cloudflare Tunnel |
+|---|---|---|
+| Pairing | At home, scanning the QR code | The same |
+| The phone's key | In its security chip | The same |
+| Away from home | iroh: direct, or through the relay | The same encrypted connection to the box, carried through Cloudflare. Cloudflare can't open it |
+| The app's screens | From the box, through the link | The same |
+| Backups | Wait for a direct connection, or until you're home | Files up to 90 MB go through Cloudflare. Bigger files wait until you're home |
+| At home | Straight to the box | The same |
+
+**Switching options.** If you switch between ZOOMRIYA Connect and your own
+Cloudflare Tunnel, every phone and laptop pairs again:
+
+| Way | How |
+|---|---|
+| At home | As usual: the QR code on a phone, the short code on a laptop |
+| With a pairing code from an admin | An admin makes a code for that device in Box Desktop and reads it out to them, for example over the phone. It works from away, once, for a limited time, and only for a device already on the box's list |
+
+**The browser extension.** Laptops use the same
+[browser extension](laptops.md) as with ZOOMRIYA Connect. Only the way it
+reaches the box changes.
+
+| What the extension does | Why |
+|---|---|
+| Makes its own key, which the browser won't let anyone export | Nothing outside the extension, Cloudflare included, ever holds it |
+| Shows the box's own pages only as they came through its encrypted connection | Cloudflare can't change what runs on the laptop |
+| Carries the same encrypted connection to the box as the app, and checks the box's key | Cloudflare passes it on but can't read or change it |
+| At home, reaches the box on the home network | Nothing goes through Cloudflare at home |
+| Comes signed from the browser's own add-on store | A fake copy can't update itself in |
+
+**Pairing.** Pairing happens at home, on the home network, and never goes
+through the tunnel. Phones scan the QR code with the ZOOMRIYA app, as always.
+Laptops have no camera, so the extension uses a short code instead.
+
+![Pairing a laptop, then using it away. At home: an admin picks Add a laptop in Box Desktop; the box shows a short code; the family member types it into the extension; the extension makes its key and swaps keys with the box, approved by the code. Away from home: the extension seals a request for the box and sends it to home.smith.ca; Cloudflare passes it through the tunnel; the box checks the laptop's key, refuses replays, opens it and seals the answer; Cloudflare passes the answer back; the extension checks the box's key and opens it.](cloudflare-pairing.svg)
+
+Pairing a laptop:
+
+| Step | What happens |
+|---|---|
+| 1 | An admin picks **Add a laptop** in Box Desktop |
+| 2 | The box shows a short code. It works once, for a few minutes, with a few tries |
+| 3 | You type the code into the extension |
+| 4 | The extension and the box swap keys over the home network. The code only approves the swap: it's never the key |
+| 5 | The box pins the laptop's key and adds it to its list. The extension pins the box's key |
+
+You still sign in with ZOOMRIYA ID, as always. An admin removes a laptop in
+Box Desktop the same way as a phone, and the box refuses it at once.
+
+**Guests.** A share link works the same for guests: any browser, nothing to
+install, one album, read only. It always goes through Cloudflare, and Cloudflare
+can see the photos in it. When you make a link, Box Desktop reminds you.
+
+**Things to know**
+
+- Cloudflare's limits, terms and any costs are between you and Cloudflare.
+  What we know is below.
+- If Cloudflare is down, or your account is, nothing reaches the box from
+  outside. Everything at home keeps working.
+- You can move to ZOOMRIYA Connect, or back, at any time. Each phone and
+  laptop then pairs again, at home or with a pairing code from an admin (see
+  [Switching options](#your-own-cloudflare-tunnel)).
+
+#### Cloudflare's limits
+
+What Cloudflare's own pages said when we checked, in November 2026. They can
+change, so we'll check again before release.
+
+| What | Free plan | Paid plans | Where it's from |
+|---|---|---|---|
+| Price per month | $0 | Pro $20 (yearly) or $25; Business $200 (yearly) or $250 | [Plans](https://www.cloudflare.com/plans/network-cdn.md) |
+| Bandwidth through a tunnel | No limit stated | No limit stated | [Account limits](https://developers.cloudflare.com/cloudflare-one/account-limits/), [Tunnel](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/) |
+| Largest single upload | 100 MB | Pro 100 MB, Business 200 MB, Enterprise up to 5 GB. Bigger gets error 413 | [Request limits](https://developers.cloudflare.com/workers/platform/limits/) |
+| Tunnels per account | 1,000 | 1,000 | [Account limits](https://developers.cloudflare.com/cloudflare-one/account-limits/) |
+| Video and many large photos | The CDN terms say they need a paid Cloudflare product (Stream, Images, R2), except on Enterprise. Cloudflare can limit an account that doesn't | The same, except Enterprise | [CDN terms](https://www.cloudflare.com/service-specific-terms-application-services/), [2023 change](https://blog.cloudflare.com/updated-tos/) |
+
+**What this means.** Cloudflare states no bandwidth limit, on any plan. Two
+things still matter:
+
+- **Big files back up at home.** One upload can't be over 100 MB on the free
+  plan, and a long phone video is bigger. So with your own Cloudflare Tunnel,
+  photos and videos up to 90 MB back up through Cloudflare from anywhere.
+  That leaves room for our encryption, which adds a little to each file.
+  Bigger files wait on the phone or laptop until you're home, and then go
+  straight to the box over the home network.
+- **Playing videos is allowed by size.** The 100 MB limit is for uploads only.
+  Cloudflare's terms on video are for its CDN, and its pages don't say whether
+  tunnel traffic counts. Family videos travel inside our encrypted connection,
+  so Cloudflare sees only how much, not that it's video. Guest albums with
+  many videos are the case most likely to draw Cloudflare's attention. We'll
+  ask Cloudflare before release.
+
 ## Certificates
 
 The padlock in your browser comes from a certificate. Here's how the box gets
@@ -252,3 +405,6 @@ one:
   name alone. No box holds a key to anyone else's DNS.
 - The certificate's secret key is made on the box and never leaves it. Our
   control plane never has it.
+- With [your own Cloudflare Tunnel](#your-own-cloudflare-tunnel), Cloudflare
+  gives `home.smith.ca` and `share.home.smith.ca` their padlock. The app and the
+  extension don't rely on it: they check the box's own key, pinned at pairing.

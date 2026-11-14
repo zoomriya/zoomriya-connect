@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1024" viewBox="0 0 900 1024" role="img" aria-label="The parts of ZOOMRIYA Connect. At the top, three servers, run by ZOOMRIYA or by your family: the control plane, which keeps boxes' signed address records, answers DNS for box names, helps with certificates, checks from outside and passes guests' setup messages, and never carries your data; the relay, which is tried alongside the direct paths, checks passes, helps with hole punching, carries data only when nothing direct works and is the guests' last resort, and sees who connects but never what; and the guest page, share.zoomriya.net, which serves the page a share link opens and never carries the album. In the middle, the devices: a phone or laptop with the ZOOMRIYA app asks the control plane where the box is and shows its pass to the relay; a guest's browser loads the guest page. The box keeps an always-on connection to the relay. Below, the home router: nothing is opened for the family, because hole punching gets through; the guests' door on port 443 is opened by the box only while a share link is live. At the bottom, the ZOOMRIYA Box: connectd on port 443 checks every device against the paired list and hands family connections to the web server, which is never on the internet, and guests' connections to the read-only album viewer.">
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1024" viewBox="0 0 900 1024" role="img" aria-label="The parts of ZOOMRIYA Connect. At the top, three servers, run by ZOOMRIYA or by your family: the control plane, which keeps boxes' signed address records, answers DNS for box names, helps with certificates, checks from outside and passes guests' setup messages, and never carries your data; the relay, which is tried alongside the direct paths, checks passes, helps with hole punching, carries data only when nothing direct works and is the guests' last resort, and sees who connects but never what; and the guest page, share.zoomriya.net, which serves the page a share link opens and never carries the album. In the middle, the devices: a phone with the ZOOMRIYA app, or a laptop with the ZOOMRIYA browser extension, shows its pass to the relay, and the app also asks the control plane where the box is; a guest's browser loads the guest page. The box keeps an always-on connection to the relay. Below, the home router: nothing is opened for the family, because hole punching gets through; the guests' door on port 443 is opened by the box only while a share link is live. At the bottom, the ZOOMRIYA Box: connectd on port 443 checks every device against the paired list and hands family connections to the web server, which is never on the internet, and guests' connections to the read-only album viewer.">
 <style>
 svg{--surface:#fff;--zone:#f1f5f6;--fg:#15232a;--muted:#5b6c75;--line:#c3ced4;--data:#087f6e;--data-soft:#e4f4f0;--setup:#886516;--setup-soft:#fbf4df;--web:#285db1;--web-soft:#e8effb;--stop:#b3261e}
 @media(prefers-color-scheme:dark){svg{--surface:#162026;--zone:#121b20;--fg:#e2eaed;--muted:#93a5ad;--line:#33464f;--data:#56c5ae;--data-soft:#172e2a;--setup:#d8b45c;--setup-soft:#302a19;--web:#86aaf0;--web-soft:#19263c;--stop:#f08c80}}
@@ -60,10 +60,10 @@ text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-
 
 <!-- devices -->
 <rect x="30" y="308" width="400" height="130" rx="12" class="data-box"/>
-<text x="46" y="335" class="h">Phone or laptop · ZOOMRIYA app</text>
-<text x="46" y="360" class="s">Its key, locked in the security chip or key store</text>
+<text x="46" y="335" class="h">Phone app · laptop extension</text>
+<text x="46" y="360" class="s">Its key: phone's security chip, or the browser</text>
 <text x="46" y="381" class="s">The link: knows the box's key, holds the pass</text>
-<text x="46" y="402" class="s m">On laptops: browser → desktop app → link</text>
+<text x="46" y="402" class="s m">Laptops: iroh's job done with WebRTC and the relay</text>
 <text x="46" y="426" class="s b c-data">Paired · full access</text>
 
 <rect x="600" y="308" width="270" height="130" rx="12" class="web-box"/>
@@ -124,5 +124,5 @@ text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-
 <text x="476" y="892" class="s m">Slows down and briefly blocks guessers</text>
 <text x="476" y="940" class="s b c-web">One album · read only</text>
 
-<text x="30" y="1008" class="t m">This is the plan: ZOOMRIYA Connect isn't built yet.</text>
+<text x="30" y="1008" class="t m">Options 1–3: ZOOMRIYA's servers or your own. Option 4, your own Cloudflare Tunnel, has its own diagram. This is the plan: none of it is built yet.</text>
 </svg>

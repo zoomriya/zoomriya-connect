@@ -54,14 +54,18 @@ order, and where the code goes.
 | Cleverer hole punching, only if measurements show we need it | |
 | Later: an admin's phone approves a new phone from away | Today pairing is only at home, so someone abroad who loses their phone waits until they're back |
 
-### 4. [Build the desktop app](desktop.md)
+### 4. [Build the browser extension for laptops](laptops.md)
 
 | Task | Why, or what it fixes |
 |---|---|
-| A plain Linux proxy for testing first | |
-| The proxy only carries the box's own names | It can't be used to carry anything else |
-| Tray icon, start at sign-in, browser setup on Linux, Windows and macOS | |
-| Signed installers | |
+| **Check 1 first:** Box Desktop and one app running from the extension's address, fetched through a test connection: sign-in, `__Host-` cookies, `Origin` checks, WebSockets through an adapter | Everything else depends on it. If it fails, build the desktop app instead (below) |
+| **Check 2:** the extension reaches our relay with its pass, and sets up WebRTC through it. In Chrome, WebRTC in a hidden extension page | Extensions can't use iroh's direct paths |
+| **Check 3:** in the network lab, WebRTC's direct rate next to iroh's | Laptops shouldn't sit on the relay much more than phones |
+| The extension's device key, which the browser won't export, signing its link key. Pairing at home with a short code that approves a key swap. Removal as for phones | The box pins it, as it pins phones |
+| The box's side of WebRTC for paired laptops, next to the guests' | The box already speaks WebRTC to guests |
+| Backups from laptops wait for a direct path, as phones' do | Big uploads stay off our relay |
+| Chrome, Edge and Firefox, signed through their add-on stores | A copy from anywhere else can't update itself in |
+| **Only if check 1 fails:** a desktop app sharing the phone app's link, with a local proxy that carries only the box's names, browser setup, and signed installers | Laptops still work |
 
 ### 5. [Add share links](sharing-and-names.md#sharing-with-guests)
 
@@ -104,20 +108,38 @@ order, and where the code goes.
 | Task | Why, or what it fixes |
 |---|---|
 | Test the album viewer's door hard | It's the only part facing the internet |
-| An independent security review | |
+| An independent security review, the browser extension included | |
 | The second DNS server for `ns2.zoomriya.net` running, at another hosting company | Box names don't depend on one server |
 | Write up [running your own server](sharing-and-names.md#your-own-server) | |
 | [Running the service](operations.md): hourly backups to another company and a monthly restore test, alerts, an on-call rota of at least two, the status page, DNS protected from floods, a schedule for changing our keys | We find out first, and can rebuild |
 | Boxes register again by themselves if their registration is missing, proving the name with their certificate's key, and take a new DNS update key when told | A restore that lost the last hour, or a leaked key, needs nothing from families |
 | Decide how long each server keeps what it sees, and put it on the privacy page | [What our servers keep](operations.md#what-our-servers-keep) |
 
+### 10. [Own Cloudflare Tunnel](sharing-and-names.md#your-own-cloudflare-tunnel)
+
+| Task | Why, or what it fixes |
+|---|---|
+| Write the threat model and the protocol for the encrypted connection through Cloudflare: replays, retries, many requests at once, box restarts, switching option. Pick the cryptography only after it's reviewed | It's our own encryption, next to iroh's |
+| The app's link and the extension: the same encrypted connection to the box, carried through the tunnel. Same pairing, keys and screens | One app and one extension for every option |
+| **Switching option:** every device pairs again, at home, or with a pairing code an admin makes in Box Desktop and reads out, for example over the phone. The code works from away, once, for a limited time, only for a device already on the box's list | A switch can't let a new device in from away |
+| **Backups through the tunnel only for files up to 90 MB,** leaving room under Cloudflare's 100 MB for our encryption. Bigger files wait until the device is home, then go over the home network. The app and the extension show which files are waiting | Free plans take at most 100 MB per upload. See [Cloudflare's limits](sharing-and-names.md#cloudflares-limits) |
+| Ask Cloudflare whether tunnel traffic counts under the CDN terms on photos and video: backups, the family's playback, and guest albums | Their pages don't say |
+| Pairing stays at home only, as in step 4 | Nobody pairs through Cloudflare |
+| connectd's family door: checks the device's key, refuses replays, opens and seals, hands on to the web server with the device's label | The box alone decides who gets in |
+| cloudflared on the box, set up from Box Desktop: `home.` to the family door, `share.` to the album viewer, nothing else. A tunnel key limited to the box's tunnel and names | The sign-in page and apps stay off the internet |
+| Check what Cloudflare's own account flow allows before promising setup in one click | |
+| Box Desktop says what Cloudflare can see before it's switched on, and when a link is made | Families choose knowing the trade-off |
+| Test pairing, removal, switching option, extension updates, a lost tunnel, large photos and videos, and that `share.` reaches only the album viewer | |
+| An independent security review of the protocol through Cloudflare | |
+
 ### Always
 
 | Rule |
 |---|
 | Family connections try the box's addresses and the relay at once, and move to a direct path when one works |
-| Guests use the relay only as a last resort, and never need an app or an account |
-| The box's sign-in page and apps are never on the internet |
+| With ZOOMRIYA Connect, guests use the relay only as a last resort. Guests never need an app or an account |
+| The box's sign-in page and apps are never on the internet, in any option |
+| Every device is paired at home, in any option |
 
 ## Where the code goes
 
@@ -131,9 +153,9 @@ crates/
   portmap/        opening the guests' door on the router (UPnP, NAT-PMP, PCP): the router's TCP 443 to the box's 8443 for guests, UDP 443 for paired devices; over IPv6, a firewall rule for the box's own door address
   proto/          messages between the box, the apps and the control plane
   ffi/            the bridge to the phone app's Swift and Kotlin code
-desktop/          the desktop app: tray, start at sign-in, browser setup, installers
 guest-viewer/     the guest page and its WebRTC code
-connectd/         the box's side: UDP 443 and TCP 8443 (the gateway keeps TCP 443), device checks, device labels for the web server, passes, share links, WebRTC for guests, address records
+extension/        the browser extension for laptops, every option: its key, pairing, the relay and WebRTC, the connection through Cloudflare, showing the box's pages
+connectd/         the box's side: UDP 443 and TCP 8443 (the gateway keeps TCP 443), device checks, device labels for the web server, passes, share links, WebRTC for guests, address records; for option 4, the family door and setting up cloudflared
 control-plane/    address records (iroh-dns-server), DNS for box names, certificates, the outside check, guests' setup messages
 relay/            our relay, built on the iroh-relay library: our access check for passes and removed devices, limits, numbers; the guests' relay (TURN): blocked private addresses, one-hour credentials per share, per-guest limits
 sim/              the 1,000-family test: traffic model, network lab, two-month soak; the benchmarks and probes

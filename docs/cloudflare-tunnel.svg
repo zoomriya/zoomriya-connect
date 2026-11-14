@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1010" viewBox="0 0 900 1010" role="img" aria-label="Option 4, your own Cloudflare Tunnel. At the top, Cloudflare, on the family's own account and domain, with two separate names: home.smith.ca goes to the family door on the box, and share.home.smith.ca goes to the album viewer only. Cloudflare sees which name is used, when and how much, and can see shared guest albums, but can't open what the app or the extension seals for the box. In the middle, a phone with the ZOOMRIYA app, its key in the security chip, or a laptop with the ZOOMRIYA browser extension, its key one the browser won't export; both seal everything for the box and check the box's key; and a guest's browser, with nothing installed, opening one album read only. The home router opens nothing: the box dials out to Cloudflare. In the box, cloudflared keeps the tunnel open and hands family requests to connectd, which checks the device's key against its own list, refuses replays, opens what was sealed and seals the answer; connectd passes it to the web server, which still needs ZOOMRIYA ID sign-in and is never on the internet. Guest requests go only to the read-only album viewer. At home, the app and the extension reach the box directly on the home network.">
+<style>
+svg{--surface:#fff;--zone:#f1f5f6;--fg:#15232a;--muted:#5b6c75;--line:#c3ced4;--data:#087f6e;--data-soft:#e4f4f0;--web:#285db1;--web-soft:#e8effb;--cf:#b0570f;--cf-soft:#fcefe3;--stop:#b3261e}
+@media(prefers-color-scheme:dark){svg{--surface:#162026;--zone:#121b20;--fg:#e2eaed;--muted:#93a5ad;--line:#33464f;--data:#56c5ae;--data-soft:#172e2a;--web:#86aaf0;--web-soft:#19263c;--cf:#f0a465;--cf-soft:#33251a;--stop:#f08c80}}
+text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;fill:var(--fg);font-size:13px}
+.title{font-size:21px;font-weight:700}.h{font-size:15.5px;font-weight:700}.s{font-size:12.5px}.t{font-size:11.5px}.m{fill:var(--muted)}.b{font-weight:650}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
+.zone{fill:var(--zone);stroke:var(--line);stroke-width:1.5}
+.node{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+.data-box{fill:var(--data-soft);stroke:var(--data);stroke-width:1.5}
+.web-box{fill:var(--web-soft);stroke:var(--web);stroke-width:1.5}
+.cf-box{fill:var(--cf-soft);stroke:var(--cf);stroke-width:1.5}
+.data{fill:none;stroke:var(--data);stroke-width:4}
+.web-solid{fill:none;stroke:var(--web);stroke-width:4}
+.cf{fill:none;stroke:var(--cf);stroke-width:3;stroke-dasharray:9 6}
+.c-data{fill:var(--data)}.c-web{fill:var(--web)}.c-cf{fill:var(--cf)}.c-stop{fill:var(--stop)}
+</style>
+<defs>
+  <marker id="d" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="var(--data)"/></marker>
+  <marker id="w" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="13" markerHeight="13" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="var(--web)"/></marker>
+  <marker id="c" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="13" markerHeight="13" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="var(--cf)"/></marker>
+</defs>
+<rect width="900" height="1010" rx="14" fill="var(--surface)"/>
+
+<text x="30" y="40" class="title">Option 4: your own Cloudflare Tunnel</text>
+<text x="30" y="63" class="s m">Green: family data, sealed by the app or the extension · Blue: guests · Orange dashed: the tunnel the box opens</text>
+
+<!-- Cloudflare -->
+<rect x="20" y="82" width="860" height="192" rx="12" class="cf-box"/>
+<text x="36" y="108" class="h">Cloudflare · your own account and domain</text>
+<rect x="40" y="122" width="390" height="78" rx="10" class="node"/>
+<text x="56" y="146" class="mono">home.smith.ca</text>
+<text x="56" y="168" class="s">→ the family door on the box</text>
+<text x="56" y="188" class="t m">Only sealed traffic from the app or the extension</text>
+<rect x="470" y="122" width="390" height="78" rx="10" class="node"/>
+<text x="486" y="146" class="mono">share.home.smith.ca</text>
+<text x="486" y="168" class="s">→ the album viewer, nothing else</text>
+<text x="486" y="188" class="t m">The page and the album a share link opens</text>
+<text x="222" y="224" class="s">Sees which name, when and how much.</text>
+<text x="222" y="243" class="s b c-stop">Can see shared guest albums.</text>
+<text x="222" y="262" class="s">Can't open the family's sealed requests.</text>
+
+<!-- devices to Cloudflare -->
+<path d="M200 296V204" class="data" marker-start="url(#d)" marker-end="url(#d)"/>
+<text x="212" y="291" class="t b c-data">HTTPS, sealed inside</text>
+<path d="M735 296V204" class="web-solid" marker-start="url(#w)" marker-end="url(#w)"/>
+<text x="747" y="291" class="t b c-web">HTTPS</text>
+
+<!-- devices -->
+<rect x="30" y="300" width="400" height="140" rx="12" class="data-box"/>
+<text x="46" y="327" class="h">Phone app · laptop extension</text>
+<text x="46" y="352" class="s"><tspan class="b">Phone:</tspan> the same ZOOMRIYA app, key in its chip</text>
+<text x="46" y="373" class="s"><tspan class="b">Laptop:</tspan> the browser extension, key it won't export</text>
+<text x="46" y="394" class="s">Both seal everything for the box, check its key</text>
+<text x="46" y="424" class="s b c-data">Paired at home</text>
+
+<rect x="600" y="300" width="270" height="140" rx="12" class="web-box"/>
+<text x="616" y="327" class="h">Guest · any browser</text>
+<text x="616" y="352" class="s">Opens a share link</text>
+<text x="616" y="373" class="s">Nothing installed, no account</text>
+<text x="616" y="394" class="s m">Same as with ZOOMRIYA Connect</text>
+<text x="616" y="424" class="s b c-web">One album · read only</text>
+
+<!-- tunnel line -->
+<path d="M515 572V278" class="cf" marker-end="url(#c)"/>
+<text x="460" y="470" class="t b c-cf" text-anchor="end">the box dials out</text>
+
+<!-- router -->
+<rect x="20" y="490" width="860" height="56" rx="10" class="zone"/>
+<text x="36" y="523" class="b">Home router</text>
+<text x="212" y="512" class="s c-cf">nothing opened: the tunnel is an</text>
+<text x="212" y="532" class="s c-cf">outgoing connection from the box</text>
+<text x="560" y="512" class="s m">no guests' door, no port forward,</text>
+<text x="560" y="532" class="s m">works behind a shared address (CGNAT)</text>
+
+<!-- the box -->
+<rect x="20" y="562" width="860" height="404" rx="12" class="zone"/>
+<text x="36" y="588" class="h">ZOOMRIYA Box</text>
+
+<rect x="40" y="600" width="820" height="62" rx="10" class="cf-box"/>
+<text x="56" y="626" class="h">cloudflared · the tunnel</text>
+<text x="56" y="648" class="s">Keeps the outgoing connection to Cloudflare open, and sends each name to its own place on the box</text>
+
+<path d="M240 666V702" class="data" marker-end="url(#d)"/>
+<path d="M660 666V702" class="web-solid" marker-end="url(#w)"/>
+
+<rect x="40" y="706" width="400" height="112" rx="10" class="node"/>
+<text x="56" y="732" class="h">connectd · the family door</text>
+<text x="56" y="756" class="s">Checks the device's key against its own list</text>
+<text x="56" y="777" class="s">Refuses replays, opens what was sealed</text>
+<text x="56" y="798" class="s">Seals the answer for that device</text>
+
+<path d="M240 822V852" class="data" marker-end="url(#d)"/>
+
+<rect x="40" y="856" width="400" height="96" rx="10" class="data-box"/>
+<text x="56" y="882" class="h">Web server · the box's apps</text>
+<text x="56" y="906" class="s">ZOOMRIYA ID sign-in, as always</text>
+<text x="56" y="936" class="s b c-stop">✕ Never on the internet</text>
+
+<rect x="460" y="706" width="400" height="112" rx="10" class="web-box"/>
+<text x="476" y="732" class="h">Album viewer · for guests</text>
+<text x="476" y="756" class="s">Shows the albums in a link, never changes them</text>
+<text x="476" y="777" class="s">Checks the token on every request</text>
+<text x="476" y="798" class="s b c-web">One album · read only</text>
+
+<rect x="460" y="856" width="400" height="96" rx="10" class="node"/>
+<text x="476" y="882" class="h">At home</text>
+<text x="476" y="906" class="s">The app and the extension reach the box</text>
+<text x="476" y="926" class="s">on the home network, without Cloudflare</text>
+
+<text x="30" y="992" class="t m">This is a plan: none of it is built yet.</text>
+</svg>

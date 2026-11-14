@@ -226,7 +226,7 @@ You can use your own domain instead, such as `home.smith.ca`. See
 | Device | What to open | Works on every router? |
 |---|---|---|
 | A phone | The ZOOMRIYA app | Yes |
-| A laptop with the [desktop app](desktop.md) | `maplehouse.zoomriya.app` in your browser | Yes |
+| A laptop with the [browser extension](laptops.md) | The extension's button | Yes |
 | A computer without the app | `maplehouse.zoomriya.app` | On most routers. If it won't open, use the next line |
 | A computer without the app, if the name won't open | `zoomriya-xxxx.local`, the box's home name. Box Desktop shows yours | Yes |
 
@@ -239,12 +239,23 @@ name then can't be found.
 
 | Way in | Why it isn't affected |
 |---|---|
-| The phone app and the desktop app | They find the box on your home network by themselves, without asking DNS |
+| The phone app and the browser extension | They find the box on your home network by themselves, without asking DNS |
 | `zoomriya-xxxx.local` | Computers find `.local` names on the home network by themselves. It uses the box's own certificate, which you trust once (*Open the apps securely* in the user guide) |
 
-If you'd like the name to work on that computer too, install the desktop app.
-Or allow `zoomriya.app` in your router's settings: Box Desktop shows how for
+On that computer, you can add the browser extension instead. Or allow `zoomriya.app` in your router's settings: Box Desktop shows how for
 common routers.
+
+## Without ZOOMRIYA's servers
+
+Everything above is ZOOMRIYA Connect, with our servers or
+[your own](sharing-and-names.md#your-own-server). There's one more option for
+families who don't want to look after a server:
+[your own Cloudflare Tunnel](sharing-and-names.md#your-own-cloudflare-tunnel).
+The box dials out to Cloudflare on your own account. The same phone app and
+laptop extension work with it, and both seal everything for the box. Cloudflare
+is in the middle every time, and can see the photos in shared albums.
+
+![Four ways to reach the box from outside: a ZOOMRIYA name, your own domain through ZOOMRIYA, your own ZOOMRIYA Connect server, or your own Cloudflare Tunnel.](options.svg)
 
 ## Who carries what
 
@@ -275,7 +286,9 @@ fails, see [Architecture](architecture.md).
 
 | Part | Where it runs | What it does |
 |---|---|---|
-| **The link** | Inside the ZOOMRIYA app on phones (Android, iOS) and the desktop app (Linux, Windows, macOS) | Connects to the box and checks the box's key. The app's screens, or a laptop's browser, reach the box's apps through it |
+| **The link** | Inside the ZOOMRIYA app on phones (Android, iOS) | Connects to the box and checks the box's key: through iroh, or through Cloudflare with your own Cloudflare Tunnel. The app's screens reach the box's apps through it |
 | **connectd** | The box | Lets in paired devices and nobody else. Hands out and renews their passes, and tells the relay when one is removed. Checks share links. Opens and closes the guests' door. Tells the control plane where the box is. Warns you if anyone else gets a certificate for the box's name |
 | **The relay** | A server run by ZOOMRIYA, or by your family | Is tried alongside the direct ways, and passes the messages for hole punching. Carries data only when nothing direct works. Lets in only boxes, and devices with a pass, and only to their own box |
 | **The control plane** | A server run by ZOOMRIYA, or by your family | Knows which relay each box uses, answers DNS for box names, helps get certificates, checks from outside whether a box can be reached, and passes setup messages for guests |
+| **The browser extension** | Laptops' browsers (Chrome, Edge, Firefox), in every option | Does the link's job on laptops: through the relay and WebRTC, or through Cloudflare. Checks the box's key, and shows the box's own pages in a tab. See [Laptops](laptops.md) |
+| **cloudflared** | The box, only with your own Cloudflare Tunnel | Keeps the tunnel to Cloudflare open, and sends each name to its own place on the box |

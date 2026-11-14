@@ -16,13 +16,13 @@ what's in it, and can never let a device in. Only the box decides.
 
 | Where | Parts | Needed for |
 |---|---|---|
-| **Your devices** | The link, in the ZOOMRIYA app and the desktop app | Reaching the box |
+| **Your devices** | The link, in the ZOOMRIYA app on phones. The browser extension on laptops | Reaching the box |
 | **Your box** | connectd, the web server, the album viewer | Everything. The box keeps working if every server is down |
 | **Servers** (ours, or your own) | The control plane, the relay, the guest page | Reaching the box from outside, and opening it by name in a browser |
 
 ## The parts
 
-### The link (on your phone or laptop)
+### The link (on your phone)
 
 Built on [iroh](https://github.com/n0-computer/iroh), which connects devices
 by their keys, over QUIC, and survives switching networks.
@@ -34,7 +34,7 @@ by their keys, over QUIC, and survives switching networks.
 | **Holds the pass** and shows it to the relay | Only paired devices use the relay |
 | **Finds the box** from its signed address record, which names its relay, and keeps the last one. Also remembers the box's own addresses (home, IPv6, the door, a forwarded port), which the box sends it over the connection | Still works when the control plane is down, and the record doesn't publish the home's address |
 | **Picks the best path:** dials the relay and the box's addresses it already knows at the same moment. The first to answer carries data, and a direct path takes over when one works | Direct from the start when it can be, and never slower than the relay when it can't. A stale address just loses |
-| **Runs a local proxy** for the app's screens, or a laptop's browser | The box's apps work away from home |
+| **Runs a local proxy** for the app's screens | The box's apps work away from home |
 | **Leaves choosing the path to iroh,** and reports what iroh measured to the box (see [Measuring connections](#measuring-connections)) | iroh already picks the fastest path. We only show its numbers |
 
 The link never opens your traffic: the browser's own HTTPS connection to the
@@ -44,8 +44,28 @@ box passes through it unopened, so there are two layers of encryption.
 
 | Device key | Where it lives | What it's for | If it's copied |
 |---|---|---|---|
-| **Device key** | Made in the security chip (Secure Enclave, Keystore, TPM or Keychain). Never leaves it. Usable once the phone has been unlocked after starting, not only while unlocked | The box pins it. It signs each new link key, also in the background with the phone locked | It can't be |
+| **Device key** | Made in the security chip (Secure Enclave or Keystore). Never leaves it. Usable once the phone has been unlocked after starting, not only while unlocked | The box pins it. It signs each new link key, also in the background with the phone locked | It can't be |
 | **Link key** | In the app, locked by the chip while the app isn't running, with the same "after first unlock" setting. New with each pass | iroh connects with it. iroh needs an Ed25519 key in memory, which most chips can't hold | Works until the next pass (at most 30 days), or until an admin removes the device |
+
+### The browser extension (on your laptop)
+
+Laptops don't run iroh. Browsers don't let extensions use its direct paths, so
+the extension does the link's job its own way. It depends on three checks:
+see [Laptops](laptops.md).
+
+| What it does | Why |
+|---|---|
+| **Holds the device key,** made by the extension, which the browser won't export. With ZOOMRIYA Connect, it vouches for the link key, as on phones | The box pins it. Weaker than a phone's chip, and we say so |
+| **Pins the box's key** from pairing | A look-alike box can't fool it |
+| **ZOOMRIYA Connect:** connects to the relay at once with its pass, and sets up WebRTC with the box through it. A direct path takes over when one works | The same idea as the app: start on what answers, then go direct. The control plane never learns the laptop |
+| **Own Cloudflare Tunnel:** carries the same encrypted connection through Cloudflare | One extension for every option |
+| **At home:** WebRTC finds the box on the home network | Nothing goes through a server at home |
+| **Shows the box's own pages** in a tab, from the extension's address, fetched through the encrypted connection | Nothing in between can change them, and the screens live only on the box |
+| **Comes from the browsers' add-on stores,** signed | A copy from anywhere else can't update itself in |
+
+If the box's pages can't run from the extension's address, laptops get a
+desktop app instead, sharing the phone app's link: see
+[If the checks fail](laptops.md#if-the-checks-fail).
 
 ### connectd (on the box)
 
@@ -166,13 +186,15 @@ fetches the album from the box. The album never passes through it.
 
 | Key | Made on | Never leaves | Used for |
 |---|---|---|---|
-| **Device key** | Each phone or laptop, in its security chip | The chip | Signing link keys. The box pins it |
+| **Device key** | Each phone, in its security chip. Each laptop, in the browser extension | The chip, or the browser | Signing link keys. The box pins it |
 | **Link key** | The app, with each pass | The device | iroh's connection. Named in the pass |
 | **Box key** | The box, at first setup | The box | Proving the box, signing address records, passes and admin notes |
 | **Certificate key** | The box | The box | The padlock: the box's name and door, or your own domain and its door. connectd and the web server hold it, never the album viewer |
 | **DNS update key** | The box, at setup. The control plane keeps only its public half | The box | Changing the box's own DNS record only |
 | **Share token** | The box, per link | The link (after the `#`) | Opening that link's albums |
 | **Admin note** | The box, signed for each admin's phone | The phone | Lets that phone move the box's name or mark the box stolen. The control plane checks the box's signature on it, so it never keeps a list of devices |
+| **Extension key** (own Cloudflare Tunnel only) | The browser extension, at pairing | The browser, which won't export it | Signing and sealing requests for the box. The box pins it |
+| **Tunnel key** (own Cloudflare Tunnel only) | Cloudflare, for the family's account | The box | Running the box's own tunnel, nothing else |
 
 | Who | Trusts | So |
 |---|---|---|
@@ -281,11 +303,11 @@ opens it directly, with a proper padlock.
 
 | Way in at home | Needs DNS? | When it fails |
 |---|---|---|
-| Phone app, desktop app | No: they find the box on the home network | Never |
+| Phone app, browser extension | No: they find the box on the home network | Never |
 | `maplehouse.zoomriya.app` in a browser without the app | Yes | Routers and DNS filters that throw away public answers pointing inside the home (a protection against DNS rebinding) |
 | `zoomriya-xxxx.local` | No, and it uses the box's own certificate | Never |
 
-When the name is thrown away, Box Desktop suggests the desktop app or the
+When the name is thrown away, Box Desktop suggests the browser extension or the
 `.local` name, only when someone actually hits it.
 
 ## When things go wrong
@@ -339,6 +361,32 @@ never in backups. The box phrase (planned: *Recovery keys* in zoomriya-docs,
 The box and apps don't change. You type your server's address into Box
 Desktop once, and the pairing QR code passes it on.
 
+### Your own Cloudflare Tunnel
+
+No server at all: Cloudflare, on the family's own account, takes the place of
+the relay, control plane and guest page. The phone app and the laptop
+extension both support it. See
+[Your own Cloudflare Tunnel](sharing-and-names.md#your-own-cloudflare-tunnel).
+
+![Option 4: Cloudflare, on the family's account, sends home.smith.ca to the family door and share.home.smith.ca to the album viewer only. The extension seals each request for the box. The box dials out, so the router opens nothing.](cloudflare-tunnel.svg)
+
+| Part | What it does | Why |
+|---|---|---|
+| **cloudflared, on the box** | Keeps the tunnel open. Sends `home.` to connectd's family door and `share.` to the album viewer, nothing else | The sign-in page and apps stay off the internet. Nothing is opened on the router |
+| **The app's link** | Carries the same encrypted connection to the box as with iroh, through Cloudflare instead. Pairing, keys and the app's screens don't change | One app for every option. Cloudflare can't open it |
+| **connectd's family door** | Checks the device's key against the box's own list, refuses replays, opens the sealed request, hands it to the web server with the device's label, seals the answer | Cloudflare carries only sealed requests. The box alone decides who gets in |
+| **The browser extension** | Carries the same encrypted connection through Cloudflare. Shows the box's pages only as they came through it | Cloudflare can't read or change anything, the pages included |
+| **The tunnel key, on the box** | Limited to the box's own tunnel and names. The family can withdraw it at Cloudflare | A copied key can't reach the family's other Cloudflare settings |
+
+| Rule | What it fixes |
+|---|---|
+| Pairing only at home, on the home network, never through the tunnel | Someone who controls Cloudflare can't pair a device |
+| The pairing code approves a key swap. It's never the key | A short code can't be guessed into a key |
+| Switching option: devices pair again, at home or with a pairing code an admin reads out to them. From away, that code only works for a device already on the box's list | Switching can't add a new device from away |
+| The extension runs only its own code, and the box's pages that came through the encrypted connection | Cloudflare could otherwise change a page and take the data before it's sealed |
+| The family door and the album viewer have separate names and separate places on the box | A mistake on the guest side can't reach the family side |
+| ZOOMRIYA ID sign-in, the device label and the 15-minute lock apply as with ZOOMRIYA Connect | The tunnel is one more way in, not a way around sign-in |
+
 ## Ports at a glance
 
 | Where | Port | What for |
@@ -350,6 +398,7 @@ Desktop once, and the pairing QR code passes it on.
 | **The box**, otherwise | Any UDP port | Hole punching, nothing opened |
 | **The relay** | TCP 443 | Hole punching, and carrying connections |
 | **The control plane** | TCP 443, and 53 (DNS) | Address records, setup messages, DNS for box names |
+| **The box**, with your own Cloudflare Tunnel | Outgoing only, to Cloudflare | The tunnel. Nothing is opened on the router, not even the guests' door |
 
 The box opens nothing on your router except the guests' door, and only while
 a link is live.
@@ -390,11 +439,16 @@ a link is live.
 | **Relay limits per box,** slowed not cut off | Trusting the app to hold back backups | The relay can't see what it carries, so it limits what it can measure |
 | **Rules for registering boxes** | Only real boxes may register | Self-installs stay free, and names and the relay stay hard to abuse |
 | **Device labels, and a 15-minute lock after 5 wrong passwords** | Trusting connections from the box | Every person and device is counted separately, and guessing stays slow |
-| **Desktop proxy carries only box names**, no per-user check | Checking each laptop user | Everyone still signs in to ZOOMRIYA ID, so a per-user check would add code without adding safety |
+| **One browser extension for laptops, in every option** | A desktop app with a local proxy | Nothing to install but the extension, no admin rights, and one piece of code for ZOOMRIYA Connect and Cloudflare. It depends on [three checks](laptops.md); if the first fails, the desktop app comes back |
+| **WebRTC for the extension,** set up through the relay | iroh in the extension | Extensions can't use iroh's direct paths. Browsers do WebRTC themselves, and the box already speaks it to guests |
+| **The extension shows the box's own pages** | Building the screens into the extension | The screens live in one place. The encrypted connection checks the box's key, so the pages can't be changed on the way |
 | **Guests' relay credentials asked for by the box** | Guests asking the control plane | The box is the only one that can check the token |
 | **Guest password optional,** off by default | Always on | Links are already unguessable. A password helps only when a link leaks, and costs guests effort |
 | **Two protocol versions accepted,** minimums announced early | Forcing updates | Old boxes and apps keep working long enough to update |
 | **10 minutes' clock allowance** | Exact times | Small clock differences never break passes, and a big one is caught before signing |
+| **Own Cloudflare Tunnel as a fourth option** | Only ZOOMRIYA Connect | Families who want neither our servers nor their own still get access from outside, with nothing opened on the router |
+| **Our own encrypted connection through Cloudflare in option 4** | Loading the box's pages over Cloudflare's HTTPS | Cloudflare ends HTTPS, so pages through it could be changed. Inside our own encrypted connection, they can't |
+| **Guests through Cloudflare in option 4,** and the family told so | Making guests install something | Guests still need nothing. The trade-off is written in Box Desktop before it's switched on |
 
 ## What we build ourselves
 
@@ -408,5 +462,8 @@ Most of the connection work is iroh's. Ours:
 | The guests' door, album viewer and guest page | Guests use browsers, not iroh |
 | Names, DNS and certificates for boxes | |
 | The outside check | |
+| The browser extension, with WebRTC through the relay | Laptops can't run iroh's direct paths |
+| The encrypted connection through Cloudflare, for the app and the extension, and connectd's family door, for option 4 | Cloudflare carries plain HTTPS, so the sealing is ours |
+| Setting up the family's Cloudflare Tunnel from Box Desktop | |
 
 Where the code goes: [Plan and layout](plan.md#where-the-code-goes).

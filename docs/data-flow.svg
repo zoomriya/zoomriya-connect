@@ -77,5 +77,5 @@ text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-
 <path d="M835 364V474" class="control-line" marker-start="url(#arrow-control)" marker-end="url(#arrow-control)"/>
 
 <text x="30" y="716" class="small bold warning">The relay is tried alongside direct paths and stays only if nothing direct works. It sees who, never what.</text>
-<text x="30" y="736" class="tiny muted">This is the plan: ZOOMRIYA Connect isn't built yet.</text>
+<text x="30" y="736" class="tiny muted">Options 1–3: ZOOMRIYA's servers or your own. Option 4, your own Cloudflare Tunnel, has its own diagram. This is the plan: none of it is built yet.</text>
 </svg>

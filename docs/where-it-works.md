@@ -42,7 +42,7 @@ a separate guest or TV network.
 
 ## By your home's internet
 
-"App" means the ZOOMRIYA app on a phone or laptop, away from home. "Guest"
+"App" means the ZOOMRIYA app on a phone, or the browser extension on a laptop, away from home. "Guest"
 means someone opening a share link.
 
 | Your home's internet | At home | App, easy network | App, strict network | App, UDP blocked | Guest |
@@ -55,6 +55,9 @@ means someone opening a share link.
 | You forwarded port 443 (UDP and TCP) to the box | Works | Direct | Direct | Direct, over TCP | Direct |
 | Remote access switched off | Works | No | No | No | No |
 | Box on Wi-Fi | Not supported. Use a cable | | | | |
+
+Laptops with the browser extension get the same, except over a port you
+forwarded: the extension can only use the UDP one.
 
 **Direct** means your data goes straight between the device and the box.
 **Relay** means it works through our relay, a bit slower.
@@ -82,6 +85,22 @@ When your home can't open a door:
 When you make a link, the box tells you what to expect: "Guests can open this
 link", "Guests may have trouble on some networks", or "Guests can't open links
 from this home".
+
+## With your own Cloudflare Tunnel
+
+With [option 4](sharing-and-names.md#your-own-cloudflare-tunnel), everything
+from outside goes through Cloudflare, so your home's internet doesn't matter.
+
+| | Works? |
+|---|---|
+| Any home internet, shared address (CGNAT) included | Yes. The box dials out, so nothing needs opening |
+| A laptop with the extension, on any network that lets you browse | Yes, through Cloudflare |
+| A laptop with the extension, at home | Yes, straight to the box |
+| A phone with the ZOOMRIYA app, on any network that lets you browse | Yes, through Cloudflare. Backups too, except files over 90 MB, which wait until you're home ([why](sharing-and-names.md#cloudflares-limits)) |
+| A phone with the ZOOMRIYA app, at home | Yes, straight to the box |
+| Guests | Yes, on any network that lets them browse |
+| Cloudflare or your account down | Nothing from outside. Everything at home keeps working |
+| The box on Wi-Fi | Not supported. Use a cable |
 
 ## Backups away from home
 
