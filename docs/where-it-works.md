@@ -86,9 +86,9 @@ When you make a link, the box tells you what to expect: "Guests can open this
 link", "Guests may have trouble on some networks", or "Guests can't open links
 from this home".
 
-## With your own Cloudflare Tunnel
+## With your Cloudflare Tunnel
 
-With [option 4](sharing-and-names.md#your-own-cloudflare-tunnel), everything
+With [option 4](sharing-and-names.md#your-cloudflare-tunnel), everything
 from outside goes through Cloudflare, so your home's internet doesn't matter.
 
 | | Works? |

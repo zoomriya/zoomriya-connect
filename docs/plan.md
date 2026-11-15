@@ -115,7 +115,7 @@ order, and where the code goes.
 | Boxes register again by themselves if their registration is missing, proving the name with their certificate's key, and take a new DNS update key when told | A restore that lost the last hour, or a leaked key, needs nothing from families |
 | Decide how long each server keeps what it sees, and put it on the privacy page | [What our servers keep](operations.md#what-our-servers-keep) |
 
-### 10. [Own Cloudflare Tunnel](sharing-and-names.md#your-own-cloudflare-tunnel)
+### 10. [Your Cloudflare Tunnel](sharing-and-names.md#your-cloudflare-tunnel)
 
 | Task | Why, or what it fixes |
 |---|---|

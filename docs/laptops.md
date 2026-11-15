@@ -4,7 +4,7 @@ Part of [ZOOMRIYA Connect](../README.md).
 
 On a laptop, the ZOOMRIYA browser extension lets you use the box from
 anywhere, in every option: with ZOOMRIYA Connect, and with
-[your own Cloudflare Tunnel](sharing-and-names.md#your-own-cloudflare-tunnel).
+[your Cloudflare Tunnel](sharing-and-names.md#your-cloudflare-tunnel).
 There's nothing else to install, and no admin rights are needed. It's planned
 for Chrome, Edge and Firefox, on Linux, Windows and macOS.
 
@@ -25,7 +25,7 @@ Phones use the ZOOMRIYA app, as before.
 | Option | Away from home | At home |
 |---|---|---|
 | 1–3: ZOOMRIYA Connect | Through the relay at once, showing its pass. Meanwhile, the extension and the box try WebRTC through the relay, and a direct path takes over when one works | WebRTC finds the box on the home network |
-| 4: your own Cloudflare Tunnel | The same encrypted connection to the box, carried through Cloudflare. Cloudflare can't open it | WebRTC finds the box on the home network |
+| 4: your Cloudflare Tunnel | The same encrypted connection to the box, carried through Cloudflare. Cloudflare can't open it | WebRTC finds the box on the home network |
 
 It's the same idea as the app: start on whatever answers, then go direct when
 possible. The app uses iroh for this. Browsers don't let extensions use iroh's
@@ -60,7 +60,7 @@ have no camera, so the box shows a short code instead of a QR code.
 
 An admin removes a laptop the same way as a phone.
 
-If the family switches between ZOOMRIYA Connect and their own Cloudflare
+If the family switches between ZOOMRIYA Connect and their Cloudflare
 Tunnel, the laptop pairs again: at home, or with a pairing code an admin makes
 for it in Box Desktop and reads out, for example over the phone. That code
 works from away, only for a device already on the box's list.
@@ -89,7 +89,7 @@ longer between each try.
 ## Backups
 
 The same rules as phones: with ZOOMRIYA Connect, backups wait for a direct
-connection, unless your own relay allows them. With your own Cloudflare
+connection, unless your own relay allows them. With your Cloudflare
 Tunnel, files up to 90 MB back up through Cloudflare. Bigger files wait
 until you're home (see
 [Cloudflare's limits](sharing-and-names.md#cloudflares-limits)).
@@ -111,7 +111,7 @@ the same way. A copy from anywhere else can't update itself in.
 
 If the box's pages can't run from the extension (check 1), laptops get a
 small desktop app instead. It shares its code with the phone app, so, like
-the phone app, it works with ZOOMRIYA Connect and with your own Cloudflare
+the phone app, it works with ZOOMRIYA Connect and with your Cloudflare
 Tunnel.
 
 | What | How |

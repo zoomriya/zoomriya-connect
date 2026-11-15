@@ -124,5 +124,5 @@ text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-
 <text x="476" y="892" class="s m">Slows down and briefly blocks guessers</text>
 <text x="476" y="940" class="s b c-web">One album · read only</text>
 
-<text x="30" y="1008" class="t m">Options 1–3: ZOOMRIYA's servers or your own. Option 4, your own Cloudflare Tunnel, has its own diagram. This is the plan: none of it is built yet.</text>
+<text x="30" y="1008" class="t m">Options 1–3: ZOOMRIYA's servers or your own. Option 4, your Cloudflare Tunnel, has its own diagram. This is the plan: none of it is built yet.</text>
 </svg>

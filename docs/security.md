@@ -25,9 +25,9 @@ do if they took it over.
 | **A leaked share link** | Show the albums in that link, until it runs out or you cancel it | Reach anything else on the box |
 | **Anyone on the internet** | Reach the album viewer while a share link is live, and poke at it. Knock on the family side of the door, which turns them away | Reach the sign-in page or any app, which are never on the internet. Get past the family side without being paired. Open an album without its link. Change anything |
 
-## With your own Cloudflare Tunnel
+## With your Cloudflare Tunnel
 
-With [option 4](sharing-and-names.md#your-own-cloudflare-tunnel), Cloudflare
+With [option 4](sharing-and-names.md#your-cloudflare-tunnel), Cloudflare
 takes the relay's and control plane's place. Phones keep the ZOOMRIYA app, and
 laptops the browser extension.
 

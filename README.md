@@ -51,11 +51,11 @@ address, such as `https://maplehouse.zoomriya.app`, with a proper padlock.
 
 **Without our servers.** Families can run ZOOMRIYA Connect's server side
 themselves. Or, if they don't want to look after a server, the box can use
-their own Cloudflare Tunnel instead. The same phone app and laptop extension
+their Cloudflare Tunnel instead. The same phone app and laptop extension
 work with both. Then Cloudflare is always in the middle, and can see the photos in
 shared albums. See [Four ways to reach your box](docs/sharing-and-names.md#four-ways-to-reach-your-box).
 
-![Four ways to reach the box from outside: a ZOOMRIYA name, your own domain through ZOOMRIYA, your own ZOOMRIYA Connect server, or your own Cloudflare Tunnel. In every option nothing is set up on the router.](docs/options.svg)
+![Four ways to reach the box from outside: a ZOOMRIYA name, your own domain through ZOOMRIYA, your own ZOOMRIYA Connect server, or your Cloudflare Tunnel. In every option nothing is set up on the router.](docs/options.svg)
 
 ![The order in which connections are tried. Family devices try the box's known addresses and the relay at the same moment, and the first to answer carries data; hole punching runs through the relay, and a direct path takes over when one works. Guests try the box directly, then a browser-to-box connection, then the relay.](docs/paths.svg)
 
@@ -93,7 +93,7 @@ The details, network by network, are in [Where it works](docs/where-it-works.md)
 - Photo and video backups wait for a direct connection. They never go through
   our relay. On a relay of your own, a switch lets them.
 - The box's sign-in page and apps are never on the open internet.
-- With your own Cloudflare Tunnel, Cloudflare sees who connects and when, and
+- With your Cloudflare Tunnel, Cloudflare sees who connects and when, and
   the photos in shared albums. Family data stays sealed by the app and the extension.
 
 What each part could and couldn't do if someone broke into it is in the
@@ -107,7 +107,7 @@ What each part could and couldn't do if someone broke into it is in the
 | [Architecture](docs/architecture.md) | For advanced users: every part, the keys, how they work together, and what happens when one fails |
 | [Where it works](docs/where-it-works.md) | Types of home internet, what works on each, guests' networks, what never works |
 | [Laptops](docs/laptops.md) | The browser extension: how laptops reach the box in every option, and the checks it depends on |
-| [Sharing, names and certificates](docs/sharing-and-names.md) | Share links, box names, the four ways to reach your box (your own domain, your own server, your own Cloudflare Tunnel), certificates |
+| [Sharing, names and certificates](docs/sharing-and-names.md) | Share links, box names, the four ways to reach your box (your own domain, your own server, your Cloudflare Tunnel), certificates |
 | [Security model](docs/security.md) | What each part could and couldn't do if someone took it over |
 | [Plan and layout](docs/plan.md) | For developers: what we build in which order, and where the code goes |
 | [Running the service](docs/operations.md) | For whoever runs the servers: backups, alerts, being on call, protecting DNS, changing keys |

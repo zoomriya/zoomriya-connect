@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="720" viewBox="0 0 1000 720" role="img" aria-label="Four ways to reach the box from outside. Option 1, a ZOOMRIYA name such as maplehouse.zoomriya.app: ZOOMRIYA's relay and control plane sit in the middle; devices go direct when they can; the relay sees who connects and when, never what; no upkeep. Option 2, your own domain through ZOOMRIYA, such as home.smith.ca: the same, plus a few DNS records. Option 3, your own ZOOMRIYA Connect server: your own relay and control plane sit in the middle, and ZOOMRIYA plays no part; upkeep is a server of your own. Option 4, your own Cloudflare Tunnel: the box dials out to Cloudflare on your account; phones keep the ZOOMRIYA app, which supports both, and laptops use the same ZOOMRIYA browser extension as in options 1 to 3; everything goes through Cloudflare; Cloudflare sees who connects and when, and can see shared guest albums; upkeep is a Cloudflare account and a domain. In every option the router needs nothing, and the sign-in page and apps are never on the internet.">
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="720" viewBox="0 0 1000 720" role="img" aria-label="Four ways to reach the box from outside. Option 1, a ZOOMRIYA name such as maplehouse.zoomriya.app: ZOOMRIYA's relay and control plane sit in the middle; devices go direct when they can; the relay sees who connects and when, never what; no upkeep. Option 2, your own domain through ZOOMRIYA, such as home.smith.ca: the same, plus a few DNS records. Option 3, your own ZOOMRIYA Connect server: your own relay and control plane sit in the middle, and ZOOMRIYA plays no part; upkeep is a server of your own. Option 4, your Cloudflare Tunnel: the box dials out to Cloudflare on your account; phones keep the ZOOMRIYA app, which supports both, and laptops use the same ZOOMRIYA browser extension as in options 1 to 3; everything goes through Cloudflare; Cloudflare sees who connects and when, and can see shared guest albums; upkeep is a Cloudflare account and a domain. In every option the router needs nothing, and the sign-in page and apps are never on the internet.">
 <style>
 svg{--surface:#fff;--zone:#f1f5f6;--fg:#15232a;--muted:#5b6c75;--line:#c3ced4;--data:#087f6e;--data-soft:#e4f4f0;--setup:#886516;--setup-soft:#fbf4df;--web:#285db1;--web-soft:#e8effb;--cf:#b0570f;--cf-soft:#fcefe3;--stop:#b3261e}
 @media(prefers-color-scheme:dark){svg{--surface:#162026;--zone:#121b20;--fg:#e2eaed;--muted:#93a5ad;--line:#33464f;--data:#56c5ae;--data-soft:#172e2a;--setup:#d8b45c;--setup-soft:#302a19;--web:#86aaf0;--web-soft:#19263c;--cf:#f0a465;--cf-soft:#33251a;--stop:#f08c80}}
@@ -82,7 +82,7 @@ text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-
 <!-- ===== column 3 ===== -->
 <g transform="translate(506 84)">
   <rect width="226" height="556" rx="12" class="zone"/>
-  <text x="14" y="28" class="h">3 · Own ZOOMRIYA server</text>
+  <text x="14" y="28" class="h" textLength="196" lengthAdjust="spacingAndGlyphs">3 · Own ZOOMRIYA server</text>
   <text x="14" y="48" class="mono">connect.smith.ca</text>
   <rect x="10" y="66" width="206" height="40" rx="8" class="data-box"/>
   <text x="113" y="91" text-anchor="middle" class="s b">App · laptop extension</text>
@@ -110,7 +110,7 @@ text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-
 <!-- ===== column 4 ===== -->
 <g transform="translate(744 84)">
   <rect width="226" height="556" rx="12" class="zone"/>
-  <text x="14" y="28" class="h">4 · Own Cloudflare Tunnel</text>
+  <text x="14" y="28" class="h" textLength="196" lengthAdjust="spacingAndGlyphs">4 · Your Cloudflare Tunnel</text>
   <text x="14" y="48" class="mono">home.smith.ca, via Cloudflare</text>
   <rect x="10" y="66" width="206" height="40" rx="8" class="data-box"/>
   <text x="113" y="91" text-anchor="middle" class="s b">App · laptop extension</text>
