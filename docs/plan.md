@@ -14,7 +14,7 @@ order, and where the code goes.
 | Build `connectd`, the box's side | Everything else hangs off it |
 | One certificate per box, through DNS: Let's Encrypt first, Google Trust Services as the fallback. Ask Let's Encrypt for a higher limit before launch | `zoomriya.app` isn't on the Public Suffix List, so Let's Encrypt allows 50 new certificates a week across all boxes |
 | Run DNS for box names on the control plane (`ns1.zoomriya.net`) | Simple to start |
-| **A second DNS server for `ns2.zoomriya.net`, planned for release,** at another hosting company. It copies the first through zone transfers. Until it's up, `ns2.` points at the same server | Names keep answering if one server or hosting company is down. Most registrars ask for two name servers |
+| **A second DNS server for `ns2.zoomriya.net`, planned for release,** at another hosting company. It copies the first over HTTPS with a key (`zoomriya-control-plane secondary`), and keeps nothing on disk. Until it's up, `ns2.` points at the same server | Names keep answering if one server or hosting company is down. Most registrars ask for two name servers |
 | Publish where the box is, and check it's on a cable | The box can't use Wi-Fi |
 
 ### 2. [Get ready for guests](where-it-works.md#guests)
@@ -41,7 +41,7 @@ order, and where the code goes.
 | **Removed devices:** the box tells the relay at once, and on every reconnect | The relay refuses them too |
 | **Control plane:** tells relays which boxes are registered, never which devices | It doesn't learn your devices |
 | **Admin notes:** the box signs one for each admin's phone. The control plane accepts a name move or "stolen" only with one | Only admins can, and the control plane never keeps a device list |
-| **Finding the box:** our own address server (`iroh-dns-server`). The record names only the box's relay, as iroh does by default, so the home's internet address is never published. With the relay switched off, the record holds the box's addresses instead, and Box Desktop says so. Apps keep the last signed record, and the box's own addresses, which the box sends them over the connection | Still works when it's down |
+| **Finding the box:** our own address server, in iroh's record format, on the control plane, taking records only from registered boxes. The record names only the box's relay, as iroh does by default, so the home's internet address is never published. With the relay switched off, the record holds the box's addresses instead, and Box Desktop says so. Apps keep the last signed record, and the box's own addresses, which the box sends them over the connection | Still works when it's down |
 | **A family's own relay:** learns its box from a one-time code typed into Box Desktop | Families can run their own |
 | **Device keys** in the security chip or key store, usable after the first unlock since the phone started (iOS's "after first unlock"). Backups off our relay | Passes renew in the background while the phone is locked |
 | **Web server:** connectd labels each connection with its device (PROXY protocol v2), on a local socket only connectd can use; TCP 443 never accepts labels. ZOOMRIYA ID locks a person for 15 minutes after 5 wrong passwords | Connections from away would otherwise look like the box, and share one sign-in limit |
@@ -153,11 +153,26 @@ crates/
   portmap/        opening the guests' door on the router (UPnP, NAT-PMP, PCP): the router's TCP 443 to the box's 8443 for guests, UDP 443 for paired devices; over IPv6, a firewall rule for the box's own door address
   proto/          messages between the box, the apps and the control plane
   ffi/            the bridge to the phone app's Swift and Kotlin code
+  serve/          what the relay and control plane share: HTTPS from certificate files or Let's Encrypt, logging
 guest-viewer/     the guest page and its WebRTC code
 extension/        the browser extension for laptops, every option: its key, pairing, the relay and WebRTC, the connection through Cloudflare, showing the box's pages
 connectd/         the box's side: UDP 443 and TCP 8443 (the gateway keeps TCP 443), device checks, device labels for the web server, passes, share links, WebRTC for guests, address records; for option 4, the family door and setting up cloudflared
-control-plane/    address records (iroh-dns-server), DNS for box names, certificates, the outside check, guests' setup messages
+control-plane/    registrations, address records, DNS for box names, certificate checks, the list of boxes for relays; later the outside check and guests' setup messages
 relay/            our relay, built on the iroh-relay library: our access check for passes and removed devices, limits, numbers; the guests' relay (TURN): blocked private addresses, one-hour credentials per share, per-guest limits
 sim/              the 1,000-family test: traffic model, network lab, two-month soak; the benchmarks and probes
 docs/             these pages and the diagrams
+deploy/           example settings, systemd units and the servers' user
 ```
+
+## Built so far
+
+| Part | What works | Still to come |
+|---|---|---|
+| **Passes** (`crates/keys`) | Signed by the box key, each signature says what it's for. 30 days, 10 minutes' clock allowance, longest pass 31 days | |
+| **Relay** (`relay/`) | iroh's relay library, unchanged, behind our front door on 443. Lets in registered boxes, and devices with a pass from one. Takes each box's removed-device list (`/zoomriya/v1/removed`) and drops those devices at once. Drops a stolen box and its devices. Keeps the list of boxes on disk. QUIC address discovery. Numbers on port 9090 | Monthly volume per box (the library counts bytes per server, not per box). Keeping a device to its own box only (the library has no hook on where packets go) |
+| **A family's own relay** | `zoomriya-relay enrol-code` shows a one-time code; the box introduces itself with it | |
+| **Control plane** (`control-plane/`) | Registering boxes with every rule above. Box names, the guests' door and certificate checks in DNS. Address records over HTTPS and DNS. The list of boxes for relays. Admin notes: an admin's phone marks the box stolen or moves its name. The outside check of the door. Guests' setup messages. One-hour credentials for the guests' relay. The second DNS server's copy. Reports. Operator commands | Own domains, laptops' WebRTC through the relay |
+| **Guests' relay** (`deploy/turnserver.conf`) | The TURN server packaged in Debian 13, set up to refuse private and home addresses, with per-guest limits | |
+| **GUI** (`admin-web/`) | One web page for the control plane and relays, for our operators and families with their own server: overview, boxes, reports, factory tokens; a family relay's one-time code. Midnight and Daylight, English and French. Off the internet unless given a certificate | |
+| **connectd** (`connectd/`) | The box key and DNS update key in `/data`. Registering, and again by itself at each start or if the registration went missing. The name kept pointed at the box's home addresses. The certificate through the control plane's DNS check (Let's Encrypt, then any authority set after it), renewed a month ahead. iroh on our relays only, publishing an address record that names only the relay. Pairing at home only (never through the relay), with a one-time code, the phone's chip key vouching for its link key, and admin notes for admins' phones. Passes, signed only once the clock is set from the internet, renewed with a new link key. The family link: every stream checked against the box's list, web streams passed to the gateway with the device's label (PROXY protocol v2). Removing a device cuts it off at once and tells the relays; the whole list again at each reconnect. Each device's connection reports kept on the box. Box Desktop's API on a Unix socket | Watching the public certificate logs for someone else's certificate on the box's name. The guests' door and album viewer, WebRTC for guests and laptops, the outside check of the door from the box's side, the Cloudflare option |
+| **On ZOOMRIYA OS** (zoomriya-os) | The `zoomriya-connect` package: connectd as its own account, UDP 443 in the firewall, the declared outbound connection. The agent checks connectd's certificate and serves it beside the box's own. Control Panel › ZOOMRIYA Connect in Box Desktop, in English and French | The phone app's link (`crates/link`, `crates/ffi`) |

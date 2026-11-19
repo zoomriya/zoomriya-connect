@@ -21,6 +21,57 @@ The numbers on this page (how often, how fast) are suggestions, like the
 | **Probes** | Small servers in several regions | Nothing | Set up again |
 | **Benchmark machine** | One machine of our own, always the same, so results compare | Results by commit | Results are also copied to the backups |
 
+## Installing
+
+Both servers are single programs, run by systemd on Debian 13. Example files
+are in [`deploy/`](../deploy).
+
+| Step | Control plane | Relay |
+|---|---|---|
+| 1. Build | `cargo build --release -p zoomriya-control-plane` | `cargo build --release -p zoomriya-relay` |
+| 2. Program | `/usr/local/bin/zoomriya-control-plane` | `/usr/local/bin/zoomriya-relay` |
+| 3. User | `deploy/zoomriya-connect.sysusers` to `/usr/lib/sysusers.d/zoomriya-connect.conf`, then `systemd-sysusers` | The same |
+| 4. Settings | `deploy/control-plane.toml` to `/etc/zoomriya-control-plane/` | `deploy/relay.toml` to `/etc/zoomriya-relay/` |
+| 5. Keys | `relay-keys`: one control plane to relay key a line, at least 32 characters (`openssl rand -base64 48`) | `feed.key`: one of those keys |
+| 6. Service | `deploy/zoomriya-control-plane.service` | `deploy/zoomriya-relay.service` |
+| 7. Start | `systemctl enable --now zoomriya-control-plane` | `systemctl enable --now zoomriya-relay` |
+| 8. GUI | `cd admin-web && npm ci && npm run build`, then `dist/` to `/usr/share/zoomriya-connect/admin` | The same |
+| 9. Sign-in token | `zoomriya-control-plane admin-token --config FILE NAME` | `zoomriya-relay admin-token --config FILE NAME` |
+
+| Other server | How |
+|---|---|
+| **Second DNS server** (`ns2`) | The same program: `deploy/control-plane-ns2.toml` and `deploy/zoomriya-ns2.service`. Give it one of the first server's `zone-keys` |
+| **Guests' relay** | Debian 13's TURN server (`coturn`) with `deploy/turnserver.conf`. Its `static-auth-secret` is the first line of the control plane's `turn-secrets`. Add our own servers' addresses as `denied-peer-ip` |
+
+| Port | Server | Open to |
+|---|---|---|
+| TCP 443 | Both | Everyone |
+| UDP and TCP 53 | Control plane | Everyone |
+| TCP 80 | Relay | Everyone: the captive-portal check only |
+| UDP 7842 | Relay | Everyone: QUIC address discovery |
+| TCP 9090 | Relay | The server itself only: numbers for the dashboard |
+| TCP 8444 | Both | The server itself only: the GUI. Reach it with `ssh -L 8444:127.0.0.1:8444 server` |
+| UDP 3478, TCP 443 | Guests' relay | Everyone |
+
+Certificates come from Let's Encrypt over port 443 by themselves, or from
+files, read again every hour. The services run with only the right to use
+ports below 1024.
+
+### Operator commands
+
+They work on the control plane's database directly. A running server notices
+within a second. The GUI does the same things.
+
+| Command | What it does |
+|---|---|
+| `zoomriya-control-plane status --config FILE` | How many boxes: all, with a factory token, stolen, switched off |
+| `zoomriya-control-plane factory-tokens --config FILE TOKENS` | Adds factory tokens, one a line. Only their hashes are kept |
+| `zoomriya-control-plane switch-off --config FILE NAME` | The name stops answering, after a report. `switch-on` undoes it |
+| `zoomriya-control-plane mark-stolen --config FILE NAME` | Relays refuse the box and its devices within seconds |
+| `zoomriya-control-plane reports --config FILE` | Reports not yet dealt with. `report-done ID` closes one |
+| `zoomriya-relay enrol-code --config FILE` | A family's own relay only: a one-time code for Box Desktop |
+| `admin-token --config FILE NAME` (either server) | A sign-in token for the GUI, shown once. Remove its line from the tokens file to take it back |
+
 ## Backups and restore
 
 | What | How often | Kept | Restore |
@@ -96,7 +147,7 @@ cope with floods, and must never be used to flood others.
 | Being flooded with questions | Answers limited per asking address (response rate limiting). The two servers are at different companies, each with its own flood protection |
 | Being used to flood someone else with big answers | Answers only for our own names, never anyone else's (no recursion). Small answers. Rate limiting per address. Repeated big answers are cut short, so the asker has to come back over TCP |
 | Someone changing a box's name | Each box can change only its own name, with its own DNS update key |
-| Someone copying the whole zone | Zone transfers only to `ns2`, with a shared key |
+| Someone copying the whole zone | Only `ns2` can copy it, over HTTPS, with its own key |
 
 The relays have their own limits: connections per address, and speed per
 connection, besides the [per-box limits](architecture.md#the-relay-on-a-server).
@@ -109,9 +160,9 @@ The keys families hold are covered in
 | Key | Held by | Changed | If it leaks | Families notice |
 |---|---|---|---|---|
 | **DNS update keys** (one per box) | The box. The control plane holds only the public half | Not needed: each works for one name only | A leaked public half is harmless. If a box's key leaks, that box gets a new one at its next check-in | Nothing |
-| **Zone transfer key** (`ns1` to `ns2`) | Both DNS servers | Every year | Change it on both | Nothing |
+| **Zone-copy key** (`ns1` to `ns2`) | Both DNS servers | Every year. Old and new both work while `zone-keys` lists both | Change it on both | Nothing |
 | **Our servers' certificates** (`relay.`, `share.`, the control plane) | Each server | Automatically, every 60 days | Revoke, and get new ones at once | Nothing |
-| **Guests' relay secret**, which makes the one-hour credentials | The control plane and the guests' relay | Automatically, every month. Old and new both work during the change | Change it at once. Links in use reconnect | A guest may wait a few seconds |
+| **Guests' relay secret**, which makes the one-hour credentials | The control plane (`turn-secrets`) and the guests' relay (`static-auth-secret`) | Every month: change both together. Credentials made in the last hour with the old secret stop working | Change it at once. Links in use reconnect | A guest may wait a few seconds |
 | **Control plane to relay key**, for the list of registered boxes | The control plane and each relay | Every year | Change it at once | Nothing |
 | **Factory tokens** | Made at the factory. The control plane keeps which ones were used | Never: each is used once | Void the batch's unused tokens. Those boxes still register, with normal limits, until they get new tokens in an update | Higher relay limits wait for an update |
 | **Logins to our servers** | Each team member, their own | When they leave, the same day | Remove it, and check what it did | Nothing |

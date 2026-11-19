@@ -1,0 +1,206 @@
+// Every word the GUI shows, in English and French: the two languages offered
+// everywhere for now. Short and natural, never word for word.
+
+export type Lang = 'en' | 'fr';
+
+const en = {
+	product: 'ZOOMRIYA Connect',
+	controlPlane: 'Control plane',
+	relay: 'Relay',
+	signInTitle: 'Sign in',
+	signInHelp: 'Paste the sign-in token made on this server with the admin-token command.',
+	token: 'Sign-in token',
+	signIn: 'Sign in',
+	signOut: 'Sign out',
+	wrongToken: "That token doesn't work. Check it, or make a new one.",
+	cantReach: "The server isn't answering. Check it's running.",
+	overview: 'Overview',
+	boxes: 'Boxes',
+	reports: 'Reports',
+	factoryTokens: 'Factory tokens',
+	theme: 'Theme',
+	midnight: 'Midnight',
+	daylight: 'Daylight',
+	language: 'Language',
+	refresh: 'Refresh',
+	loading: 'Loading…',
+
+	registered: 'Registered',
+	withFactoryToken: 'With a factory token',
+	stolen: 'Stolen',
+	switchedOff: 'Switched off',
+	newToday: 'New today',
+	newThisWeek: 'New this week',
+	openReports: 'Open reports',
+	unusedTokens: 'Unused factory tokens',
+	relays: 'Relays',
+	relayUp: 'Answering',
+	relayDown: 'Not answering',
+	notCheckedYet: 'Not checked yet',
+	ms: 'ms',
+	guests: 'Guests',
+	boxesForSharing: 'Boxes ready for guests',
+	guestsSettingUp: 'Guests connecting',
+	guestRelay: "Guests' relay",
+	on: 'On',
+	off: 'Off',
+
+	search: 'Search names',
+	name: 'Name',
+	key: 'Box key',
+	state: 'State',
+	since: 'Registered',
+	active: 'Active',
+	isStolen: 'Stolen',
+	isOff: 'Switched off',
+	factory: 'Factory',
+	doorOpen: 'Door open',
+	noRecord: 'No address record',
+	noBoxes: 'No boxes.',
+	switchOff: 'Switch off',
+	switchOn: 'Switch on',
+	markStolen: 'Mark stolen',
+	confirmSwitchOff: 'Switch off {name}? Its name stops answering until you switch it on again.',
+	confirmStolen: 'Mark {name} stolen? Relays refuse it and its devices within seconds. Only the family can undo this, by moving the name.',
+	cancel: 'Cancel',
+
+	noReports: 'No open reports.',
+	reported: 'Reported',
+	done: 'Done',
+	switchOffName: 'Switch off this name',
+
+	tokensHelp: 'Paste factory tokens, one a line. Only their hashes are kept, so store the list safely.',
+	addTokens: 'Add tokens',
+	added: '{n} new tokens added.',
+	unused: 'Unused',
+	used: 'Used',
+
+	relayMode: 'Boxes come from',
+	modeControlPlane: 'the control plane',
+	modeEnrolled: 'one-time codes',
+	knownBoxes: 'Boxes it knows',
+	connectedBoxes: 'Boxes connected',
+	connectedDevices: 'Devices connected',
+	sinceStart: 'Since the relay started',
+	allowedBoxes: 'Boxes let in',
+	allowedDevices: 'Devices let in',
+	refused: 'Turned away',
+	refusedRemoved: 'Removed devices turned away',
+	refusedExpired: 'Expired passes',
+	dropped: 'Connections dropped',
+	addBox: 'Add a box',
+	addBoxHelp: 'Make a one-time code, then type it into Box Desktop, under ZOOMRIYA Connect.',
+	makeCode: 'Make a code',
+	codeWorks: 'It works once, for the next {n} minutes.',
+	version: 'Version {v}'
+};
+
+export type Words = typeof en;
+
+const fr: Words = {
+	product: 'ZOOMRIYA Connect',
+	controlPlane: 'Plan de contrôle',
+	relay: 'Relais',
+	signInTitle: 'Connexion',
+	signInHelp: 'Collez le jeton de connexion créé sur ce serveur avec la commande admin-token.',
+	token: 'Jeton de connexion',
+	signIn: 'Se connecter',
+	signOut: 'Se déconnecter',
+	wrongToken: 'Ce jeton ne fonctionne pas. Vérifiez-le ou créez-en un autre.',
+	cantReach: 'Le serveur ne répond pas. Vérifiez qu’il tourne.',
+	overview: 'Vue d’ensemble',
+	boxes: 'Boîtiers',
+	reports: 'Signalements',
+	factoryTokens: 'Jetons d’usine',
+	theme: 'Thème',
+	midnight: 'Minuit',
+	daylight: 'Jour',
+	language: 'Langue',
+	refresh: 'Actualiser',
+	loading: 'Chargement…',
+
+	registered: 'Inscrits',
+	withFactoryToken: 'Avec jeton d’usine',
+	stolen: 'Volés',
+	switchedOff: 'Désactivés',
+	newToday: 'Nouveaux aujourd’hui',
+	newThisWeek: 'Nouveaux cette semaine',
+	openReports: 'Signalements ouverts',
+	unusedTokens: 'Jetons d’usine libres',
+	relays: 'Relais',
+	relayUp: 'Répond',
+	relayDown: 'Ne répond pas',
+	notCheckedYet: 'Pas encore vérifié',
+	ms: 'ms',
+	guests: 'Invités',
+	boxesForSharing: 'Boîtiers prêts pour les invités',
+	guestsSettingUp: 'Invités en connexion',
+	guestRelay: 'Relais des invités',
+	on: 'Activé',
+	off: 'Désactivé',
+
+	search: 'Chercher un nom',
+	name: 'Nom',
+	key: 'Clé du boîtier',
+	state: 'État',
+	since: 'Inscrit',
+	active: 'Actif',
+	isStolen: 'Volé',
+	isOff: 'Désactivé',
+	factory: 'Usine',
+	doorOpen: 'Porte ouverte',
+	noRecord: 'Pas d’adresse publiée',
+	noBoxes: 'Aucun boîtier.',
+	switchOff: 'Désactiver',
+	switchOn: 'Réactiver',
+	markStolen: 'Déclarer volé',
+	confirmSwitchOff: 'Désactiver {name} ? Son nom ne répond plus jusqu’à sa réactivation.',
+	confirmStolen: 'Déclarer {name} volé ? Les relais le refusent, lui et ses appareils, en quelques secondes. Seule la famille peut annuler, en déplaçant le nom.',
+	cancel: 'Annuler',
+
+	noReports: 'Aucun signalement ouvert.',
+	reported: 'Signalé',
+	done: 'Traité',
+	switchOffName: 'Désactiver ce nom',
+
+	tokensHelp: 'Collez les jetons d’usine, un par ligne. Seule leur empreinte est gardée : conservez la liste en lieu sûr.',
+	addTokens: 'Ajouter',
+	added: '{n} nouveaux jetons ajoutés.',
+	unused: 'Libres',
+	used: 'Utilisés',
+
+	relayMode: 'Les boîtiers viennent',
+	modeControlPlane: 'du plan de contrôle',
+	modeEnrolled: 'de codes à usage unique',
+	knownBoxes: 'Boîtiers connus',
+	connectedBoxes: 'Boîtiers connectés',
+	connectedDevices: 'Appareils connectés',
+	sinceStart: 'Depuis le démarrage du relais',
+	allowedBoxes: 'Boîtiers admis',
+	allowedDevices: 'Appareils admis',
+	refused: 'Refusés',
+	refusedRemoved: 'Appareils retirés refusés',
+	refusedExpired: 'Laissez-passer expirés',
+	dropped: 'Connexions coupées',
+	addBox: 'Ajouter un boîtier',
+	addBoxHelp: 'Créez un code à usage unique, puis saisissez-le dans Box Desktop, sous ZOOMRIYA Connect.',
+	makeCode: 'Créer un code',
+	codeWorks: 'Il fonctionne une fois, pendant {n} minutes.',
+	version: 'Version {v}'
+};
+
+export const words: Record<Lang, Words> = { en, fr };
+
+/** Fills `{name}` placeholders. */
+export function fill(text: string, values: Record<string, string | number>): string {
+	return text.replace(/\{(\w+)\}/g, (m, k: string) => (k in values ? String(values[k]) : m));
+}
+
+/** The browser's language if we have it, otherwise English. */
+export function pickLang(preferred: readonly string[]): Lang {
+	for (const p of preferred) {
+		const base = p.toLowerCase().split('-')[0];
+		if (base === 'fr' || base === 'en') return base;
+	}
+	return 'en';
+}

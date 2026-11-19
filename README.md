@@ -8,9 +8,10 @@ You don't set anything up on your router, and the box is never put on the open
 internet. Everything between your phone and the box is encrypted, and only
 devices you've paired can get in.
 
-> **Early days.** Most of this isn't built yet. These pages describe what
-> we're building and why, so you can follow along and tell us where we're
-> wrong.
+> **Early days.** The servers and the box's side work; the phone app, the
+> laptop extension and share links aren't built yet. These pages describe
+> what we're building and why: [Built so far](docs/plan.md#built-so-far)
+> says which is which.
 
 ![Phones and laptops try the box directly and through ZOOMRIYA's relay at the same time, and switch to a direct path when one works. Guests open shared albums directly when they can, with the relay as the last resort. The control plane only helps devices find the box; it never sees your data.](docs/data-flow.svg)
 

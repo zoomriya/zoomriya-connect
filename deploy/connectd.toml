@@ -1,0 +1,33 @@
+# connectd on the box: /etc/zoomriya-connect/connectd.toml.
+# Everything has a default; this file says them out loud.
+
+# The box key, the DNS update key and the device list. Never in backups.
+data_dir = "/data/zoomriya-connect"
+# connect.pem goes here; the agent checks it and serves it beside the box's
+# own certificate.
+certs_dir = "/data/zoomriya-connect/certificate"
+# Box Desktop can switch to a family's own server.
+server = "https://connect.zoomriya.net"
+# UDP 443: iroh. Open from anywhere in the box's firewall.
+port = 443
+# Box Desktop's way in.
+api_socket = "/run/zoomriya-connect/api.sock"
+# A ready-made box's factory token, put there at the factory.
+factory_token_file = "/etc/zoomriya/factory-token"
+
+# The box's web servers paired devices reach. The gateway takes device labels
+# on its own socket only, never on TCP 443.
+[[targets]]
+name = "gateway"
+unix = "/run/zoomriya/gateway-link.sock"
+proxy_protocol = true
+
+[[targets]]
+name = "box-desktop"
+tcp = "127.0.0.1:7443"
+
+# Let's Encrypt first; Google Trust Services when it's needed (its account
+# needs a key from Google Cloud: eab_kid and eab_hmac_key).
+[[certificate_authorities]]
+name = "Let's Encrypt"
+directory = "https://acme-v02.api.letsencrypt.org/directory"

@@ -1,0 +1,34 @@
+[package]
+name = "zoomriya-serve"
+description = "What the relay and the control plane share: HTTPS from certificate files or Let's Encrypt, time, logging"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+axum.workspace = true
+data-encoding.workspace = true
+futures-util = { version = "0.3", default-features = false }
+getrandom = "0.3"
+hyper.workspace = true
+hyper-util.workspace = true
+rustls.workspace = true
+sha2.workspace = true
+subtle = "2.6"
+serde.workspace = true
+tokio.workspace = true
+tokio-rustls.workspace = true
+tokio-rustls-acme.workspace = true
+tower.workspace = true
+tower-http = { version = "0.6", features = ["fs"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true

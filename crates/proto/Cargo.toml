@@ -1,11 +1,18 @@
 [package]
 name = "zoomriya-proto"
-description = "Messages shared by the link, connectd and the control plane, versioned"
+description = "Messages shared by the link, connectd, the relay and the control plane, versioned; box-name rules"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 publish.workspace = true
+
+[dependencies]
+serde.workspace = true
+zoomriya-keys.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
 
 [lints]
 workspace = true

@@ -1,0 +1,42 @@
+# ZOOMRIYA's relays. Copy to /etc/zoomriya-relay/relay.toml.
+
+# The list of boxes is kept here between restarts.
+state_dir = "/var/lib/zoomriya-relay"
+
+[https]
+bind = "[::]:443"
+# Let's Encrypt over TLS-ALPN on port 443: nothing else to install.
+# Or: cert = { mode = "files", cert = "/etc/zoomriya-relay/cert.pem", key = "/etc/zoomriya-relay/key.pem" }
+cert = { mode = "lets_encrypt", domains = ["relay1.zoomriya.net"], contact = ["mailto:ops@zoomriya.com"], cache_dir = "/var/lib/zoomriya-relay/acme" }
+
+# Networks with a captive portal are checked over plain HTTP.
+[http]
+bind = "[::]:80"
+
+# Tells each side its public address, for hole punching.
+[quic]
+bind = "[::]:7842"
+
+# Our dashboard only: never on the internet.
+[metrics]
+bind = "127.0.0.1:9090"
+
+[boxes]
+source = "control_plane"
+url = "https://connect.zoomriya.net"
+# The control plane to relay key (docs/operations.md, "Changing our keys").
+key_file = "/etc/zoomriya-relay/feed.key"
+poll_seconds = 10
+
+[limits]
+clock_allowance_seconds = 600
+longest_pass_days = 31
+# Per connection. Monthly volume per box is still to come.
+client_bytes_per_second = 4000000
+
+# The GUI: on this server only. Reach it with ssh -L 8444:127.0.0.1:8444.
+# Make a sign-in token with: zoomriya-relay admin-token --config FILE NAME
+[admin]
+bind = "127.0.0.1:8444"
+tokens_file = "/var/lib/zoomriya-relay/admin-tokens"
+web_dir = "/usr/share/zoomriya-connect/admin"

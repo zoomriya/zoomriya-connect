@@ -1,11 +1,51 @@
 [package]
 name = "zoomriya-control-plane"
-description = "The control plane: box addresses, hole-punch signaling, STUN, DNS for box names"
+description = "The control plane: registrations, box names in DNS, address records, the list of boxes for relays"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 publish.workspace = true
+
+[[bin]]
+name = "zoomriya-control-plane"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+async-trait = "0.1"
+axum.workspace = true
+data-encoding.workspace = true
+getrandom = "0.3"
+hmac = "0.12"
+hickory-server.workspace = true
+iroh-dns.workspace = true
+reqwest.workspace = true
+rusqlite.workspace = true
+rustls.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha1 = "0.10"
+sha2.workspace = true
+subtle = "2.6"
+tokio.workspace = true
+tokio-rustls.workspace = true
+toml.workspace = true
+tracing.workspace = true
+webpki-roots = "1"
+zoomriya-keys.workspace = true
+zoomriya-proto.workspace = true
+zoomriya-serve.workspace = true
+
+[dev-dependencies]
+futures-util = { version = "0.3", default-features = false, features = ["sink"] }
+rcgen = "0.14"
+tokio-tungstenite = "0.28"
+http-body-util = "0.1"
+hyper.workspace = true
+hyper-util = { workspace = true, features = ["client-legacy", "http1"] }
+hickory-proto = { version = "0.26.3", default-features = false }
+tempfile = "3"
 
 [lints]
 workspace = true

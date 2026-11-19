@@ -4,7 +4,9 @@ Part of [ZOOMRIYA Connect](../README.md).
 
 How ZOOMRIYA Connect is put together: each part, what it knows, and what each
 rule protects against. For a gentler tour, read [How it works](how-it-works.md)
-first. None of this is built yet.
+first. The servers, connectd and Box Desktop's side are built (see
+[Plan and layout](plan.md#built-so-far)); the phone app, the extension and
+guests' side aren't yet.
 
 ![Phones and laptops with the ZOOMRIYA app reach the box with pinned keys, and connectd hands them to the box's apps. Each connection tries the box's known addresses and the relay at once and moves to a direct path when one works; the relay keeps forwarding encrypted traffic only if none does. Guests open a share link in any browser with nothing installed: over port 443 or by WebRTC hole punching, with a relay as the last option for the encrypted read-only share session. The sign-in page and apps are never on the internet. The control plane only serves the boxes' address records, passes guests' signals, answers DNS and serves the guest page; it carries no family or guest data.](architecture.svg)
 
@@ -156,7 +158,7 @@ The coordinator. It never carries family data.
 
 | What it does | Why |
 |---|---|
-| **Keeps address records** (`iroh-dns-server`), signed by each box | It can serve them, never change them |
+| **Keeps address records,** in iroh's format, signed by each box, and only from registered boxes. Serves them over HTTPS (`/pkarr`) and in DNS (`_iroh.<box key>.dns.zoomriya.net`) | It can serve them, never change them, and strangers can't store records on it |
 | **Answers DNS for box names** under `zoomriya.app`, from two servers by release: `ns1.zoomriya.net` on the control plane, and `ns2.zoomriya.net` on a second server at another hosting company, copying the first | Names keep answering if one is down |
 | **Puts Let's Encrypt's temporary DNS record**, with a key that works only for that box's name | Certificates without opening the router |
 | **Checks from outside** that the door works and the sign-in page can't be reached through it. Only ever checks the asking box's address | Catches a door that leaks, and can't be used to scan others |
@@ -423,6 +425,7 @@ a link is live.
 | **iroh chooses the path; we measure** | Our own path choice | iroh already measures every path and moves to the fastest. Two choosers would fight |
 | **Connection history on the box,** anonymous reports to us only if agreed | A ZOOMRIYA dashboard of every device | Which device needs the relay is the family's business. Our servers never learn your devices |
 | **Try direct and the relay at once** | The relay first, or direct first and the relay after a wait | Direct from the start at home and on IPv6, and no wait behind a difficult router. Hole punching needs the relay anyway |
+| **Address records kept by the control plane itself,** in iroh's format | Running `iroh-dns-server` beside it | Only registered boxes can publish, and one DNS server on port 53 answers for box names and address records alike. `iroh-dns-server` takes records from anyone and needs port 53 to itself |
 | **Our own access check in iroh's relay library** | Changing iroh's relay, or a separate check service | The library's hook sees the device's proven key and its pass, and can drop a removed device. iroh stays unchanged, so upgrades stay quick |
 | **Two keys per device:** the chip's key signs a link key | One key in the chip | Most chips can't hold iroh's Ed25519 key. The chip's key still decides, and a copied link key dies with the next pass |
 | **Recovery by pairing again at home**, with an admin's phone moving the name | A recovery phrase for ZOOMRIYA Connect | Families keep nothing extra. It takes a minute per phone, which they'd spend on a new box anyway |
