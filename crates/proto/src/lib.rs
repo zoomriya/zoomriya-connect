@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use zoomriya_keys::Key;
 
 pub mod addrs;
+pub mod laptop;
 pub mod link;
 pub mod names;
 
@@ -291,6 +292,27 @@ pub struct WellKnown {
     /// The families' account page, such as `https://connect.zoomriya.net/account/`.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub account_page: String,
+    /// STUN servers (`stun:host:port`): the guests' relay, which also tells
+    /// the box and laptops their public addresses for WebRTC.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub stun: Vec<String>,
+}
+
+/// The STUN addresses of the guests' relay, from its `turn:` URLs: the same
+/// server and port answers both. `turns:` (TLS) URLs have no STUN twin.
+pub fn stun_from_turn(turn_urls: &[String]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for u in turn_urls {
+        let Some(rest) = u.strip_prefix("turn:") else {
+            continue;
+        };
+        let host = rest.split('?').next().unwrap_or(rest);
+        let stun = format!("stun:{host}");
+        if !out.contains(&stun) {
+            out.push(stun);
+        }
+    }
+    out
 }
 
 /// An admin note, sealed by the box key ([`zoomriya_keys::Purpose::AdminNote`]):

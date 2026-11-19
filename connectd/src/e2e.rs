@@ -113,6 +113,7 @@ async fn a_phone_from_pairing_to_removal() {
                 unix: None,
                 tcp: Some(web),
                 proxy_protocol: true,
+                tls: false,
             }],
             fqdn: "maplehouse.zoomriya.app".into(),
             server: "https://connect.zoomriya.net".into(),

@@ -27,6 +27,7 @@ mod config;
 mod enrol;
 mod front;
 mod gate;
+mod laptops;
 mod meter;
 
 use config::{Boxes, Config};
@@ -173,10 +174,22 @@ async fn serve(cfg: Config) -> Result<()> {
     let listener =
         zoomriya_serve::TlsListener::bind(cfg.https.bind, &cfg.https.cert, &[b"http/1.1"]).await?;
     let tls = listener.config();
+    let laptops = Arc::new(laptops::Hub::default());
+    {
+        let laptops = laptops.clone();
+        tasks.spawn(async move {
+            let mut every = tokio::time::interval(std::time::Duration::from_secs(300));
+            loop {
+                every.tick().await;
+                laptops.tidy();
+            }
+        });
+    }
     let api = front::router(front::Api {
         gate: gate.clone(),
         enrolled,
         clock_allowance: cfg.limits.clock_allowance_seconds,
+        laptops: laptops.clone(),
     });
     tasks.spawn(front::serve(
         listener,

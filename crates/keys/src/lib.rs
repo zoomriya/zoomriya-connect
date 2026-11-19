@@ -38,6 +38,12 @@ pub enum Purpose {
     /// An admin note: lets one admin's phone move the box's name or mark it
     /// stolen. Signed by the box key.
     AdminNote,
+    /// A laptop's WebRTC offer. Signed by the laptop's device key.
+    LaptopOffer,
+    /// The box's WebRTC answer to a laptop, naming the offer. Signed by the box key.
+    LaptopAnswer,
+    /// What a laptop got from pairing. Signed by the box key.
+    LaptopPaired,
 }
 
 impl Purpose {
@@ -47,6 +53,9 @@ impl Purpose {
             Purpose::RemovedDevices => b"removed-devices/v1",
             Purpose::Request => b"request/v1",
             Purpose::AdminNote => b"admin-note/v1",
+            Purpose::LaptopOffer => b"laptop-offer/v1",
+            Purpose::LaptopAnswer => b"laptop-answer/v1",
+            Purpose::LaptopPaired => b"laptop-paired/v1",
         }
     }
 }
@@ -54,7 +63,8 @@ impl Purpose {
 /// Every signed message starts with this, then the purpose, then the message.
 const DOMAIN: &[u8] = b"zoomriya-connect\0";
 
-fn framed(purpose: Purpose, msg: &[u8]) -> Vec<u8> {
+/// The exact bytes signed for `purpose`: what a browser signs too.
+pub fn framed(purpose: Purpose, msg: &[u8]) -> Vec<u8> {
     let ctx = purpose.context();
     let mut out = Vec::with_capacity(DOMAIN.len() + ctx.len() + 1 + msg.len());
     out.extend_from_slice(DOMAIN);

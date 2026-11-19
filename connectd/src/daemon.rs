@@ -23,6 +23,7 @@ use crate::{
     acme,
     config::Config,
     devices::Devices,
+    laptop,
     link::{Link, LinkConfig, Live},
     net, relays,
     server::{self, Server},
@@ -289,6 +290,51 @@ async fn online(ctx: &Arc<Ctx>) -> Result<()> {
     info!(%fqdn, "ZOOMRIYA Connect on");
 
     let mut tasks = tokio::task::JoinSet::new();
+    // Laptops: WebRTC, and their pairing and setup at home.
+    let lc = &ctx.cfg.laptops;
+    match ctx.cfg.targets.iter().find(|t| t.name == lc.target) {
+        Some(target) => {
+            let hosts = net::home_addrs()
+                .ipv4
+                .into_iter()
+                .map(std::net::IpAddr::V4)
+                .collect();
+            match laptop::Laptops::start(
+                ctx.devices.clone(),
+                ctx.box_key.clone(),
+                laptop::Setup {
+                    fqdn: fqdn.clone(),
+                    server: server.base().to_string(),
+                    target: target.clone(),
+                    udp_port: lc.udp_port,
+                    hosts,
+                    relays: relays.clone(),
+                    stun: wk.stun.clone(),
+                    desktop: if lc.desktop_url.is_empty() {
+                        format!("https://{fqdn}:7443")
+                    } else {
+                        lc.desktop_url.trim_end_matches('/').to_string()
+                    },
+                    bundle: ctx.cfg.certs_dir.join(acme::BUNDLE),
+                },
+            )
+            .await
+            {
+                Ok((laptops, run)) => {
+                    tasks.spawn(run);
+                    tasks.spawn(laptop::listen_on_relays(laptops.clone(), ctx.http.clone()));
+                    tasks.spawn(laptop::serve_home(
+                        laptops,
+                        lc.tcp_port,
+                        ctx.cfg.certs_dir.join(acme::BUNDLE),
+                        lc.plain_http,
+                    ));
+                }
+                Err(e) => warn!("laptops: {e:#}"),
+            }
+        }
+        None => warn!(target = %lc.target, "laptops: no such target"),
+    }
     tasks.spawn(keep_home(ctx.clone(), server.clone(), name.clone()));
     tasks.spawn(keep_certificate(ctx.clone(), server.clone(), name.clone()));
     tasks.spawn(watch_relay(

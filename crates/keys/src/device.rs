@@ -38,6 +38,21 @@ impl DeviceKey {
     /// Checks the device key's signature over a link key. Takes DER (what the
     /// phones' chips give) or the raw 64 bytes (what browsers give), base64url.
     pub fn verify_link(&self, link: &PublicKey, sig_b64: &str) -> Result<(), KeyError> {
+        self.verify(&link_key_message(link), sig_b64)
+    }
+
+    /// Checks the device key's signature over a message signed for `purpose`
+    /// ([`crate::framed`]): a laptop's WebRTC offer.
+    pub fn verify_for(
+        &self,
+        purpose: crate::Purpose,
+        msg: &[u8],
+        sig_b64: &str,
+    ) -> Result<(), KeyError> {
+        self.verify(&crate::framed(purpose, msg), sig_b64)
+    }
+
+    fn verify(&self, msg: &[u8], sig_b64: &str) -> Result<(), KeyError> {
         let bytes = BASE64URL_NOPAD
             .decode(sig_b64.trim().as_bytes())
             .map_err(|_| KeyError::Malformed)?;
@@ -47,9 +62,7 @@ impl DeviceKey {
             Signature::from_der(&bytes)
         }
         .map_err(|_| KeyError::Malformed)?;
-        self.0
-            .verify(&link_key_message(link), &sig)
-            .map_err(|_| KeyError::BadSignature)
+        self.0.verify(msg, &sig).map_err(|_| KeyError::BadSignature)
     }
 }
 

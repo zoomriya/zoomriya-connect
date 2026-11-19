@@ -59,6 +59,9 @@ pub struct Device {
     /// What iroh measured, newest last.
     #[serde(default)]
     pub reports: VecDeque<ConnectionReport>,
+    /// A laptop, with the browser extension: it connects over WebRTC.
+    #[serde(default)]
+    pub laptop: bool,
 }
 
 /// Why something about devices was refused. `code()` and `message()` go to
@@ -123,6 +126,16 @@ struct Pairing {
     admin: bool,
 }
 
+/// A laptop's pairing code: short, so it can be typed, so it allows only a
+/// few tries.
+#[derive(Debug, Clone)]
+struct LaptopPairing {
+    code_sha256: [u8; 32],
+    expires: u64,
+    name: String,
+    tries_left: u32,
+}
+
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct Saved {
     devices: Vec<Device>,
@@ -145,6 +158,7 @@ pub struct Devices {
     file: PathBuf,
     list: Mutex<Vec<Device>>,
     pairing: Mutex<Option<Pairing>>,
+    laptop_pairing: Mutex<Option<LaptopPairing>>,
 }
 
 fn sha(s: &str) -> [u8; 32] {
@@ -165,6 +179,7 @@ impl Devices {
             file: file.to_path_buf(),
             list: Mutex::new(saved.devices),
             pairing: Mutex::new(None),
+            laptop_pairing: Mutex::new(None),
         })
     }
 
@@ -279,6 +294,7 @@ impl Devices {
             last_seen: now,
             removed_at: None,
             reports: VecDeque::new(),
+            laptop: false,
         };
         let admin_note = device.admin_key.map(|k| {
             seal(
@@ -297,6 +313,110 @@ impl Devices {
             device,
             pass,
             admin_note,
+        })
+    }
+
+    /// Opens pairing for a laptop: returns the short code Box Desktop shows.
+    /// A new code replaces an older one.
+    pub fn start_laptop_pairing(&self, name: &str, now: u64) -> Result<String> {
+        let mut bytes = [0u8; 8];
+        getrandom::fill(&mut bytes).map_err(|e| anyhow::anyhow!("randomness: {e}"))?;
+        let code = zoomriya_proto::laptop::new_code(bytes);
+        let mut p = self
+            .laptop_pairing
+            .lock()
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        *p = Some(LaptopPairing {
+            code_sha256: sha(&zoomriya_proto::laptop::normalise_code(&code)),
+            expires: now + PAIRING_LIFETIME,
+            name: name.trim().chars().take(60).collect(),
+            tries_left: zoomriya_proto::laptop::CODE_TRIES,
+        });
+        Ok(code)
+    }
+
+    /// Whether a laptop's pairing code is waiting.
+    pub fn laptop_pairing_open(&self, now: u64) -> bool {
+        self.laptop_pairing
+            .lock()
+            .ok()
+            .and_then(|p| p.as_ref().map(|p| p.expires > now && p.tries_left > 0))
+            .unwrap_or(false)
+    }
+
+    /// Stops a laptop's pairing.
+    pub fn cancel_laptop_pairing(&self) {
+        if let Ok(mut p) = self.laptop_pairing.lock() {
+            *p = None;
+        }
+    }
+
+    /// Pairs a laptop, at home. A wrong code uses up one of its few tries.
+    pub fn pair_laptop(
+        &self,
+        req: &zoomriya_proto::laptop::LaptopPairRequest,
+        box_key: &SecretKey,
+        now: u64,
+    ) -> Result<Paired, Refused> {
+        let name = {
+            let mut p = self
+                .laptop_pairing
+                .lock()
+                .map_err(|_| Refused::PairingCode)?;
+            let Some(open) = p.as_mut() else {
+                return Err(Refused::PairingCode);
+            };
+            if now > open.expires || open.tries_left == 0 {
+                *p = None;
+                return Err(Refused::PairingCode);
+            }
+            let typed = sha(&zoomriya_proto::laptop::normalise_code(&req.code));
+            if !bool::from(typed.ct_eq(&open.code_sha256)) {
+                open.tries_left -= 1;
+                if open.tries_left == 0 {
+                    *p = None;
+                }
+                return Err(Refused::PairingCode);
+            }
+            let name = open.name.clone();
+            *p = None;
+            name
+        };
+        let device_key =
+            DeviceKey::from_b64(&req.device_key).map_err(|_| Refused::DeviceSignature)?;
+        device_key
+            .verify_link(&req.link.0, &req.link_sig)
+            .map_err(|_| Refused::DeviceSignature)?;
+        if self.by_link(&req.link.0).is_some() {
+            return Err(Refused::WrongLink);
+        }
+        let (pass, until) = issue_pass(box_key, &req.link.0, now)?;
+        let mut id = [0u8; 6];
+        getrandom::fill(&mut id).map_err(|_| Refused::PairingCode)?;
+        let device = Device {
+            id: HEXLOWER.encode(&id),
+            name: if name.is_empty() {
+                req.name.trim().chars().take(60).collect()
+            } else {
+                name
+            },
+            device_key: device_key.to_b64(),
+            link: req.link,
+            pass_until: until,
+            admin: false,
+            admin_key: None,
+            paired_at: now,
+            last_seen: now,
+            removed_at: None,
+            reports: VecDeque::new(),
+            laptop: true,
+        };
+        self.with(|l| l.push(device.clone()))
+            .map_err(|_| Refused::PairingCode)?;
+        Ok(Paired {
+            device,
+            pass,
+            admin_note: None,
         })
     }
 
@@ -322,6 +442,29 @@ impl Devices {
         self.with(|l| {
             if let Some(d) = l.iter_mut().find(|d| d.id == id) {
                 d.link = Key(*new_link);
+                d.pass_until = until;
+            }
+        })
+        .map_err(|_| Refused::Unknown)?;
+        Ok((pass, until))
+    }
+
+    /// A new pass for a paired laptop's current link key, each time it
+    /// connects, so one in use never runs out.
+    pub fn fresh_pass(
+        &self,
+        id: &str,
+        box_key: &SecretKey,
+        now: u64,
+    ) -> Result<(String, u64), Refused> {
+        let device = self
+            .all()
+            .into_iter()
+            .find(|d| d.id == id && d.removed_at.is_none() && d.laptop)
+            .ok_or(Refused::Unknown)?;
+        let (pass, until) = issue_pass(box_key, &device.link.0, now)?;
+        self.with(|l| {
+            if let Some(d) = l.iter_mut().find(|d| d.id == id) {
                 d.pass_until = until;
             }
         })
@@ -641,6 +784,64 @@ mod tests {
             )
             .map(|_| ()),
             Err(Refused::Clock)
+        );
+    }
+
+    #[test]
+    fn laptops_pair_with_a_short_code_and_few_tries() {
+        let (_dir, d) = devices();
+        let b = SecretKey::generate();
+        let laptop = Phone::new();
+        let req = |code: &str| zoomriya_proto::laptop::LaptopPairRequest {
+            code: code.into(),
+            device_key: BASE64URL_NOPAD
+                .encode(laptop.chip.verifying_key().to_sec1_point(false).as_bytes()),
+            link: laptop.link.public().into(),
+            link_sig: laptop.sig(&laptop.link.public()),
+            name: "Anna's laptop".into(),
+        };
+        // No code shown: refused.
+        assert_eq!(
+            d.pair_laptop(&req("ABCD-EFGH"), &b, NOW).map(|_| ()),
+            Err(Refused::PairingCode)
+        );
+
+        // Three tries, then the code is used up.
+        let code = d.start_laptop_pairing("", NOW).expect("code");
+        assert!(d.laptop_pairing_open(NOW));
+        for _ in 0..3 {
+            assert_eq!(
+                d.pair_laptop(&req("ZZZZ-ZZZZ"), &b, NOW).map(|_| ()),
+                Err(Refused::PairingCode)
+            );
+        }
+        assert!(!d.laptop_pairing_open(NOW));
+        assert_eq!(
+            d.pair_laptop(&req(&code), &b, NOW).map(|_| ()),
+            Err(Refused::PairingCode),
+            "the right code after the tries are gone"
+        );
+
+        // A new code, typed in small letters without the dash: paired.
+        let code = d.start_laptop_pairing("", NOW).expect("code");
+        let typed = code.replace('-', " ").to_lowercase();
+        let p = d.pair_laptop(&req(&typed), &b, NOW + 5).expect("paired");
+        assert!(p.device.laptop);
+        assert_eq!(p.device.name, "Anna's laptop");
+        assert!(d.by_link(&laptop.link.public()).is_some());
+        assert!(!d.laptop_pairing_open(NOW), "one laptop per code");
+
+        // Old codes don't work, and neither does pairing the same keys twice.
+        let code = d.start_laptop_pairing("", NOW).expect("code");
+        assert_eq!(
+            d.pair_laptop(&req(&code), &b, NOW + PAIRING_LIFETIME + 1)
+                .map(|_| ()),
+            Err(Refused::PairingCode)
+        );
+        let code = d.start_laptop_pairing("", NOW).expect("code");
+        assert_eq!(
+            d.pair_laptop(&req(&code), &b, NOW).map(|_| ()),
+            Err(Refused::WrongLink)
         );
     }
 }

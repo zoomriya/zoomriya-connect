@@ -1,6 +1,7 @@
 //! The relay's front door on port 443. `/relay` goes to iroh's relay service
 //! untouched; everything else is ours: the box's removed-device list, a
-//! family relay's enrolment, health and the probe iroh clients use.
+//! family relay's enrolment, laptops' offers from away (`laptops`), health
+//! and the probe iroh clients use.
 
 use std::{
     convert::Infallible,
@@ -36,12 +37,13 @@ use tokio::{
 use tower::ServiceExt;
 use tracing::{debug, info, warn};
 use zoomriya_keys::{Purpose, REQUEST_SIGNATURE_HEADER, RequestSignature, open};
-use zoomriya_proto::{BoxState, EnrolRequest, ErrorBody, RemovedDevices};
+use zoomriya_proto::{BoxState, EnrolRequest, ErrorBody, RemovedDevices, laptop};
 use zoomriya_serve::TlsListener;
 
 use crate::{
     boxes, enrol,
     gate::{Gate, ListRefused},
+    laptops,
     meter::{CONN_HEADER, Meter},
 };
 
@@ -59,6 +61,8 @@ pub struct Api {
     pub enrolled: Option<Enrolled>,
     /// Clock allowance, in seconds.
     pub clock_allowance: u64,
+    /// Laptops' offers from away, waiting for their boxes.
+    pub laptops: Arc<laptops::Hub>,
 }
 
 /// A family relay's enrolment state.
@@ -70,7 +74,7 @@ pub struct Enrolled {
     pub lock: Arc<Mutex<()>>,
 }
 
-fn error(status: StatusCode, code: &str, message: &str) -> Response {
+pub(crate) fn error(status: StatusCode, code: &str, message: &str) -> Response {
     (
         status,
         Json(ErrorBody {
@@ -96,6 +100,12 @@ pub fn router(api: Api) -> Router {
         )
         .route("/zoomriya/v1/removed", post(removed))
         .route("/zoomriya/v1/enrol", post(enrol_box))
+        .route(
+            laptop::RELAY_CONNECT,
+            post(laptops::connect).options(laptops::preflight),
+        )
+        .route(laptop::RELAY_WAIT, post(laptops::wait))
+        .route(laptop::RELAY_ANSWER, post(laptops::answer))
         .layer(DefaultBodyLimit::max(MAX_LIST))
         .with_state(api)
 }
@@ -430,6 +440,7 @@ mod tests {
             gate: gate.clone(),
             enrolled: None,
             clock_allowance: 600,
+            laptops: Arc::default(),
         });
         tokio::spawn(serve(listener, relay, api, gate.meter.clone()));
         Running {
@@ -484,6 +495,112 @@ mod tests {
                 _ => return None,
             }
         }
+    }
+
+    #[tokio::test]
+    async fn laptops_offers_from_away() {
+        use zoomriya_keys::sign_request;
+        use zoomriya_proto::laptop::{
+            LaptopOffer, RELAY_ANSWER, RELAY_CONNECT, RELAY_WAIT, RelayedAnswer, RelayedOffers,
+        };
+        let r = start().await;
+        let b = SecretKey::generate();
+        let laptop = SecretKey::generate();
+        r.gate.apply(b.public(), BoxState::Active);
+        let http = reqwest::Client::builder()
+            .tls_certs_only([reqwest::Certificate::from_der(&r.root).expect("root")])
+            .build()
+            .expect("client");
+        let offer = serde_json::to_vec(&LaptopOffer {
+            link: laptop.public().into(),
+            time: now(),
+            sdp: "v=0".into(),
+            sig: "x".into(),
+        })
+        .expect("json");
+        let send_offer = |pass: String, signer: SecretKey| {
+            let http = http.clone();
+            let url = format!("{}{RELAY_CONNECT}", r.url);
+            let offer = offer.clone();
+            async move {
+                http.post(url)
+                    .header("authorization", format!("Bearer {pass}"))
+                    .header(
+                        REQUEST_SIGNATURE_HEADER,
+                        sign_request(&signer, "POST", RELAY_CONNECT, now(), &offer),
+                    )
+                    .body(offer)
+                    .send()
+                    .await
+                    .expect("post")
+            }
+        };
+
+        // The box isn't listening yet.
+        let res = send_offer(pass(&b, &laptop), laptop.clone()).await;
+        assert_eq!(res.status(), 404);
+
+        // The box waits; the laptop's offer reaches it; its answer comes back.
+        let wait = {
+            let http = http.clone();
+            let url = format!("{}{RELAY_WAIT}", r.url);
+            let sig = sign_request(&b, "POST", RELAY_WAIT, now(), b"");
+            tokio::spawn(async move {
+                let res = http
+                    .post(url)
+                    .header(REQUEST_SIGNATURE_HEADER, sig)
+                    .send()
+                    .await
+                    .expect("wait");
+                assert_eq!(res.status(), 200);
+                res.json::<RelayedOffers>().await.expect("offers")
+            })
+        };
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        let asking = tokio::spawn(send_offer(pass(&b, &laptop), laptop.clone()));
+        let got = wait.await.expect("wait");
+        assert_eq!(got.offers.len(), 1);
+        assert_eq!(got.offers[0].offer.link.0, laptop.public());
+        let answer = serde_json::to_vec(&RelayedAnswer {
+            id: got.offers[0].id,
+            answer: Some("sealed".into()),
+            error: None,
+        })
+        .expect("json");
+        let res = http
+            .post(format!("{}{RELAY_ANSWER}", r.url))
+            .header(
+                REQUEST_SIGNATURE_HEADER,
+                sign_request(&b, "POST", RELAY_ANSWER, now(), &answer),
+            )
+            .body(answer)
+            .send()
+            .await
+            .expect("answer");
+        assert_eq!(res.status(), 204);
+        let res = asking.await.expect("asked");
+        assert_eq!(res.status(), 200);
+        assert_eq!(
+            res.headers()
+                .get("access-control-allow-origin")
+                .map(|v| v.as_bytes()),
+            Some(&b"*"[..])
+        );
+        let body: serde_json::Value = res.json().await.expect("json");
+        assert_eq!(body["answer"], "sealed");
+
+        // A pass shown by someone without its link key; and a stranger's box.
+        let stranger = SecretKey::generate();
+        let res = send_offer(pass(&b, &laptop), stranger.clone()).await;
+        assert_eq!(res.status(), 403);
+        let sig = sign_request(&stranger, "POST", RELAY_WAIT, now(), b"");
+        let res = http
+            .post(format!("{}{RELAY_WAIT}", r.url))
+            .header(REQUEST_SIGNATURE_HEADER, sig)
+            .send()
+            .await
+            .expect("wait");
+        assert_eq!(res.status(), 403);
     }
 
     #[tokio::test]

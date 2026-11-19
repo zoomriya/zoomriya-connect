@@ -31,6 +31,9 @@ pub struct Config {
     /// A file holding a ready-made box's factory token, if it has one.
     #[serde(default = "factory_token")]
     pub factory_token_file: PathBuf,
+    /// Laptops' WebRTC and their pairing at home.
+    #[serde(default)]
+    pub laptops: Laptops,
     /// The box's own web servers that paired devices reach.
     #[serde(default = "targets")]
     pub targets: Vec<Target>,
@@ -62,6 +65,61 @@ pub struct Target {
     /// socket nobody else can reach, never on the home network's port.
     #[serde(default)]
     pub proxy_protocol: bool,
+    /// The server speaks TLS (it does on the box). Laptops' requests reach it
+    /// as plain HTTP inside WebRTC, so connectd opens the TLS itself.
+    #[serde(default = "yes")]
+    pub tls: bool,
+}
+
+fn yes() -> bool {
+    true
+}
+
+/// Laptops: the browser extension, over WebRTC (docs/laptops.md).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Laptops {
+    /// TCP, the home network only: pairing and setting up connections at
+    /// home, over HTTPS with the box's certificate.
+    #[serde(default = "laptop_tcp")]
+    pub tcp_port: u16,
+    /// UDP: WebRTC, from anywhere, like iroh's port.
+    #[serde(default = "laptop_udp")]
+    pub udp_port: u16,
+    /// The web server laptops' pages come from.
+    #[serde(default = "laptop_target")]
+    pub target: String,
+    /// Plain HTTP on the home network instead of HTTPS: development only,
+    /// for a box with no certificate.
+    #[serde(default)]
+    pub plain_http: bool,
+    /// Box Desktop's address as laptops open it. Empty: `https://<the box's
+    /// name>:7443`. Firefox's extension opens this address and keeps Box
+    /// Desktop's service worker on it (docs/laptops.md, "Firefox").
+    #[serde(default)]
+    pub desktop_url: String,
+}
+
+impl Default for Laptops {
+    fn default() -> Self {
+        Self {
+            tcp_port: laptop_tcp(),
+            udp_port: laptop_udp(),
+            target: laptop_target(),
+            plain_http: false,
+            desktop_url: String::new(),
+        }
+    }
+}
+
+fn laptop_tcp() -> u16 {
+    7445
+}
+fn laptop_udp() -> u16 {
+    7446
+}
+fn laptop_target() -> String {
+    "box-desktop".into()
 }
 
 /// A certificate authority.
@@ -105,6 +163,7 @@ fn targets() -> Vec<Target> {
         unix: Some(PathBuf::from("/run/zoomriya/gateway-link.sock")),
         tcp: None,
         proxy_protocol: true,
+        tls: true,
     }]
 }
 fn authorities() -> Vec<Authority> {

@@ -18,11 +18,13 @@ mod config;
 mod daemon;
 mod devices;
 mod files;
+mod laptop;
 mod link;
 mod net;
 mod relays;
 mod server;
 mod state;
+mod stun;
 
 #[cfg(test)]
 mod e2e;

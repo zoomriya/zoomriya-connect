@@ -51,7 +51,7 @@ are in [`deploy/`](../deploy).
 | UDP 7842 | Relay | Everyone: QUIC address discovery |
 | TCP 9090 | Relay | The server itself only: numbers for the dashboard |
 | TCP 8444 | Both | The server itself only: the GUI. Reach it with `ssh -L 8444:127.0.0.1:8444 server` |
-| UDP 3478, TCP 443 | Guests' relay | Everyone |
+| UDP 3478, TCP 443 | Guests' relay | Everyone. UDP 3478 also answers STUN for boxes and laptops ([Laptops](laptops.md#connecting)) |
 
 Certificates come from Let's Encrypt over port 443 by themselves, or from
 files, read again every hour. The services run with only the right to use

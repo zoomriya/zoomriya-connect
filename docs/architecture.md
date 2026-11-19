@@ -52,8 +52,12 @@ box passes through it unopened, so there are two layers of encryption.
 ### The browser extension (on your laptop)
 
 Laptops don't run iroh. Browsers don't let extensions use its direct paths, so
-the extension does the link's job its own way. It depends on three checks:
-see [Laptops](laptops.md).
+the extension does the link's job its own way. It depends on three checks;
+the first passes in Chromium-based browsers and Firefox: see
+[Laptops](laptops.md). Firefox runs no service worker in extensions, so there
+the box's pages open at Box Desktop's own address and the box's own service
+worker hands their requests to the extension
+([Laptops, Firefox](laptops.md#firefox)).
 
 | What it does | Why |
 |---|---|

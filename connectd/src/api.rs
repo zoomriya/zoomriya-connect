@@ -8,7 +8,7 @@
 //! | `POST /v1/on`, `POST /v1/off` | Switches ZOOMRIYA Connect on or off |
 //! | `POST /v1/release` | Gives the name up |
 //! | `GET /v1/devices` | Paired devices, with how each connects |
-//! | `POST /v1/pairing` `{name, admin}` | A pairing code for the QR code |
+//! | `POST /v1/pairing` `{name, admin, laptop}` | A pairing code for the QR code; for a laptop, a short code to type |
 //! | `DELETE /v1/pairing` | Stops pairing |
 //! | `DELETE /v1/devices/{id}` | Removes a device, at once, everywhere |
 //! | `POST /v1/devices/{id}/name` `{name}` | Renames a device |
@@ -156,7 +156,8 @@ async fn status(State(ctx): State<Shared>) -> Response {
         box_key: ctx.box_key.public().to_z32(),
         devices,
         connected,
-        pairing: ctx.devices.pairing_open(crate::now()),
+        pairing: ctx.devices.pairing_open(crate::now())
+            || ctx.devices.laptop_pairing_open(crate::now()),
         clock_synced: crate::clock::synced(),
         health: ctx.health(|h| h.clone()).unwrap_or_default(),
     })
@@ -292,6 +293,10 @@ struct NewPairing {
     name: String,
     #[serde(default)]
     admin: bool,
+    /// A laptop: a short code to type into the browser extension instead of
+    /// a QR code.
+    #[serde(default)]
+    laptop: bool,
 }
 
 async fn start_pairing(State(ctx): State<Shared>, Json(req): Json<NewPairing>) -> Response {
@@ -311,6 +316,17 @@ async fn start_pairing(State(ctx): State<Shared>, Json(req): Json<NewPairing>) -
         );
     }
     let now = crate::now();
+    if req.laptop {
+        return match ctx.devices.start_laptop_pairing(&req.name, now) {
+            Ok(code) => Json(serde_json::json!({
+                "code": code,
+                "fqdn": fqdn,
+                "expires_in": PAIRING_LIFETIME,
+            }))
+            .into_response(),
+            Err(e) => failed(e),
+        };
+    }
     let secret = match ctx.devices.start_pairing(&req.name, req.admin, now) {
         Ok(s) => s,
         Err(e) => return failed(e),
@@ -339,6 +355,7 @@ async fn start_pairing(State(ctx): State<Shared>, Json(req): Json<NewPairing>) -
 
 async fn stop_pairing(State(ctx): State<Shared>) -> Response {
     ctx.devices.cancel_pairing();
+    ctx.devices.cancel_laptop_pairing();
     StatusCode::NO_CONTENT.into_response()
 }
 

@@ -26,6 +26,18 @@ proxy_protocol = true
 name = "box-desktop"
 tcp = "127.0.0.1:7443"
 
+# Laptops: the browser extension (docs/laptops.md).
+[laptops]
+# TCP, the home network only in the box's firewall: pairing and connecting at home.
+tcp_port = 7445
+# UDP, open from anywhere: WebRTC, for paired laptops only.
+udp_port = 7446
+# Where laptops' pages come from.
+target = "box-desktop"
+# Box Desktop's address as laptops open it; empty: https://<the box's name>:7443.
+# Firefox opens the box here, through Box Desktop's own service worker.
+desktop_url = ""
+
 # Let's Encrypt first; Google Trust Services when it's needed (its account
 # needs a key from Google Cloud: eab_kid and eab_hmac_key).
 [[certificate_authorities]]

@@ -284,6 +284,11 @@ pub fn build(cfg: &Config, store: Arc<Store>) -> Result<(Arc<api::Api>, dns::Dns
             share: cfg.names.share_url.clone(),
             zone: cfg.names.zone.clone(),
             account_page: format!("{base}/account/"),
+            stun: cfg
+                .guests
+                .as_ref()
+                .map(|g| zoomriya_proto::stun_from_turn(&g.turn_urls))
+                .unwrap_or_default(),
         },
         zone: cfg.names.zone.clone(),
         clock_allowance: cfg.registration.clock_allowance_seconds,

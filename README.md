@@ -65,7 +65,7 @@ shared albums. See [Four ways to reach your box](docs/sharing-and-names.md#four-
 - **The box plugged into your router with a cable.** The box itself can't use
   Wi-Fi. Setup checks this.
 - **The ZOOMRIYA app** on each phone, and the **ZOOMRIYA browser extension** on
-  each laptop (Chrome, Edge or Firefox), if you want to use the box away from
+  each laptop (Chrome, Edge, Brave, Vivaldi, Opera or Firefox), if you want to use the box away from
   home.
 - Nothing on the router, in most homes.
 
