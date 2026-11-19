@@ -26,12 +26,16 @@ source = "control_plane"
 url = "https://connect.zoomriya.net"
 # The control plane to relay key (docs/operations.md, "Changing our keys").
 key_file = "/etc/zoomriya-relay/feed.key"
+# Each poll also reports each box's use, for the monthly allowance, which is
+# set in the control plane's GUI.
 poll_seconds = 10
+# This relay's name in the GUI.
+name = "relay1.zoomriya.net"
 
 [limits]
 clock_allowance_seconds = 600
 longest_pass_days = 31
-# Per connection. Monthly volume per box is still to come.
+# Per connection. The monthly allowance per box is set in the control plane's GUI.
 client_bytes_per_second = 4000000
 
 # The GUI: on this server only. Reach it with ssh -L 8444:127.0.0.1:8444.

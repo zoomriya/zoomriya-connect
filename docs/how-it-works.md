@@ -159,8 +159,10 @@ alongside a work VPN.
 ### Only our relays
 
 The app and the box use only relays run by ZOOMRIYA, or by your family if you
-[run your own](sharing-and-names.md#your-own-server). iroh's public relays are
-switched off.
+[run your own](sharing-and-names.md#your-own-server). Nothing run by iroh's
+makers is ever contacted: not their public relays, not their DNS, not their
+address records. We use iroh's code, never their servers. Our relay is built
+on iroh's relay code, unchanged, so iroh updates stay a version number.
 
 Our relays let in only ZOOMRIYA Boxes, and devices with a pass from one. When
 a box is set up, the control plane tells the relays about it. That's all the

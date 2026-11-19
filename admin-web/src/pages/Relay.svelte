@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { post, type RelayOverview } from '../lib/api';
-	import { count } from '../lib/format';
+	import { count, shortKey } from '../lib/format';
 	import { ui } from '../lib/ui.svelte';
 	import { fill } from '../lib/words';
 
@@ -35,7 +35,26 @@
 		<div class="card stat"><div class="stat-label">{w.knownBoxes}</div><div class="stat-value">{n(overview.boxes)}</div></div>
 		<div class="card stat"><div class="stat-label">{w.connectedBoxes}</div><div class="stat-value">{n(overview.connected.boxes)}</div></div>
 		<div class="card stat"><div class="stat-label">{w.connectedDevices}</div><div class="stat-value">{n(overview.connected.devices)}</div></div>
+		{#if overview.mode === 'control_plane'}
+			<div class="card stat" class:warn={overview.slowed > 0}><div class="stat-label">{w.boxesSlowed}</div><div class="stat-value">{n(overview.slowed)}</div></div>
+		{/if}
 	</div>
+
+	<section class="card">
+		<h2>{w.connected}</h2>
+		{#if overview.connected_boxes.length === 0}
+			<p class="muted">{w.noneConnected}</p>
+		{:else}
+			<table class="table">
+				<thead><tr><th>{w.key}</th><th>{w.devices}</th></tr></thead>
+				<tbody>
+					{#each overview.connected_boxes as b (b.key)}
+						<tr><td class="mono" title={b.key}>{shortKey(b.key)}</td><td>{n(b.devices)}</td></tr>
+					{/each}
+				</tbody>
+			</table>
+		{/if}
+	</section>
 
 	<div class="grid two">
 		{#if overview.mode === 'enrolled'}

@@ -21,7 +21,7 @@ mod device;
 mod pass;
 mod request;
 
-pub use device::{DeviceKey, link_key_message};
+pub use device::{DeviceKey, link_key_message, new_test_chip};
 pub use pass::{MAX_PASS_TOKEN_LEN, PASS_PREFIX, Pass, PassRefused};
 pub use request::{REQUEST_SIGNATURE_HEADER, RequestSignature, sign_request};
 

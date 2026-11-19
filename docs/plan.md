@@ -32,7 +32,7 @@ order, and where the code goes.
 | Task | Why, or what it fixes |
 |---|---|
 | **Relays:** our own iroh relays, iroh's public ones off, QUIC address discovery on (`QuicConfig` in the `iroh-relay` library) | Only boxes and paired devices use them |
-| **Relay limits:** monthly volume and speed per box, slowed but never cut off, shown in Box Desktop | The relay can't tell backups from browsing, so it doesn't trust the app |
+| **Relay limits:** a monthly allowance per box and speed per connection, slowed but never cut off, set in the GUI, shown in Box Desktop | The relay can't tell backups from browsing, so it doesn't trust the app |
 | **Registering boxes:** one name per box, blocked look-alike names, at most 10 a day per address (factory-token boxes don't count), 90 days before a released name is free, reporting, a factory token for ready-made boxes (one per box, one registration only) | Anyone can run ZOOMRIYA OS and register |
 | **Passes:** 30 days, naming the current link key, with a start and an end | Only paired devices get through the relay |
 | **Link keys:** a new one with each pass, signed by the device key in the security chip. The box pins the device key | Most security chips can't hold iroh's Ed25519 key |
@@ -74,7 +74,7 @@ order, and where the code goes.
 | Tokens, the guest page, the door, WebRTC, then the relay as the last resort | Guests need nothing installed |
 | Owners' controls, and telling them what to expect | |
 | The door's name, made by the box: `<name>-share.zoomriya.app`. Setup refuses names ending in `-share`, and `share` | No family's box can clash with another's door |
-| On an own domain: `share.home.smith.ca`, covered by the NS record or its own two CNAMEs | |
+| On an own domain: `share.smith.ca`, with its own NS record to the box's name server | |
 | The box's web server uses `__Host-` cookies and checks each request's `Origin` | Without the Public Suffix List, one box could otherwise set cookies for another |
 | **Guests' relay (TURN):** blocked private addresses, per-guest limits, and one-hour credentials that the box asks for after checking the token, and passes on in the WebRTC setup messages | It can't be used to reach private networks |
 
@@ -90,8 +90,10 @@ order, and where the code goes.
 
 | Task | Why, or what it fixes |
 |---|---|
-| One NS record, or four CNAMEs where the provider doesn't allow NS | One CNAME doesn't cover the certificate check or the door |
-| Box Desktop shows the lines to copy and checks them | |
+| The family types only their domain (`smith.ca`). The box is `home.smith.ca` (`homebox.` if taken), the door `share.smith.ca`. `smith.ca` itself is never touched | Nothing to decide; short links for guests; the domain stays theirs |
+| Two NS records, both to the box's own name server, `<box id>.ns.zoomriya.net`, a wildcard on our DNS. The box ID is random, 10 characters, and static: made at the factory with the factory token, or given at the first registration for a self-installed box | The record names the box, so nobody can claim a domain first, and doesn't show its ZOOMRIYA name |
+| `*.ns.zoomriya.net` points at `ns1` now, and at both servers once `ns2` runs | Families never change anything |
+| Box Desktop shows the lines and checks them once. The box the registrar's records name gets the domain | Typing a domain claims nothing; a sold domain moves with its records |
 | No dynamic DNS from other companies | It would put the sign-in page on the internet |
 
 ### 8. [Test at scale](testing.md)
@@ -99,7 +101,7 @@ order, and where the code goes.
 | Task | Why, or what it fixes |
 |---|---|
 | Simulate 1,000 families for two months: direct paths, opening speed, relay traffic and cost, failures | Real numbers before release |
-| Set the relay's per-box limits from it, then fix the most common failures | |
+| Set the monthly allowance in the GUI from it, then fix the most common failures | |
 | [Benchmarks](testing.md#benchmarks-on-every-change) on every change to `main`, like iroh's: time to connect and to direct, round-trip time, time to first byte, speed, reconnecting, failed and dropped connections, relay load. Compared with plain HTTPS and iroh alone. Fails when 10% worse. Results on a public page | Slowdowns caught before release |
 | After release: probes in several regions measure our relays, a test box and DNS every 5 minutes | We hear about a slow relay before families do |
 
@@ -109,7 +111,7 @@ order, and where the code goes.
 |---|---|
 | Test the album viewer's door hard | It's the only part facing the internet |
 | An independent security review, the browser extension included | |
-| The second DNS server for `ns2.zoomriya.net` running, at another hosting company | Box names don't depend on one server |
+| The second DNS server for `ns2.zoomriya.net` running, at another hosting company. Add its addresses to the `*.ns.zoomriya.net` wildcard | Box names, and own domains, don't depend on one server |
 | Write up [running your own server](sharing-and-names.md#your-own-server) | |
 | [Running the service](operations.md): hourly backups to another company and a monthly restore test, alerts, an on-call rota of at least two, the status page, DNS protected from floods, a schedule for changing our keys | We find out first, and can rebuild |
 | Boxes register again by themselves if their registration is missing, proving the name with their certificate's key, and take a new DNS update key when told | A restore that lost the last hour, or a leaked key, needs nothing from families |
@@ -169,10 +171,10 @@ deploy/           example settings, systemd units and the servers' user
 | Part | What works | Still to come |
 |---|---|---|
 | **Passes** (`crates/keys`) | Signed by the box key, each signature says what it's for. 30 days, 10 minutes' clock allowance, longest pass 31 days | |
-| **Relay** (`relay/`) | iroh's relay library, unchanged, behind our front door on 443. Lets in registered boxes, and devices with a pass from one. Takes each box's removed-device list (`/zoomriya/v1/removed`) and drops those devices at once. Drops a stolen box and its devices. Keeps the list of boxes on disk. QUIC address discovery. Numbers on port 9090 | Monthly volume per box (the library counts bytes per server, not per box). Keeping a device to its own box only (the library has no hook on where packets go) |
+| **Relay** (`relay/`) | iroh's relay library, unchanged, behind our front door on 443. Lets in registered boxes, and devices with a pass from one. Takes each box's removed-device list (`/zoomriya/v1/removed`) and drops those devices at once. Drops a stolen box and its devices. Keeps the list of boxes on disk. QUIC address discovery. Numbers on port 9090. The monthly allowance: our front door counts each box's own connection on its way to iroh, reports every poll, and slows the boxes the control plane names. Every box connected, for the GUI | Keeping a device to its own box only (the library has no hook on where packets go; the box refuses strangers anyway) |
 | **A family's own relay** | `zoomriya-relay enrol-code` shows a one-time code; the box introduces itself with it | |
-| **Control plane** (`control-plane/`) | Registering boxes with every rule above. Box names, the guests' door and certificate checks in DNS. Address records over HTTPS and DNS. The list of boxes for relays. Admin notes: an admin's phone marks the box stolen or moves its name. The outside check of the door. Guests' setup messages. One-hour credentials for the guests' relay. The second DNS server's copy. Reports. Operator commands | Own domains, laptops' WebRTC through the relay |
+| **Control plane** (`control-plane/`) | Registering boxes with every rule above, each linked to a ZOOMRIYA Connect account an operator issued. Accounts: Argon2id passwords, locked after 5 wrong ones, blocked or reset by operators; the families' account page at `/account/` (their boxes, this month's use, changing the password). Box names, the guests' door and certificate checks in DNS. Address records over HTTPS and DNS. The list of boxes for relays. Admin notes: an admin's phone marks the box stolen or moves its name. The outside check of the door. Guests' setup messages. One-hour credentials for the guests' relay. Each box's relay use per month, the allowances, and who's connected, from the relays' reports. The second DNS server's copy. Reports. Operator commands | Own domains, laptops' WebRTC through the relay |
 | **Guests' relay** (`deploy/turnserver.conf`) | The TURN server packaged in Debian 13, set up to refuse private and home addresses, with per-guest limits | |
-| **GUI** (`admin-web/`) | One web page for the control plane and relays, for our operators and families with their own server: overview, boxes, reports, factory tokens; a family relay's one-time code. Midnight and Daylight, English and French. Off the internet unless given a certificate | |
-| **connectd** (`connectd/`) | The box key and DNS update key in `/data`. Registering, and again by itself at each start or if the registration went missing. The name kept pointed at the box's home addresses. The certificate through the control plane's DNS check (Let's Encrypt, then any authority set after it), renewed a month ahead. iroh on our relays only, publishing an address record that names only the relay. Pairing at home only (never through the relay), with a one-time code, the phone's chip key vouching for its link key, and admin notes for admins' phones. Passes, signed only once the clock is set from the internet, renewed with a new link key. The family link: every stream checked against the box's list, web streams passed to the gateway with the device's label (PROXY protocol v2). Removing a device cuts it off at once and tells the relays; the whole list again at each reconnect. Each device's connection reports kept on the box. Box Desktop's API on a Unix socket | Watching the public certificate logs for someone else's certificate on the box's name. The guests' door and album viewer, WebRTC for guests and laptops, the outside check of the door from the box's side, the Cloudflare option |
+| **GUI** (`admin-web/`) | One web page for the control plane and relays, for our operators and families with their own server: overview, accounts (make, reset the password, block, boxes per account), boxes, every box connected now, the monthly allowance (the usual ones and per box) with each box's use, reports, factory tokens; a family relay's one-time code and its connected boxes. Midnight and Daylight, English and French. Off the internet unless given a certificate | |
+| **connectd** (`connectd/`) | The box key and DNS update key in `/data`. Registering with the family's ZOOMRIYA Connect account, sent once and never kept, and again by itself at each start or if the registration went missing. The name kept pointed at the box's home addresses. The certificate through the control plane's DNS check (Let's Encrypt, then any authority set after it), renewed a month ahead. iroh on our relays only, publishing an address record that names only the relay. Pairing at home only (never through the relay), with a one-time code, the phone's chip key vouching for its link key, and admin notes for admins' phones. Passes, signed only once the clock is set from the internet, renewed with a new link key. The family link: every stream checked against the box's list, web streams passed to the gateway with the device's label (PROXY protocol v2). Removing a device cuts it off at once and tells the relays; the whole list again at each reconnect. Each device's connection reports kept on the box. Box Desktop's API on a Unix socket This month's relay use, every hour, for Box Desktop. | Watching the public certificate logs for someone else's certificate on the box's name. The guests' door and album viewer, WebRTC for guests and laptops, the outside check of the door from the box's side, the Cloudflare option |
 | **On ZOOMRIYA OS** (zoomriya-os) | The `zoomriya-connect` package: connectd as its own account, UDP 443 in the firewall, the declared outbound connection. The agent checks connectd's certificate and serves it beside the box's own. Control Panel › ZOOMRIYA Connect in Box Desktop, in English and French | The phone app's link (`crates/link`, `crates/ffi`) |

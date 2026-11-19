@@ -33,6 +33,38 @@ pub struct Config {
     /// The GUI and its admin API.
     #[serde(default)]
     pub admin: Option<zoomriya_serve::admin::AdminConfig>,
+    /// ZOOMRIYA Connect accounts, issued by operators.
+    #[serde(default)]
+    pub accounts: Accounts,
+}
+
+/// ZOOMRIYA Connect accounts.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Accounts {
+    /// Every box needs an account to register.
+    #[serde(default = "yes")]
+    pub required: bool,
+    /// The families' account page's built files, served at `/account/`.
+    #[serde(default = "account_page")]
+    pub page_dir: PathBuf,
+}
+
+impl Default for Accounts {
+    fn default() -> Self {
+        Self {
+            required: true,
+            page_dir: account_page(),
+        }
+    }
+}
+
+fn yes() -> bool {
+    true
+}
+
+fn account_page() -> PathBuf {
+    PathBuf::from("/usr/share/zoomriya-connect/account")
 }
 
 /// Guests' relay (TURN).

@@ -27,6 +27,7 @@ mod config;
 mod enrol;
 mod front;
 mod gate;
+mod meter;
 
 use config::{Boxes, Config};
 use gate::{Gate, GateAccess, GateConfig};
@@ -144,6 +145,7 @@ async fn serve(cfg: Config) -> Result<()> {
             url,
             key_file,
             poll_seconds,
+            name,
         } => {
             let key = std::fs::read_to_string(key_file)
                 .with_context(|| format!("reading {}", key_file.display()))?
@@ -154,6 +156,7 @@ async fn serve(cfg: Config) -> Result<()> {
                 gate.clone(),
                 url.clone(),
                 key,
+                name.clone(),
                 Duration::from_secs((*poll_seconds).max(1)),
                 boxes_file.clone(),
                 seq,
@@ -175,7 +178,12 @@ async fn serve(cfg: Config) -> Result<()> {
         enrolled,
         clock_allowance: cfg.limits.clock_allowance_seconds,
     });
-    tasks.spawn(front::serve(listener, relay.clone(), api));
+    tasks.spawn(front::serve(
+        listener,
+        relay.clone(),
+        api,
+        gate.meter.clone(),
+    ));
 
     // Plain HTTP: the captive-portal check only.
     if let Some(http) = &cfg.http {

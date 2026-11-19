@@ -52,6 +52,10 @@ async fn overview(State(a): State<Shared>) -> Response {
         "mode": if a.enrol_dir.is_some() { "enrolled" } else { "control_plane" },
         "boxes": a.gate.boxes().len(),
         "connected": { "boxes": boxes_live, "devices": devices_live },
+        "connected_boxes": a.gate.connected_boxes().into_iter()
+            .map(|(k, devices)| serde_json::json!({ "key": k.to_z32(), "devices": devices }))
+            .collect::<Vec<_>>(),
+        "slowed": a.gate.meter.slowed(),
         "since_start": {
             "boxes_allowed": m.boxes_allowed.get(),
             "devices_allowed": m.devices_allowed.get(),

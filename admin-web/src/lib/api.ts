@@ -48,6 +48,7 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
 
 export const get = <T>(path: string) => call<T>('GET', path);
 export const post = <T>(path: string, body?: unknown) => call<T>('POST', path, body ?? {});
+export const put = <T>(path: string, body: unknown) => call<T>('PUT', path, body);
 
 /** Checks a token by asking for the overview with it. */
 export async function signIn(t: string): Promise<Overview> {
@@ -73,6 +74,36 @@ export interface ControlPlaneOverview {
 	setup_messages: { boxes: number; guests: number };
 	guest_relay: boolean;
 	relays: RelayHealth[];
+	connected: { boxes: number; devices: number };
+	relay_use: { month: string; bytes: number };
+	allowances: Allowances;
+	accounts: { all: number; blocked: number };
+}
+
+/** A family's ZOOMRIYA Connect account. */
+export interface Account {
+	username: string;
+	blocked: boolean;
+	max_boxes: number;
+	boxes: string[];
+	created_at: number;
+	/** Locked after wrong passwords until then (0: not locked). */
+	locked_until: number;
+}
+
+/** The monthly relay allowance. 0 GB means no limit. */
+export interface Allowances {
+	default_gb: number;
+	factory_gb: number;
+	/** How fast a box past its allowance may go, in kilobytes a second. */
+	slow_kbps: number;
+}
+
+export interface ConnectedBox {
+	name: string | null;
+	key: string;
+	relay: string;
+	devices: number;
 }
 
 export interface RelayOverview {
@@ -81,6 +112,8 @@ export interface RelayOverview {
 	mode: 'enrolled' | 'control_plane';
 	boxes: number;
 	connected: { boxes: number; devices: number };
+	connected_boxes: { key: string; devices: number }[];
+	slowed: number;
 	since_start: {
 		boxes_allowed: number;
 		devices_allowed: number;
@@ -102,6 +135,18 @@ export interface BoxSummary {
 	registered_at: number;
 	door_until: number;
 	has_record: boolean;
+	/** Bytes through the relays this month. */
+	used: number;
+	/** Its own allowance in GB, if set (0: no limit). */
+	own_allowance_gb: number | null;
+	/** The allowance that applies, in GB (0: no limit). */
+	allowance_gb: number;
+	slowed: boolean;
+	/** The relay it's connected to now. */
+	relay: string | null;
+	devices: number;
+	/** The ZOOMRIYA Connect account it's linked to. */
+	account: string | null;
 }
 
 export interface Report {

@@ -77,6 +77,15 @@ struct Running {
 const RELAY_KEY: &str = "relay-key-0123456789abcdefghijklmnopqrstuvwxyz";
 const TURN_SECRET: &str = "turn-secret-0123456789abcdefghijklmnopqrstuvwxyz";
 const ZONE_KEY: &str = "zone-key-0123456789abcdefghijklmnopqrstuvwxyz";
+const ACCOUNT: &str = "smiths";
+const ACCOUNT_PASSWORD: &str = "abcd-efgh-jkmn-pqrs";
+
+fn login() -> Option<zoomriya_proto::AccountLogin> {
+    Some(zoomriya_proto::AccountLogin {
+        username: "Smiths".into(),
+        password: ACCOUNT_PASSWORD.into(),
+    })
+}
 
 async fn start() -> Running {
     let _ = rustls::crypto::ring::default_provider().install_default();
@@ -123,6 +132,15 @@ async fn start() -> Running {
         );
     let cfg: Config = toml::from_str(&text).expect("config");
     let store = Arc::new(Store::open(&cfg.database).expect("store"));
+    // An account an operator made for the tests' family, for up to 10 boxes.
+    store
+        .create_account(
+            ACCOUNT,
+            &crate::accounts::hash(ACCOUNT_PASSWORD).expect("hash"),
+            10,
+            now(),
+        )
+        .expect("account");
     let (api, dns) = crate::build(&cfg, store.clone()).expect("build");
     let dns = crate::dns::serve("127.0.0.1:0".parse().expect("addr"), dns)
         .await
@@ -245,6 +263,7 @@ async fn a_box_from_registration_to_dns() {
             ipv6: vec![],
         },
         factory_token: None,
+        account: None,
     };
 
     // Unsigned, signed by the wrong key, an old version.
@@ -290,9 +309,27 @@ async fn a_box_from_registration_to_dns() {
         (400, "name_blocked")
     );
 
-    // Registered.
+    // No account, or the wrong password: refused.
+    let res = r.signed(&box_key, "POST", "/v1/boxes", &reg).await;
+    assert_eq!(
+        (res.status, code(&res.body).as_str()),
+        (403, "account_needed")
+    );
+    let mut wrong = reg.clone();
+    wrong.account = Some(zoomriya_proto::AccountLogin {
+        username: ACCOUNT.into(),
+        password: "not-the-password".into(),
+    });
+    let res = r.signed(&box_key, "POST", "/v1/boxes", &wrong).await;
+    assert_eq!((res.status, code(&res.body).as_str()), (401, "wrong_login"));
+
+    // Registered, with the account.
+    let mut reg = reg;
+    reg.account = login();
     let res = r.signed(&box_key, "POST", "/v1/boxes", &reg).await;
     assert_eq!(res.status, 201, "{}", String::from_utf8_lossy(&res.body));
+    // Again, as at each start: no password needed any more.
+    reg.account = None;
     let ok: RegisterResponse = serde_json::from_slice(&res.body).expect("json");
     assert_eq!(ok.fqdn, "maple.zoomriya.app");
     assert_eq!(ok.share_fqdn, "maple-share.zoomriya.app");
@@ -481,6 +518,7 @@ async fn registered(r: &Running, name: &str) -> (SecretKey, SecretKey) {
             ipv6: vec![],
         },
         factory_token: None,
+        account: login(),
     };
     let res = r.signed(&box_key, "POST", "/v1/boxes", &reg).await;
     assert_eq!(res.status, 201, "{}", String::from_utf8_lossy(&res.body));
@@ -769,4 +807,385 @@ async fn the_gui_api() {
     let res = get("/boxes", None).await;
     assert_eq!(res.status, 200);
     assert!(String::from_utf8_lossy(&res.body).contains("GUI"));
+}
+
+#[tokio::test]
+async fn monthly_allowance_end_to_end() {
+    use zoomriya_proto::{BoxConnected, BoxUse, RelayReport, RelayReportAnswer, RelayUse};
+    let r = start().await;
+    let (maple, _) = registered(&r, "maple").await;
+    let auth = |t: &str| vec![("authorization", format!("Bearer {t}"))];
+    let json = ("content-type", "application/json".to_string());
+
+    // A relay reports 3 GB for the box, which has a phone connected.
+    let report = RelayReport {
+        relay: "relay1.zoomriya.net".into(),
+        used: vec![BoxUse {
+            key: maple.public().into(),
+            bytes: 3_000_000_001,
+        }],
+        connected: vec![BoxConnected {
+            key: maple.public().into(),
+            devices: 1,
+        }],
+    };
+    let body = serde_json::to_vec(&report).expect("json");
+    let url = format!("{}/v1/relay/report", r.http);
+    let res = r
+        .client
+        .send("POST", &url, &auth("not a relay key at all"), body.clone())
+        .await;
+    assert_eq!(res.status, 401);
+    let mut h = auth(RELAY_KEY);
+    h.push(json.clone());
+    let res = r.client.send("POST", &url, &h, body.clone()).await;
+    assert_eq!(res.status, 200, "{}", String::from_utf8_lossy(&res.body));
+    let a: RelayReportAnswer = serde_json::from_slice(&res.body).expect("answer");
+    assert!(a.slow.is_empty(), "no limit until an operator sets one");
+
+    // The operator sets 3 GB in the GUI: the next report slows the box.
+    let mut h_admin = auth(&r.admin_token);
+    h_admin.push(json.clone());
+    let res = r
+        .client
+        .send(
+            "PUT",
+            &format!("{}/admin/api/allowances", r.admin),
+            &h_admin,
+            br#"{"default_gb":3,"factory_gb":50,"slow_kbps":125}"#.to_vec(),
+        )
+        .await;
+    assert_eq!(res.status, 204);
+    let empty = RelayReport {
+        relay: "relay1.zoomriya.net".into(),
+        used: vec![],
+        connected: report.connected.clone(),
+    };
+    let res = r
+        .client
+        .send("POST", &url, &h, serde_json::to_vec(&empty).expect("json"))
+        .await;
+    let a: RelayReportAnswer = serde_json::from_slice(&res.body).expect("answer");
+    assert_eq!(a.slow, vec![maple.public().into()]);
+    assert_eq!(a.slow_bytes_per_second, 125_000);
+
+    // The box sees it, for Box Desktop.
+    let res = r
+        .signed(
+            &maple,
+            "POST",
+            "/v1/boxes/maple/relay-use",
+            &serde_json::json!({}),
+        )
+        .await;
+    assert_eq!(res.status, 200, "{}", String::from_utf8_lossy(&res.body));
+    let u: RelayUse = serde_json::from_slice(&res.body).expect("use");
+    assert_eq!(u.used, 3_000_000_001);
+    assert_eq!(u.allowance, 3_000_000_000);
+    assert!(u.slowed);
+    // Another box can't ask about this one.
+    let other = SecretKey::generate();
+    let res = r
+        .signed(
+            &other,
+            "POST",
+            "/v1/boxes/maple/relay-use",
+            &serde_json::json!({}),
+        )
+        .await;
+    assert_eq!(res.status, 403);
+
+    // The GUI: who's connected, and the box's line.
+    let res = r
+        .client
+        .send(
+            "GET",
+            &format!("{}/admin/api/connected", r.admin),
+            &auth(&r.admin_token),
+            vec![],
+        )
+        .await;
+    let c: serde_json::Value = serde_json::from_slice(&res.body).expect("json");
+    assert_eq!(c["boxes"][0]["name"], "maple");
+    assert_eq!(c["boxes"][0]["devices"], 1);
+    assert_eq!(c["boxes"][0]["relay"], "relay1.zoomriya.net");
+    let res = r
+        .client
+        .send(
+            "GET",
+            &format!("{}/admin/api/boxes", r.admin),
+            &auth(&r.admin_token),
+            vec![],
+        )
+        .await;
+    let list: serde_json::Value = serde_json::from_slice(&res.body).expect("json");
+    assert_eq!(list[0]["slowed"], true);
+    assert_eq!(list[0]["allowance_gb"], 3);
+    assert_eq!(list[0]["relay"], "relay1.zoomriya.net");
+
+    // A bigger allowance for this box alone lifts it.
+    let res = r
+        .client
+        .send(
+            "POST",
+            &format!("{}/admin/api/boxes/maple/allowance", r.admin),
+            &h_admin,
+            br#"{"gb":10}"#.to_vec(),
+        )
+        .await;
+    assert_eq!(res.status, 204);
+    let res = r
+        .client
+        .send("POST", &url, &h, serde_json::to_vec(&empty).expect("json"))
+        .await;
+    let a: RelayReportAnswer = serde_json::from_slice(&res.body).expect("answer");
+    assert!(a.slow.is_empty());
+    let res = r
+        .client
+        .send(
+            "GET",
+            &format!("{}/admin/api/overview", r.admin),
+            &auth(&r.admin_token),
+            vec![],
+        )
+        .await;
+    let o: serde_json::Value = serde_json::from_slice(&res.body).expect("json");
+    assert_eq!(o["connected"]["boxes"], 1);
+    assert_eq!(o["relay_use"]["bytes"], 3_000_000_001u64);
+}
+
+#[tokio::test]
+async fn accounts_end_to_end() {
+    let r = start().await;
+    let r = &r;
+    let admin = |method: &'static str, path: String, body: &'static str| async move {
+        let mut h = vec![("authorization", format!("Bearer {}", r.admin_token))];
+        if !body.is_empty() {
+            h.push(("content-type", "application/json".into()));
+        }
+        r.client
+            .send(
+                method,
+                &format!("{}/admin/api{path}", r.admin),
+                &h,
+                body.as_bytes().to_vec(),
+            )
+            .await
+    };
+    let json = |b: &[u8]| serde_json::from_slice::<serde_json::Value>(b).expect("json");
+
+    // An operator makes an account for one box; its password is shown once.
+    let res = admin(
+        "POST",
+        "/accounts".into(),
+        r#"{"username":"Jones","max_boxes":1}"#,
+    )
+    .await;
+    assert_eq!(res.status, 200, "{}", String::from_utf8_lossy(&res.body));
+    let made = json(&res.body);
+    assert_eq!(made["username"], "jones");
+    let password = made["password"].as_str().expect("password").to_string();
+    let res = admin("POST", "/accounts".into(), r#"{"username":"jones"}"#).await;
+    assert_eq!(res.status, 409, "taken");
+
+    // The family links a box with it; a second box doesn't fit.
+    let box_key = SecretKey::generate();
+    let reg = |name: &str, key: &SecretKey, pw: &str| RegisterRequest {
+        name: name.into(),
+        box_key: key.public().into(),
+        dns_update_key: SecretKey::generate().public().into(),
+        home: HomeAddrs {
+            ipv4: vec!["192.168.1.20".parse().expect("ip")],
+            ipv6: vec![],
+        },
+        factory_token: None,
+        account: Some(zoomriya_proto::AccountLogin {
+            username: "jones".into(),
+            password: pw.into(),
+        }),
+    };
+    let res = r
+        .signed(
+            &box_key,
+            "POST",
+            "/v1/boxes",
+            &reg("oak", &box_key, &password),
+        )
+        .await;
+    assert_eq!(res.status, 201, "{}", String::from_utf8_lossy(&res.body));
+    let ok: RegisterResponse = serde_json::from_slice(&res.body).expect("json");
+    assert_eq!(ok.account.as_deref(), Some("jones"));
+    let other = SecretKey::generate();
+    let res = r
+        .signed(&other, "POST", "/v1/boxes", &reg("elm", &other, &password))
+        .await;
+    assert_eq!(
+        (res.status, code(&res.body).as_str()),
+        (403, "account_full")
+    );
+
+    // The account page: sign in, see the box, change the password.
+    let page = |method: &'static str, path: &'static str, token: Option<String>, body: String| async move {
+        let mut h = vec![("content-type", "application/json".to_string())];
+        if let Some(t) = token {
+            h.push(("authorization", format!("Bearer {t}")));
+        }
+        r.client
+            .send(method, &format!("{}{path}", r.http), &h, body.into_bytes())
+            .await
+    };
+    let sign_in = |pw: String| {
+        page(
+            "POST",
+            "/v1/account/sign-in",
+            None,
+            serde_json::json!({ "username": "Jones", "password": pw }).to_string(),
+        )
+    };
+    let res = sign_in(password.clone()).await;
+    assert_eq!(res.status, 200, "{}", String::from_utf8_lossy(&res.body));
+    let token = json(&res.body)["token"]
+        .as_str()
+        .expect("token")
+        .to_string();
+    let res = page("GET", "/v1/account", Some(token.clone()), String::new()).await;
+    let me = json(&res.body);
+    assert_eq!(me["username"], "jones");
+    assert_eq!(me["boxes"][0]["name"], "oak");
+    assert_eq!(me["boxes"][0]["fqdn"], "oak.zoomriya.app");
+    let res = page(
+        "POST",
+        "/v1/account/password",
+        Some(token.clone()),
+        serde_json::json!({ "password": password, "new_password": "short" }).to_string(),
+    )
+    .await;
+    assert_eq!(
+        (res.status, code(&res.body).as_str()),
+        (400, "password_short")
+    );
+    let res = page(
+        "POST",
+        "/v1/account/password",
+        Some(token.clone()),
+        serde_json::json!({ "password": password, "new_password": "our own long password" })
+            .to_string(),
+    )
+    .await;
+    assert_eq!(res.status, 204, "{}", String::from_utf8_lossy(&res.body));
+    // Every sign-in ends; the old password no longer works, the new one does.
+    let res = page("GET", "/v1/account", Some(token), String::new()).await;
+    assert_eq!(res.status, 401);
+    assert_eq!(sign_in(password.clone()).await.status, 401);
+    assert_eq!(sign_in("our own long password".into()).await.status, 200);
+
+    // Five wrong passwords lock it for a while, even with the right one.
+    for _ in 0..5 {
+        assert_eq!(sign_in("wrong password".into()).await.status, 401);
+    }
+    let res = sign_in("our own long password".into()).await;
+    assert_eq!(
+        (res.status, code(&res.body).as_str()),
+        (429, "account_locked")
+    );
+
+    // The operator resets the password: that unlocks it too.
+    let res = admin("POST", "/accounts/jones/reset-password".into(), "").await;
+    assert_eq!(res.status, 200);
+    let reset = json(&res.body)["password"]
+        .as_str()
+        .expect("password")
+        .to_string();
+    assert_eq!(sign_in(reset.clone()).await.status, 200);
+
+    // Blocked: the box's name stops answering, relays are told it's gone,
+    // registering again and signing in are refused.
+    let feed = || async {
+        let res = r
+            .client
+            .send(
+                "GET",
+                &format!("{}/v1/relay/boxes?after=0", r.http),
+                &[("authorization", format!("Bearer {RELAY_KEY}"))],
+                vec![],
+            )
+            .await;
+        serde_json::from_slice::<BoxFeed>(&res.body).expect("feed")
+    };
+    assert!(
+        feed()
+            .await
+            .changes
+            .iter()
+            .any(|c| c.key == box_key.public().into())
+    );
+    assert!(r.store.entry("oak").is_some());
+    let res = admin("POST", "/accounts/jones/block".into(), "").await;
+    assert_eq!(res.status, 204);
+    assert!(r.store.entry("oak").is_none(), "out of DNS");
+    assert!(
+        !feed()
+            .await
+            .changes
+            .iter()
+            .any(|c| c.key == box_key.public().into()),
+        "relays drop it"
+    );
+    let mut again = reg("oak", &box_key, "");
+    again.account = None;
+    let res = r.signed(&box_key, "POST", "/v1/boxes", &again).await;
+    assert_eq!(
+        (res.status, code(&res.body).as_str()),
+        (403, "account_blocked")
+    );
+    let res = sign_in(reset.clone()).await;
+    assert_eq!(
+        (res.status, code(&res.body).as_str()),
+        (403, "account_blocked")
+    );
+
+    // Unblocked: all back.
+    assert_eq!(
+        admin("POST", "/accounts/jones/unblock".into(), "")
+            .await
+            .status,
+        204
+    );
+    assert!(r.store.entry("oak").is_some());
+    assert!(
+        feed()
+            .await
+            .changes
+            .iter()
+            .any(|c| c.key == box_key.public().into())
+    );
+    let res = r.signed(&box_key, "POST", "/v1/boxes", &again).await;
+    assert_eq!(res.status, 200, "{}", String::from_utf8_lossy(&res.body));
+
+    // Room for a second box.
+    let res = admin(
+        "POST",
+        "/accounts/jones/max-boxes".into(),
+        r#"{"max_boxes":2}"#,
+    )
+    .await;
+    assert_eq!(res.status, 204);
+    let res = r
+        .signed(&other, "POST", "/v1/boxes", &reg("elm", &other, &reset))
+        .await;
+    assert_eq!(res.status, 201, "{}", String::from_utf8_lossy(&res.body));
+
+    // The GUI's lists.
+    let res = admin("GET", "/accounts?q=jon".into(), "").await;
+    let list = json(&res.body);
+    assert_eq!(list[0]["username"], "jones");
+    assert_eq!(list[0]["boxes"].as_array().map(Vec::len), Some(2));
+    let res = admin("GET", "/boxes?q=jones".into(), "").await;
+    assert_eq!(
+        json(&res.body).as_array().map(Vec::len),
+        Some(2),
+        "found by account"
+    );
+    let res = admin("GET", "/overview".into(), "").await;
+    assert_eq!(json(&res.body)["accounts"]["all"], 2);
 }

@@ -21,6 +21,10 @@ pub struct State {
     /// The guests' door's name.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub share_fqdn: Option<String>,
+    /// The ZOOMRIYA Connect account the box is linked to (its username only:
+    /// the password is never kept).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account: Option<String>,
     /// ZOOMRIYA Connect switched off in Box Desktop.
     #[serde(default)]
     pub off: bool,

@@ -138,13 +138,31 @@ HTTPS on port 443, like a website, so it works on almost any network.
 It sees which devices connect to which box, when, from where, and how much.
 Never what's inside.
 
+**How the allowance is counted.** iroh's relay library counts nothing per box,
+and we don't change it. Our front door on 443 takes each TLS connection and
+passes it, over loopback, to iroh's relay unchanged, counting the bytes on the
+way. A box's own connection carries everything sent to and from it through the
+relay, so that's the one counted, and the one slowed.
+
+| Step | Who |
+|---|---|
+| Counts each box's bytes, both ways | Each relay |
+| Every poll (10 seconds): sends the counts, and who's connected | Relay → control plane (`POST /v1/relay/report`) |
+| Adds up the month (UTC), answers which boxes are past their allowance, and how fast they may go | Control plane |
+| Slows those boxes until the control plane stops naming them | Each relay |
+| Asks its own use every hour, for Box Desktop | The box (`POST /v1/boxes/{name}/relay-use`) |
+| Sets the allowances, per box too, and sees every box connected | Operators, in the GUI |
+
+Phones talking to each other through the relay, without the box, aren't
+counted; the speed per connection still holds them.
+
 | Limit, per box, on our relays | What it fixes |
 |---|---|
-| **Monthly volume**, set from the [soak test](testing.md) (a home uses about 3 GB). Past it, the box is slowed, never cut off | The relay can't tell a backup from browsing, so it doesn't trust the app to hold back |
-| **Speed** | One box can't crowd out the others |
-| **Higher limits** for ready-made boxes, with a factory token | Self-installed boxes still work, with less to abuse |
+| **Monthly allowance**, set in the GUI from the [soak test](testing.md) (a home uses about 3 GB). Past it, the box is slowed until the month ends, never cut off | The relay can't tell a backup from browsing, so it doesn't trust the app to hold back |
+| **Speed** per connection | One box can't crowd out the others |
+| **A higher allowance** for ready-made boxes, with a factory token, and any box's own allowance set by an operator | Self-installed boxes still work, with less to abuse |
 | **Box Desktop shows this month's use** | The family sees it before anything slows |
-| **No limits on a family's own relay** | Their server, their rules |
+| **No limits on a family's own relay** | Their server, their rules: the allowance is off until someone sets it |
 
 | Guests' relay (TURN) rule | What it fixes |
 |---|---|
@@ -171,12 +189,34 @@ your devices, or the certificate key.
 
 | Registering a box | What it fixes |
 |---|---|
+| **A ZOOMRIYA Connect account,** issued by an operator, is needed the first time. The box sends its username and password once, to link itself, and keeps neither | Only families we know use our servers |
 | One name per box | Grabbing many names |
 | Blocked words (bank, login, pay…) and look-alike brand names refused | Scam names with a real padlock |
 | At most 10 new boxes a day per internet address. Boxes with a factory token don't count. Past it: *Too many new boxes from your internet connection today. Try again tomorrow.* | Scripts registering in bulk, without stopping honest families who share an address with many homes (CGNAT) |
 | A released name waits 90 days | Taking a name someone just gave up |
 | Anyone can report a name, and we can switch it off | Abuse that gets past the rules |
 | A factory token in ready-made boxes, for higher relay limits. One token per box, usable for one registration only | ZOOMRIYA OS is open source, so anyone can register a box. A token copied to other PCs is refused |
+
+**Accounts.** Each family has one ZOOMRIYA Connect account. It's separate from
+ZOOMRIYA ID, which stays on the box: ZOOMRIYA Connect never sees anyone's
+ZOOMRIYA ID sign-in.
+
+| Who | Can |
+|---|---|
+| An operator, in the GUI or with the `account-*` commands | Make an account (its password is shown once), reset its password, block or unblock it, and set how many boxes it may link (3 unless set) |
+| The family, on the account page (`/account/` on the control plane) | Sign in, see their boxes and this month's relay use, and change the password |
+| The family, in Box Desktop | Type the username and password once, when naming the box |
+
+| Rule | Why |
+|---|---|
+| Passwords kept as Argon2id hashes; a family's own at least 10 characters | A stolen database doesn't give the passwords away |
+| 5 wrong passwords lock the account for 15 minutes, and sign-ins are limited per address | Guessing |
+| A new password, from the family or an operator, ends every sign-in on the account page | A lost or shared session stops working |
+| **Blocked:** the account's boxes drop out of DNS, the relays refuse them and their devices within seconds, and the account can't sign in. At home everything keeps working. Unblocking brings it all back | Stopping a family's use of our servers without touching their box |
+| No account: the box works at home as always; only ZOOMRIYA Connect waits for one | Setting up the box never depends on us |
+
+A family's own server works the same way: their own operator issues their
+accounts. `[accounts] required = false` lets boxes register without one.
 
 ### The guest page (on a server)
 
@@ -211,8 +251,8 @@ fetches the album from the box. The album never passes through it.
 
 | Step | What happens |
 |---|---|
-| 1 | You pick a name, such as `maplehouse` |
-| 2 | The box makes its key and registers. The control plane tells our relays |
+| 1 | You type your ZOOMRIYA Connect account and pick a name, such as `maplehouse` |
+| 2 | The box makes its key and registers, linking itself to the account. The control plane tells our relays |
 | 3 | The box gets its certificate: the control plane puts the temporary DNS record, the key stays on the box |
 | 4 | The box connects to the relay and publishes its signed address record |
 | 5 | `maplehouse.zoomriya.app` points at the box on your home network |
@@ -370,7 +410,7 @@ the relay, control plane and guest page. The phone app and the laptop
 extension both support it. See
 [Your Cloudflare Tunnel](sharing-and-names.md#your-cloudflare-tunnel).
 
-![Option 4: Cloudflare, on the family's account, sends home.smith.ca to the family door and share.home.smith.ca to the album viewer only. The extension seals each request for the box. The box dials out, so the router opens nothing.](cloudflare-tunnel.svg)
+![Option 4: Cloudflare, on the family's account, sends home.smith.ca to the family door and share.smith.ca to the album viewer only. The extension seals each request for the box. The box dials out, so the router opens nothing.](cloudflare-tunnel.svg)
 
 | Part | What it does | Why |
 |---|---|---|
@@ -433,12 +473,12 @@ a link is live.
 | **Admin notes signed by the box** | Giving the control plane a list of admin phones | Only admins can move the name or mark the box stolen, and the control plane still never learns your devices |
 | **The gateway keeps TCP 443; connectd takes UDP 443 and TCP 8443** | connectd in front of everything | The gateway already serves HTTPS at home, so nothing at home changes, and connectd only handles outside traffic |
 | **The door on port 8443,** or its own IPv6 address | Deciding "home or internet" from the address | Routers can fake where traffic comes from, never which port it arrives on |
-| **One certificate per box,** held by connectd | One certificate with every name, in the album viewer | Fits Let's Encrypt's limits, doesn't link your own domain to ZOOMRIYA, and the part facing the internet holds no key |
+| **One certificate per box,** held by connectd | One certificate with every name, in the album viewer | Fits Let's Encrypt's limits, and the part facing the internet holds no key |
 | **Let's Encrypt, with Google as the fallback** | One authority | Both free. Google covers Let's Encrypt's outages and weekly limit |
 | **`__Host-` cookies and `Origin` checks** | The Public Suffix List | Same protection for cookies, without months of waiting on an outside list |
 | **Public box names kept** | `.local` names only | Families get a real name and padlock. The apps and `.local` cover routers that block it |
 | **Our own DNS server,** a second later | Cloudflare | No record limits, no cost per box, and own domains keep the one-line NS option. A second server is a setting away |
-| **One NS record, or four CNAMEs** | One CNAME | One CNAME can't cover the certificate check or the door |
+| **NS records to the box's own name server** (`<box id>.ns.zoomriya.net`, the box's static ID) | One CNAME; shared `ns1`/`ns2` names | One CNAME can't cover the certificate check. Shared names can't say which box a domain is for |
 | **Relay limits per box,** slowed not cut off | Trusting the app to hold back backups | The relay can't see what it carries, so it limits what it can measure |
 | **Rules for registering boxes** | Only real boxes may register | Self-installs stay free, and names and the relay stay hard to abuse |
 | **Device labels, and a 15-minute lock after 5 wrong passwords** | Trusting connections from the box | Every person and device is counted separately, and guessing stays slow |

@@ -22,3 +22,17 @@ export function count(n: number, lang: Lang): string {
 export function shortKey(key: string): string {
 	return key.length <= 12 ? key : `${key.slice(0, 6)}…${key.slice(-4)}`;
 }
+
+/** Bytes as people read them: 950 MB, 3.2 GB (decimal, as phone plans count). */
+export function size(bytes: number, lang: Lang): string {
+	const units = lang === 'fr' ? ['o', 'ko', 'Mo', 'Go', 'To'] : ['B', 'kB', 'MB', 'GB', 'TB'];
+	let v = bytes;
+	let i = 0;
+	while (v >= 1000 && i < units.length - 1) {
+		v /= 1000;
+		i++;
+	}
+	const digits = i >= 3 && v < 100 ? 1 : 0;
+	const n = new Intl.NumberFormat(lang, { maximumFractionDigits: digits }).format(v);
+	return `${n}\u00a0${units[i]}`;
+}

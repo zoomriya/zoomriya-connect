@@ -2,14 +2,17 @@
 	import { onMount } from 'svelte';
 	import { SignedOut, get, setToken, signIn, token, type Overview } from './lib/api';
 	import { ui } from './lib/ui.svelte';
+	import Accounts from './pages/Accounts.svelte';
+	import Allowance from './pages/Allowance.svelte';
 	import Boxes from './pages/Boxes.svelte';
+	import Connected from './pages/Connected.svelte';
 	import FactoryTokens from './pages/FactoryTokens.svelte';
 	import OverviewPage from './pages/Overview.svelte';
 	import RelayPage from './pages/Relay.svelte';
 	import Reports from './pages/Reports.svelte';
 	import SignIn from './pages/SignIn.svelte';
 
-	type Page = 'overview' | 'boxes' | 'reports' | 'tokens';
+	type Page = 'overview' | 'accounts' | 'boxes' | 'connected' | 'allowance' | 'reports' | 'tokens';
 
 	let overview = $state<Overview | null>(null);
 	let page = $state<Page>('overview');
@@ -54,7 +57,10 @@
 		overview?.kind === 'control_plane'
 			? [
 					{ id: 'overview', label: w.overview },
+					{ id: 'accounts', label: w.accounts },
 					{ id: 'boxes', label: w.boxes },
+					{ id: 'connected', label: w.connected, count: overview.connected.boxes || undefined },
+					{ id: 'allowance', label: w.allowance },
 					{ id: 'reports', label: w.reports, count: overview.reports_open || undefined },
 					{ id: 'tokens', label: w.factoryTokens }
 				]
@@ -111,8 +117,14 @@
 				<RelayPage {overview} onrefresh={refresh} />
 			{:else if page === 'overview'}
 				<OverviewPage {overview} onrefresh={refresh} />
+			{:else if page === 'accounts'}
+				<Accounts onchange={refresh} />
 			{:else if page === 'boxes'}
-				<Boxes onchange={refresh} />
+				<Boxes onchange={refresh} allowances={overview.allowances} />
+			{:else if page === 'connected'}
+				<Connected />
+			{:else if page === 'allowance'}
+				<Allowance {overview} onchange={refresh} />
 			{:else if page === 'reports'}
 				<Reports onchange={refresh} />
 			{:else}

@@ -6,7 +6,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
-		"build": "vite build",
+		"build": "vite build && vite build --mode account",
 		"check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
 		"test": "vitest run"
 	},

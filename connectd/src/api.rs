@@ -4,7 +4,7 @@
 //! | Route | What |
 //! |---|---|
 //! | `GET /v1/status` | On or off, the name, the relay, the certificate, problems |
-//! | `POST /v1/setup` `{name}` | Picks the box's name and registers |
+//! | `POST /v1/setup` `{name, username, password}` | Picks the box's name and registers, linking the box to its ZOOMRIYA Connect account |
 //! | `POST /v1/on`, `POST /v1/off` | Switches ZOOMRIYA Connect on or off |
 //! | `POST /v1/release` | Gives the name up |
 //! | `GET /v1/devices` | Paired devices, with how each connects |
@@ -118,6 +118,7 @@ struct Status {
     on: bool,
     name: Option<String>,
     fqdn: Option<String>,
+    account: Option<String>,
     server: String,
     our_server: bool,
     relay_off: bool,
@@ -148,6 +149,7 @@ async fn status(State(ctx): State<Shared>) -> Response {
         on: !st.off && st.name.is_some(),
         name: st.name.clone(),
         fqdn: st.fqdn.clone(),
+        account: st.account.clone(),
         our_server: st.server.is_none(),
         server: ctx.server_url(),
         relay_off: st.relay_off,
@@ -164,6 +166,12 @@ async fn status(State(ctx): State<Shared>) -> Response {
 #[derive(Deserialize)]
 struct Setup {
     name: String,
+    /// The ZOOMRIYA Connect account's username and password, sent to the
+    /// server once to link the box, and never kept.
+    #[serde(default)]
+    username: Option<String>,
+    #[serde(default)]
+    password: Option<String>,
 }
 
 async fn setup(State(ctx): State<Shared>, Json(req): Json<Setup>) -> Response {
@@ -175,20 +183,31 @@ async fn setup(State(ctx): State<Shared>, Json(req): Json<Setup>) -> Response {
         Ok(s) => s,
         Err(e) => return failed(e),
     };
-    match server
-        .register(&ctx.box_key, &ctx.register_request(&name))
-        .await
+    let mut request = ctx.register_request(&name);
+    if let (Some(username), Some(password)) = (req.username, req.password)
+        && !username.trim().is_empty()
     {
+        request.account = Some(zoomriya_proto::AccountLogin {
+            username: username.trim().to_string(),
+            password,
+        });
+    }
+    match server.register(&ctx.box_key, &request).await {
         Ok(r) => {
             let saved = ctx.state.update(|s| {
                 s.name = Some(r.name.clone());
                 s.fqdn = Some(r.fqdn.clone());
                 s.share_fqdn = Some(r.share_fqdn.clone());
+                s.account = r.account.clone();
                 s.off = false;
             });
             if let Err(e) = saved {
                 return failed(e);
             }
+            ctx.health(|h| {
+                h.problems.remove("account");
+                h.problems.remove("server");
+            });
             info!(fqdn = %r.fqdn, "box named");
             ctx.changed.notify_one();
             Json(r).into_response()
@@ -234,6 +253,7 @@ async fn release(State(ctx): State<Shared>) -> Response {
     match ctx.state.update(|s| {
         s.name = None;
         s.fqdn = None;
+        s.account = None;
         s.share_fqdn = None;
     }) {
         Ok(()) => {
@@ -404,6 +424,7 @@ async fn set_server(State(ctx): State<Shared>, Json(req): Json<SetServer>) -> Re
         s.server = url;
         s.name = None;
         s.fqdn = None;
+        s.account = None;
         s.share_fqdn = None;
     }) {
         Ok(()) => {

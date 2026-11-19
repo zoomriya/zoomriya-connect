@@ -12,6 +12,11 @@
 //! zoomriya-control-plane reports      --config FILE
 //! zoomriya-control-plane report-done  --config FILE ID
 //! zoomriya-control-plane admin-token  --config FILE NAME
+//! zoomriya-control-plane accounts     --config FILE
+//! zoomriya-control-plane account-new  --config FILE USERNAME
+//! zoomriya-control-plane account-reset --config FILE USERNAME
+//! zoomriya-control-plane account-block --config FILE USERNAME
+//! zoomriya-control-plane account-unblock --config FILE USERNAME
 //! zoomriya-control-plane secondary    --config NS2_FILE
 //! ```
 //!
@@ -24,6 +29,7 @@ use anyhow::{Context, Result, bail};
 use tracing::{info, warn};
 use zoomriya_proto::{PROTOCOL_VERSION, WellKnown, names::NameRules};
 
+mod accounts;
 mod admin_api;
 mod api;
 mod check;
@@ -34,6 +40,7 @@ mod notes;
 mod signal;
 mod store;
 mod turn;
+mod usage;
 mod zone;
 
 #[cfg(test)]
@@ -45,6 +52,8 @@ use store::{Rules, Store};
 const USAGE: &str = "usage: zoomriya-control-plane COMMAND --config FILE [ARG]
 commands: run, status, factory-tokens FILE, switch-off NAME, switch-on NAME,
           mark-stolen NAME, reports, report-done ID, admin-token NAME,
+          accounts, account-new USERNAME, account-reset USERNAME,
+          account-block USERNAME, account-unblock USERNAME,
           secondary (on the second DNS server, with its own config)";
 
 fn main() -> ExitCode {
@@ -166,6 +175,73 @@ fn command_main(command: &str, path: PathBuf, arg: Option<&str>) -> Result<()> {
             );
             Ok(())
         }
+        "accounts" => {
+            let list = Store::open(&cfg.database)?.list_accounts("", 10_000)?;
+            if list.is_empty() {
+                println!("No accounts.");
+            }
+            for a in list {
+                println!(
+                    "{}{}  boxes {}/{}: {}",
+                    a.username,
+                    if a.blocked { " (blocked)" } else { "" },
+                    a.boxes.len(),
+                    a.max_boxes,
+                    a.boxes.join(", ")
+                );
+            }
+            Ok(())
+        }
+        "account-new" => {
+            let username = accounts::normalise(needs("a username")?);
+            anyhow::ensure!(
+                accounts::valid_username(&username),
+                "usernames are 3 to 64 letters, digits and . - _ @ +"
+            );
+            let password = accounts::new_password()?;
+            let made = Store::open(&cfg.database)?.create_account(
+                &username,
+                &accounts::hash(&password)?,
+                accounts::DEFAULT_MAX_BOXES,
+                zoomriya_serve::now(),
+            )?;
+            anyhow::ensure!(made, "there's already an account called {username}");
+            println!(
+                "Account {username}, for up to {} boxes.",
+                accounts::DEFAULT_MAX_BOXES
+            );
+            println!("Its password, shown only now:\n\n    {password}\n");
+            Ok(())
+        }
+        "account-reset" => {
+            let username = accounts::normalise(needs("a username")?);
+            let password = accounts::new_password()?;
+            if !Store::open(&cfg.database)?.set_password(
+                &username,
+                &accounts::hash(&password)?,
+                zoomriya_serve::now(),
+            )? {
+                bail!("no account is called {username}");
+            }
+            println!("{username}'s new password, shown only now:\n\n    {password}\n");
+            Ok(())
+        }
+        "account-block" | "account-unblock" => {
+            let username = accounts::normalise(needs("a username")?);
+            let block = command == "account-block";
+            if !Store::open(&cfg.database)?.set_account_blocked(&username, block)? {
+                bail!("no account is called {username}");
+            }
+            println!(
+                "{username} {}",
+                if block {
+                    "is blocked: its boxes stop working away from home within seconds."
+                } else {
+                    "is unblocked: its boxes work away from home again."
+                }
+            );
+            Ok(())
+        }
         _ => bail!("{USAGE}"),
     }
 }
@@ -177,6 +253,7 @@ pub fn build(cfg: &Config, store: Arc<Store>) -> Result<(Arc<api::Api>, dns::Dns
         names: NameRules::new().with_extra_words(words.lines()),
         per_address_per_day: cfg.registration.per_address_per_day,
         released_name_days: cfg.registration.released_name_days,
+        accounts_required: cfg.accounts.required,
     };
     let limits = api::Limits::default();
     let turn = match &cfg.guests {
@@ -202,10 +279,11 @@ pub fn build(cfg: &Config, store: Arc<Store>) -> Result<(Arc<api::Api>, dns::Dns
         well_known: WellKnown {
             version: PROTOCOL_VERSION,
             address_records: format!("{base}/pkarr"),
-            control_plane: base,
+            control_plane: base.clone(),
             relays: cfg.relays.urls.clone(),
             share: cfg.names.share_url.clone(),
             zone: cfg.names.zone.clone(),
+            account_page: format!("{base}/account/"),
         },
         zone: cfg.names.zone.clone(),
         clock_allowance: cfg.registration.clock_allowance_seconds,
@@ -216,11 +294,14 @@ pub fn build(cfg: &Config, store: Arc<Store>) -> Result<(Arc<api::Api>, dns::Dns
         per_box: limits.per_box,
         per_box_turn: limits.per_box_turn,
         per_guest: limits.per_guest,
+        per_sign_in: limits.per_sign_in,
+        account_page: cfg.accounts.page_dir.clone(),
         turn,
         checker: check::DoorChecker::new(),
         hub: signal::Hub::default(),
         share_origin: cfg.names.share_url.trim_end_matches('/').to_string(),
         zone_keys,
+        seen: Default::default(),
     });
     let dns = dns::DnsHandler::new(store, zones(&cfg.names), cfg.dns.answers_per_second);
     Ok((api, dns))

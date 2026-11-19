@@ -51,3 +51,9 @@ keys_file = "/etc/zoomriya-control-plane/zone-keys"
 bind = "127.0.0.1:8444"
 tokens_file = "/var/lib/zoomriya-control-plane/admin-tokens"
 web_dir = "/usr/share/zoomriya-connect/admin"
+
+# ZOOMRIYA Connect accounts: every box needs one, made by an operator in the
+# GUI or with account-new. Families change their password at /account/.
+[accounts]
+required = true
+page_dir = "/usr/share/zoomriya-connect/account"

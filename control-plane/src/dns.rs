@@ -427,6 +427,7 @@ mod tests {
                         ipv6: vec!["fd00::20".parse().expect("ip")],
                     },
                     factory_token: None,
+                    account: None,
                 },
                 "81.2.69.160".parse().expect("ip"),
                 zoomriya_serve::now(),
@@ -434,7 +435,9 @@ mod tests {
                     names: NameRules::new(),
                     per_address_per_day: 10,
                     released_name_days: 90,
+                    accounts_required: false,
                 },
+                None,
             )
             .expect("registers");
         (DnsHandler::new(store.clone(), zones(), 50), store, key)

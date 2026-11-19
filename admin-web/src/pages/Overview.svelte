@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { ControlPlaneOverview } from '../lib/api';
-	import { ago, count } from '../lib/format';
+	import { ago, count, size } from '../lib/format';
 	import { ui } from '../lib/ui.svelte';
 	import { fill } from '../lib/words';
 
@@ -20,7 +20,11 @@
 
 <div class="stack">
 	<div class="grid stats">
+		<div class="card stat"><div class="stat-label">{w.accountsStat}</div><div class="stat-value">{n(overview.accounts.all)}</div></div>
 		<div class="card stat"><div class="stat-label">{w.registered}</div><div class="stat-value">{n(overview.boxes.all)}</div></div>
+		<div class="card stat"><div class="stat-label">{w.connectedBoxes}</div><div class="stat-value">{n(overview.connected.boxes)}</div></div>
+		<div class="card stat"><div class="stat-label">{w.connectedDevices}</div><div class="stat-value">{n(overview.connected.devices)}</div></div>
+		<div class="card stat"><div class="stat-label">{w.relayUseThisMonth}</div><div class="stat-value">{size(overview.relay_use.bytes, ui.lang)}</div></div>
 		<div class="card stat"><div class="stat-label">{w.newToday}</div><div class="stat-value">{n(overview.new.day)}</div></div>
 		<div class="card stat"><div class="stat-label">{w.newThisWeek}</div><div class="stat-value">{n(overview.new.week)}</div></div>
 		<div class="card stat" class:warn={overview.reports_open > 0}>
@@ -30,6 +34,7 @@
 		<div class="card stat"><div class="stat-label">{w.unusedTokens}</div><div class="stat-value">{n(overview.factory_tokens.unused)}</div></div>
 		<div class="card stat"><div class="stat-label">{w.stolen}</div><div class="stat-value">{n(overview.boxes.stolen)}</div></div>
 		<div class="card stat"><div class="stat-label">{w.switchedOff}</div><div class="stat-value">{n(overview.boxes.off)}</div></div>
+		<div class="card stat" class:warn={overview.accounts.blocked > 0}><div class="stat-label">{w.blockedStat}</div><div class="stat-value">{n(overview.accounts.blocked)}</div></div>
 	</div>
 
 	<div class="grid two">

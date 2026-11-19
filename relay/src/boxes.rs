@@ -12,7 +12,10 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 use zoomriya_keys::Key;
-use zoomriya_proto::{BoxChange, BoxFeed, PROTOCOL_VERSION, VERSION_HEADER};
+use zoomriya_proto::{
+    BoxChange, BoxConnected, BoxFeed, BoxUse, PROTOCOL_VERSION, RelayReport, RelayReportAnswer,
+    VERSION_HEADER,
+};
 
 use crate::gate::Gate;
 
@@ -65,11 +68,13 @@ pub fn restore(file: &Path, gate: &Gate) -> Result<u64> {
     Ok(saved.seq)
 }
 
-/// Asks the control plane what changed, forever.
+/// Asks the control plane what changed, and reports each box's use and
+/// who's connected, forever.
 pub async fn follow(
     gate: Arc<Gate>,
     url: String,
     key: String,
+    name: String,
     every: Duration,
     file: PathBuf,
     mut seq: u64,
@@ -121,7 +126,59 @@ pub async fn follow(
                 }
             }
         }
+        report(&client, &base, &key, &name, &gate).await;
         tokio::time::sleep(every).await;
+    }
+}
+
+/// Sends what each box used and who's connected; slows whom the answer names.
+/// Counts that didn't get through go in the next report.
+async fn report(client: &reqwest::Client, base: &str, key: &str, name: &str, gate: &Gate) {
+    let used = gate.meter.take();
+    let body = RelayReport {
+        relay: name.to_string(),
+        used: used
+            .iter()
+            .map(|(k, bytes)| BoxUse {
+                key: Key(*k),
+                bytes: *bytes,
+            })
+            .collect(),
+        connected: gate
+            .connected_boxes()
+            .into_iter()
+            .map(|(k, devices)| BoxConnected {
+                key: Key(k),
+                devices,
+            })
+            .collect(),
+    };
+    let answer = async {
+        client
+            .post(format!("{base}/v1/relay/report"))
+            .bearer_auth(key)
+            .header(VERSION_HEADER, PROTOCOL_VERSION)
+            .json(&body)
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<RelayReportAnswer>()
+            .await
+    };
+    match answer.await {
+        Ok(a) => {
+            let before = gate.meter.slowed();
+            gate.meter
+                .set_slow(a.slow.into_iter().map(|k| k.0), a.slow_bytes_per_second);
+            let after = gate.meter.slowed();
+            if before != after {
+                info!(boxes = after, "boxes past their allowance, slowed");
+            }
+        }
+        Err(err) => {
+            gate.meter.put_back(used);
+            tracing::debug!("report: {err:#}");
+        }
     }
 }
 

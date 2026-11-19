@@ -116,6 +116,12 @@ pub struct BoxSummary {
     pub door_until: u64,
     /// Whether it has published an address record.
     pub has_record: bool,
+    /// Bytes through our relays this month.
+    pub used: u64,
+    /// Its own allowance in GB, if an operator set one (0: none).
+    pub own_allowance_gb: Option<u32>,
+    /// The account it's linked to.
+    pub account: Option<String>,
 }
 
 /// What a registration did.
@@ -127,6 +133,8 @@ pub struct Registered {
     pub factory: bool,
     /// `false` when the box registered again (same name, same key).
     pub new: bool,
+    /// The account it's linked to.
+    pub account: Option<String>,
 }
 
 /// The rules a registration is checked against.
@@ -138,7 +146,72 @@ pub struct Rules {
     pub per_address_per_day: u32,
     /// Days a released name waits.
     pub released_name_days: u32,
+    /// Every box needs an account, issued by an operator, to register.
+    pub accounts_required: bool,
 }
+
+/// The monthly relay allowances, set in the GUI. 0 means no limit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Allowances {
+    /// GB a month for a self-installed box.
+    pub default_gb: u32,
+    /// GB a month for a ready-made box (with a factory token).
+    pub factory_gb: u32,
+    /// How fast a box past its allowance may go, in kilobytes a second.
+    pub slow_kbps: u32,
+}
+
+impl Default for Allowances {
+    /// No limit until an operator sets one in the GUI, so a family's own
+    /// server never limits its own family.
+    fn default() -> Self {
+        Self {
+            default_gb: 0,
+            factory_gb: 0,
+            slow_kbps: 125,
+        }
+    }
+}
+
+/// A GB, as phone plans count it.
+pub const GB: u64 = 1_000_000_000;
+
+/// An account, for checking its sign-in.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AccountRow {
+    /// Its number.
+    pub id: i64,
+    /// The username.
+    pub username: String,
+    /// The password's Argon2 hash.
+    pub password: String,
+    /// Blocked by an operator.
+    pub blocked: bool,
+    /// Locked after wrong passwords until then (seconds since 1970).
+    pub locked_until: u64,
+}
+
+/// An account, as the GUI lists it.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct AccountSummary {
+    /// The username.
+    pub username: String,
+    /// Blocked by an operator.
+    pub blocked: bool,
+    /// How many boxes it may link.
+    pub max_boxes: u32,
+    /// Its boxes' names.
+    pub boxes: Vec<String>,
+    /// When it was made.
+    pub created_at: u64,
+    /// Locked after wrong passwords until then (0: not locked).
+    pub locked_until: u64,
+}
+
+/// Wrong passwords before an account is locked for a while.
+pub const WRONG_PASSWORDS: u32 = 5;
+/// How long it's locked.
+pub const LOCKED_FOR: u64 = 15 * 60;
 
 /// The store.
 pub struct Store {
@@ -195,6 +268,36 @@ CREATE TABLE IF NOT EXISTS box_events (
 CREATE TABLE IF NOT EXISTS address_records (
     box_key  TEXT PRIMARY KEY,
     payload  BLOB NOT NULL
+);
+CREATE TABLE IF NOT EXISTS relay_use (
+    box_key  TEXT NOT NULL,
+    month    TEXT NOT NULL,
+    bytes    INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (box_key, month)
+);
+CREATE TABLE IF NOT EXISTS allowances (
+    box_key  TEXT PRIMARY KEY,
+    gb       INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS accounts (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    username         TEXT NOT NULL UNIQUE,
+    password         TEXT NOT NULL,
+    blocked          INTEGER NOT NULL DEFAULT 0,
+    max_boxes        INTEGER NOT NULL DEFAULT 3,
+    failed           INTEGER NOT NULL DEFAULT 0,
+    locked_until     INTEGER NOT NULL DEFAULT 0,
+    created_at       INTEGER NOT NULL,
+    password_set_at  INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS account_sessions (
+    token_hash  TEXT PRIMARY KEY,
+    account_id  INTEGER NOT NULL,
+    expires     INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS settings (
+    name   TEXT PRIMARY KEY,
+    value  INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS reports (
     id       INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -279,6 +382,13 @@ impl Store {
         db.pragma_update(None, "synchronous", "NORMAL")?;
         db.pragma_update(None, "foreign_keys", "ON")?;
         db.execute_batch(SCHEMA)?;
+        // Added after the first release: which account a box is linked to.
+        let has_account: bool = db
+            .prepare("SELECT 1 FROM pragma_table_info('boxes') WHERE name = 'account_id'")?
+            .exists([])?;
+        if !has_account {
+            db.execute_batch("ALTER TABLE boxes ADD COLUMN account_id INTEGER")?;
+        }
         let version: i64 = db.query_row("PRAGMA data_version", [], |r| r.get(0))?;
         let store = Self {
             db: Mutex::new(db),
@@ -302,7 +412,8 @@ impl Store {
         {
             let mut q = db.prepare(
                 "SELECT name, home, door_v4, door_v6, door_until, acme_box, acme_door, acme_until
-                 FROM boxes WHERE disabled = 0 AND stolen = 0",
+                 FROM boxes b WHERE disabled = 0 AND stolen = 0
+                   AND (b.account_id IS NULL OR b.account_id NOT IN (SELECT id FROM accounts WHERE blocked = 1))",
             )?;
             let rows = q.query_map([], |r| {
                 Ok((
@@ -417,12 +528,15 @@ impl Store {
     /// Registers a box, or registers it again (same name and key: takes the
     /// new DNS update key and addresses). The request's signature is already
     /// checked to be the box key's.
+    /// Registers a box. `account` is the account whose sign-in came with the
+    /// request, already checked.
     pub fn register(
         &self,
         req: &RegisterRequest,
         from: IpAddr,
         now: u64,
         rules: &Rules,
+        account: Option<i64>,
     ) -> Result<Registered, Refused> {
         let name = names::normalise(&req.name);
         if let Err(why) = rules.names.check(&name) {
@@ -446,9 +560,29 @@ impl Store {
             if row.disabled {
                 return Err(name_taken());
             }
+            let linked: Option<i64> = tx
+                .query_row(
+                    "SELECT account_id FROM boxes WHERE name = ?1",
+                    params![name],
+                    |r| r.get(0),
+                )
+                .map_err(Refused::internal)?;
+            let account_id = match (linked, account) {
+                (Some(a), _) => Some(a),
+                (None, Some(a)) => {
+                    account_has_room(&tx, a)?;
+                    Some(a)
+                }
+                (None, None) if rules.accounts_required => return Err(account_needed()),
+                (None, None) => None,
+            };
+            let username = match account_id {
+                Some(a) => Some(account_usable(&tx, a)?),
+                None => None,
+            };
             tx.execute(
-                "UPDATE boxes SET dns_update_key = ?1, home = ?2 WHERE name = ?3",
-                params![req.dns_update_key.0.to_z32(), home, name],
+                "UPDATE boxes SET dns_update_key = ?1, home = ?2, account_id = ?3 WHERE name = ?4",
+                params![req.dns_update_key.0.to_z32(), home, account_id, name],
             )
             .map_err(Refused::internal)?;
             tx.commit().map_err(Refused::internal)?;
@@ -458,6 +592,7 @@ impl Store {
                 name,
                 factory,
                 new: false,
+                account: username,
             });
         }
         if by_name.is_some() {
@@ -481,6 +616,16 @@ impl Store {
         if waiting.is_some_and(|k| k != box_key) {
             return Err(name_taken());
         }
+        if account.is_none() && rules.accounts_required {
+            return Err(account_needed());
+        }
+        let username = match account {
+            Some(a) => {
+                account_has_room(&tx, a)?;
+                Some(account_usable(&tx, a)?)
+            }
+            None => None,
+        };
 
         // A factory token, or the daily limit per address.
         let factory = match &req.factory_token {
@@ -527,15 +672,16 @@ impl Store {
         };
 
         tx.execute(
-            "INSERT INTO boxes (name, box_key, dns_update_key, factory, home, registered_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            "INSERT INTO boxes (name, box_key, dns_update_key, factory, home, registered_at, account_id)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params![
                 name,
                 box_key,
                 req.dns_update_key.0.to_z32(),
                 factory,
                 home,
-                now
+                now,
+                account
             ],
         )
         .map_err(Refused::internal)?;
@@ -568,6 +714,7 @@ impl Store {
             name,
             factory,
             new: true,
+            account: username,
         })
     }
 
@@ -737,7 +884,10 @@ impl Store {
         let min = min.unwrap_or(1) as u64;
         if after == 0 || after + 1 < min || after > max {
             let mut q = db
-                .prepare("SELECT box_key, factory, stolen FROM boxes")
+                .prepare(
+                    "SELECT box_key, factory, stolen FROM boxes b
+                     WHERE (b.account_id IS NULL OR b.account_id NOT IN (SELECT id FROM accounts WHERE blocked = 1))",
+                )
                 .map_err(Refused::internal)?;
             let changes = q
                 .query_map([], |r| {
@@ -953,13 +1103,17 @@ impl Store {
         let db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
         let mut st = db.prepare(
             "SELECT b.name, b.box_key, b.factory, b.stolen, b.disabled, b.registered_at,
-                    b.door_until, a.box_key IS NOT NULL
+                    b.door_until, a.box_key IS NOT NULL, COALESCE(u.bytes, 0), al.gb, ac.username
              FROM boxes b LEFT JOIN address_records a ON a.box_key = b.box_key
-             WHERE instr(b.name, ?1) > 0
+             LEFT JOIN relay_use u ON u.box_key = b.box_key AND u.month = ?3
+             LEFT JOIN allowances al ON al.box_key = b.box_key
+             LEFT JOIN accounts ac ON ac.id = b.account_id
+             WHERE instr(b.name, ?1) > 0 OR instr(COALESCE(ac.username, ''), ?1) > 0
              ORDER BY b.registered_at DESC LIMIT ?2",
         )?;
+        let month = zoomriya_proto::month_of(zoomriya_serve::now());
         let rows = st
-            .query_map(params![q.to_ascii_lowercase(), limit], |r| {
+            .query_map(params![q.to_ascii_lowercase(), limit, month], |r| {
                 Ok(BoxSummary {
                     name: r.get(0)?,
                     key: r.get(1)?,
@@ -969,6 +1123,9 @@ impl Store {
                     registered_at: r.get(5)?,
                     door_until: r.get(6)?,
                     has_record: r.get(7)?,
+                    used: r.get::<_, i64>(8)?.max(0) as u64,
+                    own_allowance_gb: r.get(9)?,
+                    account: r.get(10)?,
                 })
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
@@ -1068,6 +1225,374 @@ impl Store {
         Ok(db.execute("UPDATE reports SET handled = 1 WHERE id = ?1", params![id])? > 0)
     }
 
+    /// The allowances, as last set in the GUI.
+    pub fn allowances(&self) -> Result<Allowances> {
+        let db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
+        let mut a = Allowances::default();
+        let mut q = db.prepare("SELECT name, value FROM settings")?;
+        for row in q.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))? {
+            let (name, value) = row?;
+            let v = value.clamp(0, i64::from(u32::MAX)) as u32;
+            match name.as_str() {
+                "default_gb" => a.default_gb = v,
+                "factory_gb" => a.factory_gb = v,
+                "slow_kbps" => a.slow_kbps = v.max(1),
+                _ => {}
+            }
+        }
+        Ok(a)
+    }
+
+    /// Sets the allowances.
+    pub fn set_allowances(&self, a: &Allowances) -> Result<()> {
+        let mut db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
+        let tx = db.transaction()?;
+        for (name, v) in [
+            ("default_gb", a.default_gb),
+            ("factory_gb", a.factory_gb),
+            ("slow_kbps", a.slow_kbps.max(1)),
+        ] {
+            tx.execute(
+                "INSERT INTO settings (name, value) VALUES (?1, ?2)
+                 ON CONFLICT (name) DO UPDATE SET value = excluded.value",
+                params![name, v],
+            )?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Gives one box its own allowance in GB (0: no limit), or `None` for the
+    /// usual one. Returns `false` if there's no such box.
+    pub fn set_box_allowance(&self, name: &str, gb: Option<u32>) -> Result<bool> {
+        let db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
+        let Some(key): Option<String> = db
+            .query_row(
+                "SELECT box_key FROM boxes WHERE name = ?1",
+                params![name],
+                |r| r.get(0),
+            )
+            .optional()?
+        else {
+            return Ok(false);
+        };
+        match gb {
+            Some(gb) => db.execute(
+                "INSERT INTO allowances (box_key, gb) VALUES (?1, ?2)
+                 ON CONFLICT (box_key) DO UPDATE SET gb = excluded.gb",
+                params![key, gb],
+            )?,
+            None => db.execute("DELETE FROM allowances WHERE box_key = ?1", params![key])?,
+        };
+        Ok(true)
+    }
+
+    /// Adds a relay's counts to the month. Unknown boxes are skipped.
+    pub fn add_relay_use(&self, month: &str, used: &[(PublicKey, u64)]) -> Result<()> {
+        let mut db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
+        let tx = db.transaction()?;
+        for (key, bytes) in used {
+            let bytes = i64::try_from(*bytes).unwrap_or(i64::MAX);
+            tx.execute(
+                "INSERT INTO relay_use (box_key, month, bytes)
+                 SELECT box_key, ?2, ?3 FROM boxes WHERE box_key = ?1
+                 ON CONFLICT (box_key, month) DO UPDATE SET bytes = bytes + excluded.bytes",
+                params![key.to_z32(), month, bytes],
+            )?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Boxes past their allowance this month.
+    pub fn over_allowance(&self, month: &str) -> Result<Vec<PublicKey>> {
+        let a = self.allowances()?;
+        let db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
+        let mut q = db.prepare(
+            "SELECT u.box_key FROM relay_use u
+             JOIN boxes b ON b.box_key = u.box_key
+             LEFT JOIN allowances al ON al.box_key = u.box_key
+             WHERE u.month = ?1
+               AND COALESCE(al.gb, CASE WHEN b.factory THEN ?3 ELSE ?2 END) > 0
+               AND u.bytes > COALESCE(al.gb, CASE WHEN b.factory THEN ?3 ELSE ?2 END) * ?4",
+        )?;
+        let keys = q
+            .query_map(params![month, a.default_gb, a.factory_gb, GB as i64], |r| {
+                key_col(&r.get::<_, String>(0)?)
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(keys)
+    }
+
+    /// One box's use this month: bytes, and its allowance in bytes (0: none).
+    pub fn relay_use(&self, key: &PublicKey, month: &str) -> Result<(u64, u64)> {
+        let a = self.allowances()?;
+        let db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
+        let (factory, own, used): (bool, Option<i64>, i64) = db.query_row(
+            "SELECT b.factory, al.gb, COALESCE(u.bytes, 0) FROM boxes b
+             LEFT JOIN allowances al ON al.box_key = b.box_key
+             LEFT JOIN relay_use u ON u.box_key = b.box_key AND u.month = ?2
+             WHERE b.box_key = ?1",
+            params![key.to_z32(), month],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )?;
+        let gb = own.map_or(if factory { a.factory_gb } else { a.default_gb }, |g| {
+            g.clamp(0, i64::from(u32::MAX)) as u32
+        });
+        Ok((used.max(0) as u64, u64::from(gb) * GB))
+    }
+
+    /// Bytes through our relays this month, all boxes together.
+    pub fn relay_use_total(&self, month: &str) -> Result<u64> {
+        let db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
+        let n: i64 = db.query_row(
+            "SELECT COALESCE(SUM(bytes), 0) FROM relay_use WHERE month = ?1",
+            params![month],
+            |r| r.get(0),
+        )?;
+        Ok(n.max(0) as u64)
+    }
+
+    /// Names for box keys, for the GUI's list of connected boxes.
+    pub fn names_for(&self, keys: &[PublicKey]) -> Result<HashMap<PublicKey, String>> {
+        let db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
+        let mut q = db.prepare("SELECT name FROM boxes WHERE box_key = ?1")?;
+        let mut out = HashMap::new();
+        for k in keys {
+            if let Some(name) = q
+                .query_row(params![k.to_z32()], |r| r.get::<_, String>(0))
+                .optional()?
+            {
+                out.insert(*k, name);
+            }
+        }
+        Ok(out)
+    }
+
+    // Accounts. Operators issue them; families change their password.
+
+    /// Makes an account. `password` is already hashed.
+    pub fn create_account(
+        &self,
+        username: &str,
+        password: &str,
+        max_boxes: u32,
+        now: u64,
+    ) -> Result<bool> {
+        let db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
+        let n = db.execute(
+            "INSERT OR IGNORE INTO accounts (username, password, max_boxes, created_at, password_set_at)
+             VALUES (?1, ?2, ?3, ?4, ?4)",
+            params![username, password, max_boxes, now],
+        )?;
+        Ok(n > 0)
+    }
+
+    /// An account, for its sign-in.
+    pub fn account(&self, username: &str) -> Result<Option<AccountRow>> {
+        let db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
+        Ok(db
+            .query_row(
+                "SELECT id, username, password, blocked, locked_until FROM accounts WHERE username = ?1",
+                params![username],
+                |r| {
+                    Ok(AccountRow {
+                        id: r.get(0)?,
+                        username: r.get(1)?,
+                        password: r.get(2)?,
+                        blocked: r.get(3)?,
+                        locked_until: r.get(4)?,
+                    })
+                },
+            )
+            .optional()?)
+    }
+
+    /// A wrong password: after [`WRONG_PASSWORDS`], the account is locked
+    /// for [`LOCKED_FOR`].
+    pub fn wrong_password(&self, id: i64, now: u64) -> Result<()> {
+        let db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
+        db.execute(
+            "UPDATE accounts SET
+                locked_until = CASE WHEN failed + 1 >= ?2 THEN ?3 ELSE locked_until END,
+                failed = CASE WHEN failed + 1 >= ?2 THEN 0 ELSE failed + 1 END
+             WHERE id = ?1",
+            params![id, WRONG_PASSWORDS, now + LOCKED_FOR],
+        )?;
+        Ok(())
+    }
+
+    /// A right password: the count starts again.
+    pub fn right_password(&self, id: i64) -> Result<()> {
+        let db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
+        db.execute(
+            "UPDATE accounts SET failed = 0, locked_until = 0 WHERE id = ?1",
+            params![id],
+        )?;
+        Ok(())
+    }
+
+    /// Sets a new password (already hashed) and ends every session.
+    pub fn set_password(&self, username: &str, password: &str, now: u64) -> Result<bool> {
+        let db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
+        let n = db.execute(
+            "UPDATE accounts SET password = ?2, password_set_at = ?3, failed = 0, locked_until = 0
+             WHERE username = ?1",
+            params![username, password, now],
+        )?;
+        db.execute(
+            "DELETE FROM account_sessions WHERE account_id = (SELECT id FROM accounts WHERE username = ?1)",
+            params![username],
+        )?;
+        Ok(n > 0)
+    }
+
+    /// Blocks an account, or unblocks it. Blocked, its boxes drop out of DNS
+    /// and the relays refuse them and their devices; its sessions end.
+    pub fn set_account_blocked(&self, username: &str, blocked: bool) -> Result<bool> {
+        let mut db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
+        let tx = db.transaction()?;
+        let Some(id): Option<i64> = tx
+            .query_row(
+                "SELECT id FROM accounts WHERE username = ?1",
+                params![username],
+                |r| r.get(0),
+            )
+            .optional()?
+        else {
+            return Ok(false);
+        };
+        tx.execute(
+            "UPDATE accounts SET blocked = ?2 WHERE id = ?1",
+            params![id, blocked],
+        )?;
+        if blocked {
+            tx.execute(
+                "DELETE FROM account_sessions WHERE account_id = ?1",
+                params![id],
+            )?;
+        }
+        let boxes: Vec<(String, bool, bool)> = {
+            let mut q =
+                tx.prepare("SELECT box_key, factory, stolen FROM boxes WHERE account_id = ?1")?;
+            q.query_map(params![id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
+                .collect::<rusqlite::Result<_>>()?
+        };
+        for (key, factory, stolen) in boxes {
+            let state = if blocked {
+                BoxState::Gone
+            } else if stolen {
+                BoxState::Stolen
+            } else if factory {
+                BoxState::ActiveFactory
+            } else {
+                BoxState::Active
+            };
+            event(&tx, &key, state)?;
+        }
+        tx.commit()?;
+        drop(db);
+        self.reload()?;
+        Ok(true)
+    }
+
+    /// Sets how many boxes an account may link.
+    pub fn set_max_boxes(&self, username: &str, max: u32) -> Result<bool> {
+        let db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
+        Ok(db.execute(
+            "UPDATE accounts SET max_boxes = ?2 WHERE username = ?1",
+            params![username, max],
+        )? > 0)
+    }
+
+    /// Accounts for the GUI, optionally only usernames containing `q`.
+    pub fn list_accounts(&self, q: &str, limit: u32) -> Result<Vec<AccountSummary>> {
+        let db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
+        let mut st = db.prepare(
+            "SELECT a.username, a.blocked, a.max_boxes, a.created_at, a.locked_until,
+                    COALESCE((SELECT group_concat(name, ' ') FROM boxes WHERE account_id = a.id), '')
+             FROM accounts a WHERE instr(a.username, ?1) > 0
+             ORDER BY a.created_at DESC LIMIT ?2",
+        )?;
+        let rows = st
+            .query_map(params![q.to_lowercase(), limit], |r| {
+                let boxes: String = r.get(5)?;
+                Ok(AccountSummary {
+                    username: r.get(0)?,
+                    blocked: r.get(1)?,
+                    max_boxes: r.get(2)?,
+                    created_at: r.get(3)?,
+                    locked_until: r.get(4)?,
+                    boxes: boxes.split_whitespace().map(String::from).collect(),
+                })
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(rows)
+    }
+
+    /// An account's boxes: name, box key, ready-made.
+    pub fn account_boxes(&self, id: i64) -> Result<Vec<(String, PublicKey, bool)>> {
+        let db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
+        let mut q = db.prepare(
+            "SELECT name, box_key, factory FROM boxes WHERE account_id = ?1 ORDER BY name",
+        )?;
+        let rows = q
+            .query_map(params![id], |r| {
+                Ok((r.get(0)?, key_col(&r.get::<_, String>(1)?)?, r.get(2)?))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(rows)
+    }
+
+    /// Accounts: all, and blocked.
+    pub fn account_counts(&self) -> Result<(u64, u64)> {
+        let db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
+        Ok(db.query_row(
+            "SELECT COUNT(*), COALESCE(SUM(blocked), 0) FROM accounts",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )?)
+    }
+
+    /// Keeps a sign-in session for the account page.
+    pub fn new_session(&self, id: i64, token_hash: &str, expires: u64, now: u64) -> Result<()> {
+        let db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
+        db.execute(
+            "DELETE FROM account_sessions WHERE expires <= ?1",
+            params![now],
+        )?;
+        db.execute(
+            "INSERT INTO account_sessions (token_hash, account_id, expires) VALUES (?1, ?2, ?3)",
+            params![token_hash, id, expires],
+        )?;
+        Ok(())
+    }
+
+    /// The account a session belongs to, while it lasts: number, username,
+    /// how many boxes it may link.
+    pub fn session(&self, token_hash: &str, now: u64) -> Result<Option<(i64, String, u32)>> {
+        let db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
+        Ok(db
+            .query_row(
+                "SELECT a.id, a.username, a.max_boxes FROM account_sessions s
+                 JOIN accounts a ON a.id = s.account_id
+                 WHERE s.token_hash = ?1 AND s.expires > ?2 AND a.blocked = 0",
+                params![token_hash, now],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .optional()?)
+    }
+
+    /// Ends a session.
+    pub fn end_session(&self, token_hash: &str) -> Result<()> {
+        let db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
+        db.execute(
+            "DELETE FROM account_sessions WHERE token_hash = ?1",
+            params![token_hash],
+        )?;
+        Ok(())
+    }
+
     /// How many boxes are registered: all, with a factory token, stolen, switched off.
     pub fn counts(&self) -> Result<(u64, u64, u64, u64)> {
         let db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
@@ -1077,6 +1602,57 @@ impl Store {
             |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
         )?)
     }
+}
+
+fn account_needed() -> Refused {
+    Refused::new(
+        403,
+        "account_needed",
+        "ZOOMRIYA Connect needs an account. Type the username and password you were given.",
+    )
+}
+
+/// The account's username, if it isn't blocked.
+fn account_usable(db: &Connection, id: i64) -> Result<String, Refused> {
+    let (username, blocked): (String, bool) = db
+        .query_row(
+            "SELECT username, blocked FROM accounts WHERE id = ?1",
+            params![id],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .optional()
+        .map_err(Refused::internal)?
+        .ok_or_else(account_needed)?;
+    if blocked {
+        return Err(Refused::new(
+            403,
+            "account_blocked",
+            "This ZOOMRIYA Connect account is blocked. Ask whoever gave you the account.",
+        ));
+    }
+    Ok(username)
+}
+
+/// Refuses a box past the account's limit.
+fn account_has_room(db: &Connection, id: i64) -> Result<(), Refused> {
+    let (count, max): (u32, u32) = db
+        .query_row(
+            "SELECT (SELECT COUNT(*) FROM boxes WHERE account_id = ?1), max_boxes
+             FROM accounts WHERE id = ?1",
+            params![id],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .optional()
+        .map_err(Refused::internal)?
+        .ok_or_else(account_needed)?;
+    if count >= max {
+        return Err(Refused::new(
+            403,
+            "account_full",
+            "This account already has all the boxes it can. Ask whoever gave you the account for room for another.",
+        ));
+    }
+    Ok(())
 }
 
 fn name_taken() -> Refused {
@@ -1165,6 +1741,7 @@ mod tests {
             names: NameRules::new(),
             per_address_per_day: 2,
             released_name_days: 90,
+            accounts_required: false,
         }
     }
 
@@ -1178,6 +1755,7 @@ mod tests {
                 ipv6: vec![],
             },
             factory_token: None,
+            account: None,
         }
     }
 
@@ -1190,7 +1768,7 @@ mod tests {
         let s = Store::in_memory().expect("store");
         let a = SecretKey::generate();
         let r = s
-            .register(&req("Maple", &a), ip("81.2.69.160"), NOW, &rules())
+            .register(&req("Maple", &a), ip("81.2.69.160"), NOW, &rules(), None)
             .expect("ok");
         assert_eq!(r.name, "maple");
         assert!(r.new);
@@ -1199,7 +1777,7 @@ mod tests {
         // Same box again: fine, takes the new DNS key, doesn't count.
         let again = req("maple", &a);
         let r = s
-            .register(&again, ip("81.2.69.160"), NOW, &rules())
+            .register(&again, ip("81.2.69.160"), NOW, &rules(), None)
             .expect("again");
         assert!(!r.new);
         assert_eq!(
@@ -1210,26 +1788,26 @@ mod tests {
         // Someone else wants it.
         let b = SecretKey::generate();
         let e = s
-            .register(&req("maple", &b), ip("81.2.69.161"), NOW, &rules())
+            .register(&req("maple", &b), ip("81.2.69.161"), NOW, &rules(), None)
             .expect_err("taken");
         assert_eq!(e.code, "name_taken");
         // One name per box.
         let e = s
-            .register(&req("oak", &a), ip("81.2.69.160"), NOW, &rules())
+            .register(&req("oak", &a), ip("81.2.69.160"), NOW, &rules(), None)
             .expect_err("one");
         assert_eq!(e.code, "box_has_name");
         // A name pointing at the internet.
         let mut bad = req("elm", &b);
         bad.home.ipv4 = vec!["8.8.8.8".parse().expect("ip")];
         assert_eq!(
-            s.register(&bad, ip("81.2.69.161"), NOW, &rules())
+            s.register(&bad, ip("81.2.69.161"), NOW, &rules(), None)
                 .expect_err("public")
                 .code,
             "not_home_address"
         );
         // Name rules.
         assert_eq!(
-            s.register(&req("mybank", &b), ip("81.2.69.161"), NOW, &rules())
+            s.register(&req("mybank", &b), ip("81.2.69.161"), NOW, &rules(), None)
                 .expect_err("blocked")
                 .code,
             "name_blocked"
@@ -1241,7 +1819,7 @@ mod tests {
         let s = Store::in_memory().expect("store");
         let from = ip("2a01:4f8:1:2::5");
         for n in ["one", "two"] {
-            s.register(&req(n, &SecretKey::generate()), from, NOW, &rules())
+            s.register(&req(n, &SecretKey::generate()), from, NOW, &rules(), None)
                 .expect("ok");
         }
         // Same /64, another address.
@@ -1251,6 +1829,7 @@ mod tests {
                 ip("2a01:4f8:1:2::99"),
                 NOW,
                 &rules(),
+                None,
             )
             .expect_err("limit");
         assert_eq!(e.code, "too_many_boxes");
@@ -1261,6 +1840,7 @@ mod tests {
             from,
             NOW + 86_401,
             &rules(),
+            None,
         )
         .expect("next day");
 
@@ -1273,14 +1853,14 @@ mod tests {
         let mut f = req("four", &SecretKey::generate());
         f.factory_token = Some("tok-aaaaaaaaaaaaaaaaaaaa".into());
         assert!(
-            s.register(&f, from, NOW, &rules())
+            s.register(&f, from, NOW, &rules(), None)
                 .expect("factory")
                 .factory
         );
         let mut copied = req("five", &SecretKey::generate());
         copied.factory_token = Some("tok-aaaaaaaaaaaaaaaaaaaa".into());
         assert_eq!(
-            s.register(&copied, from, NOW, &rules())
+            s.register(&copied, from, NOW, &rules(), None)
                 .expect_err("used")
                 .code,
             "factory_token"
@@ -1292,19 +1872,31 @@ mod tests {
         let s = Store::in_memory().expect("store");
         let a = SecretKey::generate();
         let b = SecretKey::generate();
-        s.register(&req("maple", &a), ip("81.2.69.160"), NOW, &rules())
+        s.register(&req("maple", &a), ip("81.2.69.160"), NOW, &rules(), None)
             .expect("ok");
         s.release("maple", NOW, 90).expect("release");
         assert!(s.entry("maple").is_none());
         assert_eq!(
-            s.register(&req("maple", &b), ip("81.2.69.1"), NOW + 86_400, &rules())
-                .expect_err("waiting")
-                .code,
+            s.register(
+                &req("maple", &b),
+                ip("81.2.69.1"),
+                NOW + 86_400,
+                &rules(),
+                None
+            )
+            .expect_err("waiting")
+            .code,
             "name_taken"
         );
         // The same box can take it back.
-        s.register(&req("maple", &a), ip("81.2.69.160"), NOW + 86_400, &rules())
-            .expect("back");
+        s.register(
+            &req("maple", &a),
+            ip("81.2.69.160"),
+            NOW + 86_400,
+            &rules(),
+            None,
+        )
+        .expect("back");
         s.release("maple", NOW + 86_400, 90).expect("release");
         // After 90 days anyone can.
         s.register(
@@ -1312,6 +1904,7 @@ mod tests {
             ip("81.2.69.1"),
             NOW + 92 * 86_400,
             &rules(),
+            None,
         )
         .expect("free");
     }
@@ -1324,7 +1917,7 @@ mod tests {
         assert!(full.changes.is_empty());
         let a = SecretKey::generate();
         let b = SecretKey::generate();
-        s.register(&req("maple", &a), ip("81.2.69.160"), NOW, &rules())
+        s.register(&req("maple", &a), ip("81.2.69.160"), NOW, &rules(), None)
             .expect("ok");
         // Asking from zero always gets the whole list.
         let f = s.feed(full.seq).expect("feed");
@@ -1336,7 +1929,7 @@ mod tests {
                 state: BoxState::Active
             }]
         );
-        s.register(&req("oak", &b), ip("81.2.69.161"), NOW, &rules())
+        s.register(&req("oak", &b), ip("81.2.69.161"), NOW, &rules(), None)
             .expect("ok");
         s.set_stolen("maple").expect("stolen");
         let g = s.feed(f.seq).expect("feed");
@@ -1360,7 +1953,7 @@ mod tests {
     fn door_acme_and_switching_off() {
         let s = Store::in_memory().expect("store");
         let a = SecretKey::generate();
-        s.register(&req("maple", &a), ip("81.2.69.160"), NOW, &rules())
+        s.register(&req("maple", &a), ip("81.2.69.160"), NOW, &rules(), None)
             .expect("ok");
         s.set_door("maple", Some("81.2.69.160".parse().expect("ip")), None, NOW)
             .expect("door");
@@ -1398,7 +1991,7 @@ mod tests {
         let old = SecretKey::generate();
         let new = SecretKey::generate();
         let dns = SecretKey::generate();
-        s.register(&req("maple", &old), ip("81.2.69.160"), NOW, &rules())
+        s.register(&req("maple", &old), ip("81.2.69.160"), NOW, &rules(), None)
             .expect("ok");
         let seq = s.feed(0).expect("feed").seq;
         assert_eq!(
@@ -1447,6 +2040,7 @@ mod tests {
             ip("81.2.69.160"),
             NOW,
             &rules(),
+            None,
         )
         .expect("ok");
         let copy = s.zone_copy();
@@ -1465,5 +2059,58 @@ mod tests {
         assert_eq!(address_bucket(ip("81.2.69.160")), "81.2.69.160");
         assert_eq!(address_bucket(ip("::ffff:81.2.69.160")), "81.2.69.160");
         assert_eq!(address_bucket(ip("2a01:4f8:1:2::5")), "2a01:4f8:1:2::/64");
+    }
+
+    #[test]
+    fn monthly_allowance() {
+        let s = Store::in_memory().expect("store");
+        let a = SecretKey::generate();
+        let b = SecretKey::generate();
+        s.register(&req("maple", &a), ip("81.2.69.160"), NOW, &rules(), None)
+            .expect("ok");
+        s.register(&req("oak", &b), ip("81.2.69.161"), NOW, &rules(), None)
+            .expect("ok");
+        let stranger = SecretKey::generate().public();
+        let month = "2027-01";
+
+        // Counted per box and month; boxes we don't know are skipped.
+        s.add_relay_use(month, &[(a.public(), 3 * GB), (stranger, GB)])
+            .expect("adds");
+        s.add_relay_use(month, &[(a.public(), 2 * GB), (b.public(), GB)])
+            .expect("adds");
+        s.add_relay_use("2026-12", &[(b.public(), 99 * GB)])
+            .expect("adds");
+        assert_eq!(s.relay_use_total(month).expect("total"), 6 * GB);
+
+        // No limit until an operator sets one.
+        assert_eq!(s.allowances().expect("read"), Allowances::default());
+        assert!(s.over_allowance(month).expect("over").is_empty());
+        assert_eq!(s.relay_use(&a.public(), month).expect("use"), (5 * GB, 0));
+
+        s.set_allowances(&Allowances {
+            default_gb: 4,
+            factory_gb: 50,
+            slow_kbps: 100,
+        })
+        .expect("set");
+        assert_eq!(s.over_allowance(month).expect("over"), vec![a.public()]);
+        assert_eq!(
+            s.relay_use(&a.public(), month).expect("use"),
+            (5 * GB, 4 * GB)
+        );
+
+        // One box gets its own: more, or none at all.
+        assert!(s.set_box_allowance("maple", Some(10)).expect("set"));
+        assert!(s.over_allowance(month).expect("over").is_empty());
+        assert!(s.set_box_allowance("maple", Some(0)).expect("set"));
+        assert!(s.over_allowance(month).expect("over").is_empty());
+        assert_eq!(s.relay_use(&a.public(), month).expect("use"), (5 * GB, 0));
+        assert!(s.set_box_allowance("maple", None).expect("back"));
+        assert_eq!(s.over_allowance(month).expect("over"), vec![a.public()]);
+        assert!(!s.set_box_allowance("nobody", Some(1)).expect("no box"));
+
+        // The GUI's list shows this month's use and any own allowance.
+        let list = s.list_boxes("", 10).expect("list");
+        assert!(list.iter().all(|b| b.own_allowance_gb.is_none()));
     }
 }

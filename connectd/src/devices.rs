@@ -437,7 +437,7 @@ mod tests {
     impl Phone {
         fn new() -> Self {
             Self {
-                chip: SigningKey::random(&mut rand_core::OsRng),
+                chip: zoomriya_keys::new_test_chip(),
                 link: SecretKey::generate(),
             }
         }
@@ -449,7 +449,7 @@ mod tests {
             PairRequest {
                 secret: secret.into(),
                 device_key: BASE64URL_NOPAD
-                    .encode(self.chip.verifying_key().to_encoded_point(true).as_bytes()),
+                    .encode(self.chip.verifying_key().to_sec1_point(true).as_bytes()),
                 link: self.link.public().into(),
                 link_sig: self.sig(&self.link.public()),
                 name: "Phone".into(),

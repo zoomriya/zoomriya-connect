@@ -17,6 +17,13 @@ targets = [
 [advisories]
 version = 2
 yanked = "deny"
+ignore = [
+    # chrono is marked unmaintained, with no vulnerability. It comes in only
+    # through iroh's relay library's ACME code (tokio-rustls-acme), which we
+    # use unchanged so iroh updates stay a version number. Look again when
+    # iroh moves off it.
+    { id = "RUSTSEC-2026-0543", reason = "unmaintained, no vulnerability; only via iroh-relay's tokio-rustls-acme" },
+]
 
 [licenses]
 version = 2
@@ -38,6 +45,8 @@ confidence-threshold = 0.9
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
+# Our own crates point at each other by path, and are never published.
+allow-wildcard-paths = true
 
 [sources]
 unknown-registry = "deny"

@@ -15,6 +15,7 @@ path = "src/main.rs"
 anyhow.workspace = true
 async-trait = "0.1"
 axum.workspace = true
+argon2 = { version = "0.6", default-features = false, features = ["alloc", "password-hash"] }
 data-encoding.workspace = true
 getrandom = "0.3"
 hmac = "0.12"

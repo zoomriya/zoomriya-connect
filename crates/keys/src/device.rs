@@ -32,7 +32,7 @@ impl DeviceKey {
 
     /// The key, SEC1 compressed, base64url: how the box stores it.
     pub fn to_b64(&self) -> String {
-        BASE64URL_NOPAD.encode(self.0.to_encoded_point(true).as_bytes())
+        BASE64URL_NOPAD.encode(self.0.to_sec1_point(true).as_bytes())
     }
 
     /// Checks the device key's signature over a link key. Takes DER (what the
@@ -53,17 +53,31 @@ impl DeviceKey {
     }
 }
 
+/// A P-256 key like a phone's security chip holds, for tests and the test
+/// phone only: the real one never leaves the chip.
+#[doc(hidden)]
+pub fn new_test_chip() -> p256::ecdsa::SigningKey {
+    loop {
+        let mut bytes = [0u8; 32];
+        if getrandom::fill(&mut bytes).is_ok()
+            && let Ok(k) = p256::ecdsa::SigningKey::from_slice(&bytes)
+        {
+            return k;
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::SecretKey;
-    use p256::ecdsa::{SigningKey, signature::Signer};
+    use p256::ecdsa::signature::Signer;
 
     #[test]
     fn device_vouches_for_link_keys() {
-        let chip = SigningKey::random(&mut rand_core::OsRng);
+        let chip = crate::device::new_test_chip();
         let device = DeviceKey::from_b64(
-            &BASE64URL_NOPAD.encode(chip.verifying_key().to_encoded_point(false).as_bytes()),
+            &BASE64URL_NOPAD.encode(chip.verifying_key().to_sec1_point(false).as_bytes()),
         )
         .expect("reads");
         assert_eq!(
@@ -85,7 +99,7 @@ mod tests {
             Err(KeyError::BadSignature)
         );
         assert_eq!(device.verify_link(&link, "!!"), Err(KeyError::Malformed));
-        let stranger = SigningKey::random(&mut rand_core::OsRng);
+        let stranger = crate::device::new_test_chip();
         let theirs: Signature = stranger.sign(&link_key_message(&link));
         assert_eq!(
             device.verify_link(&link, &BASE64URL_NOPAD.encode(&theirs.to_bytes())),

@@ -38,8 +38,7 @@ zoomriya-serve.workspace = true
 [dev-dependencies]
 serde_json.workspace = true
 rcgen = "0.14"
-p256 = { version = "0.13", default-features = false, features = ["ecdsa", "std"] }
-rand_core = { version = "0.6", features = ["getrandom"] }
+p256 = { version = "0.14", default-features = false, features = ["ecdsa", "std"] }
 tempfile = "3"
 
 [lints]

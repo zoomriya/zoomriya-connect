@@ -138,7 +138,7 @@ async fn a_phone_from_pairing_to_removal() {
 
     // Pairing at home.
     let phone = Phone {
-        chip: SigningKey::random(&mut rand_core::OsRng),
+        chip: zoomriya_keys::new_test_chip(),
     };
     let link_key = SecretKey::generate();
     let ep = endpoint(&link_key).await;
@@ -153,7 +153,7 @@ async fn a_phone_from_pairing_to_removal() {
     let req = PairRequest {
         secret,
         device_key: BASE64URL_NOPAD
-            .encode(phone.chip.verifying_key().to_encoded_point(true).as_bytes()),
+            .encode(phone.chip.verifying_key().to_sec1_point(true).as_bytes()),
         link: link_key.public().into(),
         link_sig: phone.sig(&link_key.public()),
         name: "iPhone".into(),

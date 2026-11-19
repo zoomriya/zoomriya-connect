@@ -9,7 +9,7 @@ use serde::{Serialize, de::DeserializeOwned};
 use zoomriya_keys::{REQUEST_SIGNATURE_HEADER, SecretKey, sign_request};
 use zoomriya_proto::{
     AcmeRequest, AcmeTarget, DoorCheck, DoorRequest, ErrorBody, HomeAddrs, PROTOCOL_VERSION,
-    RegisterRequest, RegisterResponse, TurnCredentials, VERSION_HEADER, WellKnown,
+    RegisterRequest, RegisterResponse, RelayUse, TurnCredentials, VERSION_HEADER, WellKnown,
 };
 
 /// A refusal from the server, with its words for Box Desktop.
@@ -193,6 +193,18 @@ impl Server {
             box_key,
             reqwest::Method::POST,
             &format!("/v1/boxes/{name}/turn"),
+            &serde_json::json!({}),
+        )
+        .await?
+        .context("the server sent no answer")
+    }
+
+    /// The box's use of the server's relays this month.
+    pub async fn relay_use(&self, box_key: &SecretKey, name: &str) -> Result<RelayUse> {
+        self.signed(
+            box_key,
+            reqwest::Method::POST,
+            &format!("/v1/boxes/{name}/relay-use"),
             &serde_json::json!({}),
         )
         .await?

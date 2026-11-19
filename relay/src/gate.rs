@@ -122,6 +122,8 @@ pub struct Gate {
     now: fn() -> u64,
     /// What the gate let in and turned away.
     pub metrics: Arc<GateMetrics>,
+    /// Each box's bytes, for the monthly allowance.
+    pub meter: Arc<crate::meter::Meter>,
 }
 
 impl Gate {
@@ -139,6 +141,7 @@ impl Gate {
             clients: OnceLock::new(),
             now,
             metrics: Arc::default(),
+            meter: Arc::default(),
         }
     }
 
@@ -210,6 +213,26 @@ impl Gate {
                 (boxes, l.len() - boxes)
             })
             .unwrap_or((0, 0))
+    }
+
+    /// Every box connected now, with how many of its devices are.
+    pub fn connected_boxes(&self) -> Vec<(PublicKey, u32)> {
+        let Ok(l) = self.live.lock() else {
+            return Vec::new();
+        };
+        let mut boxes: HashMap<PublicKey, u32> = l
+            .iter()
+            .filter(|(k, v)| *k == &v.box_key)
+            .map(|(k, _)| (*k, 0))
+            .collect();
+        for (k, v) in l.iter() {
+            if k != &v.box_key
+                && let Some(n) = boxes.get_mut(&v.box_key)
+            {
+                *n += 1;
+            }
+        }
+        boxes.into_iter().collect()
     }
 
     fn box_state(&self, key: &PublicKey) -> Option<BoxState> {
@@ -361,6 +384,13 @@ impl AccessControl for GateAccess {
             Ok(box_key) => {
                 if box_key == endpoint {
                     self.0.metrics.boxes_allowed.inc();
+                    self.0.meter.box_connected(
+                        request
+                            .headers()
+                            .get(crate::meter::CONN_HEADER)
+                            .and_then(|v| v.to_str().ok()),
+                        box_key,
+                    );
                 } else {
                     self.0.metrics.devices_allowed.inc();
                 }

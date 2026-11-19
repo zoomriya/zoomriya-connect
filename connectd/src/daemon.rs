@@ -17,7 +17,7 @@ use serde::Serialize;
 use tokio::sync::Notify;
 use tracing::{info, warn};
 use zoomriya_keys::SecretKey;
-use zoomriya_proto::{HomeAddrs, RegisterRequest, WellKnown};
+use zoomriya_proto::{HomeAddrs, RegisterRequest, RelayUse, WellKnown};
 
 use crate::{
     acme,
@@ -47,6 +47,12 @@ pub struct Health {
     /// Who issued it.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub certificate_authority: Option<String>,
+    /// The families' account page on the server.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub account_page: String,
+    /// This month's use of the server's relays, and the allowance.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub relay_use: Option<RelayUse>,
     /// Problems, by kind, in plain words.
     pub problems: BTreeMap<&'static str, String>,
 }
@@ -165,6 +171,7 @@ impl Ctx {
                 .ok()
                 .map(|t| t.trim().to_string())
                 .filter(|t| !t.is_empty()),
+            account: None,
         }
     }
 }
@@ -180,7 +187,13 @@ pub async fn run(ctx: Arc<Ctx>) {
         }
         if let Err(e) = online(&ctx).await {
             warn!("ZOOMRIYA Connect: {e:#}");
-            ctx.problem("server", Some(problem_words(&e)));
+            // The account's own problems get their own kind, so Box Desktop
+            // can ask for it again.
+            let kind = match server::said(&e).map(|s| s.code.as_str()) {
+                Some("account_needed" | "account_blocked") => "account",
+                _ => "server",
+            };
+            ctx.problem(kind, Some(problem_words(&e)));
             tokio::select! {
                 _ = tokio::time::sleep(Duration::from_secs(60)) => {}
                 _ = ctx.changed.notified() => {}
@@ -219,6 +232,7 @@ async fn online(ctx: &Arc<Ctx>) -> Result<()> {
     let name = st.name.clone().context("no name")?;
     let server = Server::new(&ctx.server_url())?;
     let wk = well_known(ctx, &server).await?;
+    ctx.health(|h| h.account_page = wk.account_page.clone());
 
     // Register again each time: it takes the current DNS update key and home
     // addresses, and puts back a registration a server restore lost.
@@ -230,8 +244,10 @@ async fn online(ctx: &Arc<Ctx>) -> Result<()> {
             ctx.state.update(|s| {
                 s.fqdn = Some(r.fqdn.clone());
                 s.share_fqdn = Some(r.share_fqdn.clone());
+                s.account = r.account.clone();
             })?;
             ctx.problem("server", None);
+            ctx.problem("account", None);
         }
         // Unreachable: carry on with the name we have.
         Err(e) if server::said(&e).is_none() => warn!("registering: {e:#}"),
@@ -275,7 +291,15 @@ async fn online(ctx: &Arc<Ctx>) -> Result<()> {
     let mut tasks = tokio::task::JoinSet::new();
     tasks.spawn(keep_home(ctx.clone(), server.clone(), name.clone()));
     tasks.spawn(keep_certificate(ctx.clone(), server.clone(), name.clone()));
-    tasks.spawn(watch_relay(ctx.clone(), link.endpoint().clone()));
+    tasks.spawn(watch_relay(
+        ctx.clone(),
+        link.endpoint().clone(),
+        server.clone(),
+        name.clone(),
+    ));
+    if !st.relay_off {
+        tasks.spawn(keep_relay_use(ctx.clone(), server.clone(), name.clone()));
+    }
 
     ctx.changed.notified().await;
     tasks.abort_all();
@@ -362,11 +386,27 @@ async fn keep_certificate(ctx: Arc<Ctx>, server: Server, name: String) {
     }
 }
 
+/// Asks how much of the month's relay allowance the box has used: soon after
+/// starting, then every hour. Nothing to show if the server doesn't say.
+async fn keep_relay_use(ctx: Arc<Ctx>, server: Server, name: String) {
+    tokio::time::sleep(Duration::from_secs(30)).await;
+    loop {
+        match server.relay_use(&ctx.box_key, &name).await {
+            Ok(u) => {
+                ctx.health(|h| h.relay_use = Some(u));
+            }
+            Err(e) => tracing::debug!("relay use: {e:#}"),
+        }
+        tokio::time::sleep(Duration::from_secs(3600)).await;
+    }
+}
+
 /// Watches the relay connection: each time it comes up, the relay gets the
 /// whole removed list again; and once an hour anyway.
-async fn watch_relay(ctx: Arc<Ctx>, endpoint: iroh::Endpoint) {
+async fn watch_relay(ctx: Arc<Ctx>, endpoint: iroh::Endpoint, server: Server, name: String) {
     let mut status = endpoint.home_relay_status();
     let mut was_up = false;
+    let mut was_refused = false;
     let mut last_full = 0u64;
     loop {
         let list = status.get();
@@ -375,11 +415,29 @@ async fn watch_relay(ctx: Arc<Ctx>, endpoint: iroh::Endpoint) {
         let refused = list
             .iter()
             .find_map(|s| s.auth_denied_reason().map(String::from));
+        let refused_now = refused.is_some();
         ctx.health(|h| {
             h.relay = url;
             h.relay_connected = up;
             h.relay_refused = refused;
         });
+        // Turned away: ask the server why, so Box Desktop can say it plainly
+        // (a blocked account, most likely), and clear it once it's let in.
+        if refused_now && !was_refused {
+            match server
+                .register(&ctx.box_key, &ctx.register_request(&name))
+                .await
+            {
+                Err(e) if server::said(&e).is_some_and(|s| s.code.starts_with("account_")) => {
+                    ctx.problem("account", Some(problem_words(&e)));
+                }
+                _ => {}
+            }
+        }
+        if up {
+            ctx.problem("account", None);
+        }
+        was_refused = refused_now;
         let now = crate::now();
         if up && (!was_up || now >= last_full + 3600) {
             ctx.send_removed(true, None).await;

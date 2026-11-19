@@ -200,6 +200,15 @@ pub fn router(api: Router, tokens: Tokens, web_dir: &Path) -> Router {
         .layer(middleware::from_fn(security_headers))
 }
 
+/// A page's built files, with the same security headers as the GUI: for the
+/// families' account page, on the public server.
+pub fn page(dir: &Path) -> Router {
+    let index = dir.join("index.html");
+    Router::new()
+        .fallback_service(ServeDir::new(dir).fallback(ServeFile::new(index)))
+        .layer(middleware::from_fn(security_headers))
+}
+
 /// Serves the admin router: HTTPS with a certificate, otherwise plain HTTP,
 /// which `AdminConfig` only allows on a loopback address.
 pub async fn serve(cfg: &AdminConfig, router: Router) -> Result<()> {

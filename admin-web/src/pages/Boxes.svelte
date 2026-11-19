@@ -1,12 +1,14 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { get, post, type BoxSummary } from '../lib/api';
-	import { ago, shortKey } from '../lib/format';
+	import { get, post, type Allowances, type BoxSummary } from '../lib/api';
+	import { ago, shortKey, size } from '../lib/format';
 	import { ui } from '../lib/ui.svelte';
 	import { fill } from '../lib/words';
+	import BoxAllowance from './BoxAllowance.svelte';
 	import Confirm from './Confirm.svelte';
 
-	let { onchange }: { onchange: () => void } = $props();
+	let { onchange, allowances }: { onchange: () => void; allowances: Allowances } = $props();
+	let editing = $state<BoxSummary | null>(null);
 	let q = $state('');
 	let list = $state<BoxSummary[] | null>(null);
 	let problem = $state<string | null>(null);
@@ -32,6 +34,21 @@
 		} catch (e) {
 			problem = String((e as Error).message);
 		}
+	}
+
+	async function setAllowance(name: string, gb: number | null) {
+		editing = null;
+		try {
+			await post(`/boxes/${encodeURIComponent(name)}/allowance`, { gb });
+			await load();
+		} catch (e) {
+			problem = String((e as Error).message);
+		}
+	}
+
+	function usage(b: BoxSummary): string {
+		const used = size(b.used, ui.lang);
+		return b.allowance_gb === 0 ? used : fill(w.ofAllowance, { used, allowance: size(b.allowance_gb * 1e9, ui.lang) });
 	}
 
 	let timer: ReturnType<typeof setTimeout>;
@@ -60,8 +77,10 @@
 			<thead>
 				<tr>
 					<th>{w.name}</th>
+					<th class="hide-narrow">{w.account}</th>
 					<th class="hide-narrow">{w.key}</th>
 					<th>{w.state}</th>
+					<th>{w.thisMonth}</th>
 					<th class="hide-narrow">{w.since}</th>
 					<th></th>
 				</tr>
@@ -70,6 +89,7 @@
 				{#each list as b (b.name)}
 					<tr>
 						<td><strong>{b.name}</strong></td>
+						<td class="hide-narrow secondary">{b.account ?? w.noAccount}</td>
 						<td class="hide-narrow mono muted" title={b.key}>{shortKey(b.key)}</td>
 						<td>
 							<div class="badges">
@@ -79,11 +99,20 @@
 								{#if b.factory}<span class="badge accent">{w.factory}</span>{/if}
 								{#if b.door_until > now()}<span class="badge">{w.doorOpen}</span>{/if}
 								{#if !b.has_record && !b.stolen}<span class="badge">{w.noRecord}</span>{/if}
+								{#if b.relay}<span class="badge good" title={b.relay}>{w.isConnected}</span>{/if}
+							</div>
+						</td>
+						<td>
+							<div class="badges">
+								<span class="secondary">{usage(b)}</span>
+								{#if b.slowed}<span class="badge warn">{w.slowed}</span>{/if}
+								{#if b.own_allowance_gb !== null}<span class="badge accent">{w.ownAllowance}</span>{/if}
 							</div>
 						</td>
 						<td class="hide-narrow muted">{ago(b.registered_at, now(), ui.lang)}</td>
 						<td>
 							<div class="actions">
+								<button class="btn small" onclick={() => (editing = b)}>{w.setAllowance}</button>
 								{#if !b.stolen}
 									{#if b.disabled}
 										<button class="btn small" onclick={() => act(b.name, 'switch-on')}>{w.switchOn}</button>
@@ -109,5 +138,15 @@
 		danger={a.action === 'mark-stolen'}
 		onconfirm={() => act(a.name, a.action)}
 		oncancel={() => (asking = null)}
+	/>
+{/if}
+
+{#if editing}
+	{@const b = editing}
+	<BoxAllowance
+		box={b}
+		usual={b.factory ? allowances.factory_gb : allowances.default_gb}
+		onsave={(gb) => setAllowance(b.name, gb)}
+		oncancel={() => (editing = null)}
 	/>
 {/if}

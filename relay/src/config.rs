@@ -61,9 +61,12 @@ pub enum Boxes {
         url: String,
         /// A file holding the control plane to relay key.
         key_file: PathBuf,
-        /// How often to ask, in seconds.
+        /// How often to ask, in seconds. Each time, the relay also reports
+        /// each box's use, for the monthly allowance.
         #[serde(default = "ten")]
         poll_seconds: u64,
+        /// This relay's name in the GUI, such as `relay1.zoomriya.net`.
+        name: String,
     },
     /// A family's own relay on its own: each box introduces itself with a
     /// one-time code (`zoomriya-relay enrol-code`).
@@ -85,7 +88,8 @@ pub struct Limits {
     #[serde(default = "thirty_one")]
     pub longest_pass_days: u64,
     /// Fastest each connection may send to the relay, in bytes a second.
-    /// No limit if left out (a family's own relay).
+    /// No limit if left out (a family's own relay). The monthly allowance is
+    /// set in the control plane's GUI.
     #[serde(default)]
     pub client_bytes_per_second: Option<u32>,
 }

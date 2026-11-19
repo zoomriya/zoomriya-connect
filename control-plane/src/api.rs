@@ -9,7 +9,10 @@
 //! | `POST /v1/boxes/{name}/release` | The box giving up its name | Box key |
 //! | `PUT`/`GET /pkarr/{key}` | Boxes publish address records; apps read them | The record itself |
 //! | `GET /v1/relay/boxes?after=N` | Relays | Control plane to relay key |
+//! | `POST /v1/relay/report` | Relays: use per box, who's connected | Control plane to relay key |
+//! | `POST /v1/boxes/{name}/relay-use` | The box: its use this month | Box key |
 //! | `POST /v1/reports` | Anyone reporting a name | |
+//! | `/v1/account/...`, `/account/` | Families: their ZOOMRIYA Connect account ([`crate::accounts`]) | Their sign-in |
 //! | `GET /.well-known/zoomriya-connect.json` | Boxes setting up | |
 
 // Handlers return a ready response as their error, the usual axum way; it's
@@ -78,6 +81,10 @@ pub struct Api {
     pub per_box_turn: Limiter<PublicKey>,
     /// Per address, for guests' setup sockets.
     pub per_guest: Limiter<IpAddr>,
+    /// Per address, for account sign-ins.
+    pub per_sign_in: Limiter<IpAddr>,
+    /// The families' account page's files.
+    pub account_page: std::path::PathBuf,
     /// The guests' relay, if this server has one.
     pub turn: Option<crate::turn::Turn>,
     /// The outside check.
@@ -88,6 +95,8 @@ pub struct Api {
     pub share_origin: String,
     /// The second DNS server's keys.
     pub zone_keys: Vec<String>,
+    /// What each relay last said is connected.
+    pub seen: crate::usage::Seen,
 }
 
 /// The default limits.
@@ -104,6 +113,8 @@ pub struct Limits {
     pub per_box_turn: Limiter<PublicKey>,
     /// See [`Api::per_guest`].
     pub per_guest: Limiter<IpAddr>,
+    /// See [`Api::per_sign_in`].
+    pub per_sign_in: Limiter<IpAddr>,
 }
 
 impl Default for Limits {
@@ -118,6 +129,9 @@ impl Default for Limits {
             per_box_turn: Limiter::per(Duration::from_secs(60), 30),
             // Guests' setup sockets: a few a minute per address.
             per_guest: Limiter::per(Duration::from_secs(10), 10),
+            // Account sign-ins: one every 6 seconds per address, in bursts
+            // of 20. Each account also locks after 5 wrong passwords.
+            per_sign_in: Limiter::per(Duration::from_secs(6), 20),
         }
     }
 }
@@ -166,7 +180,19 @@ pub fn router(api: Shared) -> Router {
         .route("/v1/boxes/{name}/acme", put(acme))
         .route("/v1/boxes/{name}/door", put(door).delete(close_door))
         .route("/v1/boxes/{name}/release", post(release))
+        .route("/v1/account/sign-in", post(crate::accounts::sign_in))
+        .route("/v1/account", get(crate::accounts::me))
+        .route(
+            "/v1/account/password",
+            post(crate::accounts::change_password),
+        )
+        .route("/v1/account/sign-out", post(crate::accounts::sign_out))
         .route("/v1/relay/boxes", get(feed))
+        .route(
+            "/v1/relay/report",
+            post(crate::usage::report).layer(DefaultBodyLimit::max(64 << 20)),
+        )
+        .route("/v1/boxes/{name}/relay-use", post(crate::usage::box_use))
         .route("/v1/reports", post(report))
         .route("/pkarr/{key}", put(put_record).get(get_record))
         .route("/v1/boxes/{name}/check", post(crate::check::check))
@@ -177,6 +203,7 @@ pub fn router(api: Shared) -> Router {
         .route("/v1/signal/guest/{name}", get(crate::signal::guest_socket))
         .route("/v1/zone", get(crate::zone::copy))
         .layer(DefaultBodyLimit::max(MAX_BODY))
+        .nest_service("/account", zoomriya_serve::admin::page(&api.account_page))
         .with_state(api)
 }
 
@@ -266,7 +293,22 @@ async fn register(
     if req.box_key.0 != key {
         return error(401, "bad_signature", "The request isn't signed by the box.");
     }
-    match api.store.register(&req, peer.ip(), (api.now)(), &api.rules) {
+    let account = match &req.account {
+        Some(login) => {
+            if !api.per_sign_in.allow(&peer.ip()) {
+                return slow_down();
+            }
+            match crate::accounts::check(&api, login).await {
+                Ok((id, _)) => Some(id),
+                Err(why) => return why.response(),
+            }
+        }
+        None => None,
+    };
+    match api
+        .store
+        .register(&req, peer.ip(), (api.now)(), &api.rules, account)
+    {
         Ok(r) => {
             if r.new {
                 info!(name = %r.name, factory = r.factory, "registered");
@@ -283,6 +325,7 @@ async fn register(
                     share_fqdn: format!("{}.{}", names::share_name(&r.name), api.zone),
                     name: r.name,
                     factory: r.factory,
+                    account: r.account,
                 }),
             )
                 .into_response()
@@ -472,16 +515,20 @@ struct After {
     after: u64,
 }
 
-async fn feed(State(api): State<Shared>, headers: HeaderMap, Query(q): Query<After>) -> Response {
+/// Whether the request carries one of our control plane to relay keys.
+pub(crate) fn is_relay(api: &Api, headers: &HeaderMap) -> bool {
     let token = headers
         .get(header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.strip_prefix("Bearer "))
         .unwrap_or("");
-    let known = api.relay_keys.iter().fold(false, |hit, k| {
+    api.relay_keys.iter().fold(false, |hit, k| {
         hit | bool::from(k.as_bytes().ct_eq(token.as_bytes()))
-    });
-    if !known {
+    })
+}
+
+async fn feed(State(api): State<Shared>, headers: HeaderMap, Query(q): Query<After>) -> Response {
+    if !is_relay(&api, &headers) {
         return error(401, "not_a_relay", "Only our relays can ask for this.");
     }
     match api.store.feed(q.after) {

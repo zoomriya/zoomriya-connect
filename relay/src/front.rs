@@ -3,7 +3,12 @@
 //! family relay's enrolment, health and the probe iroh clients use.
 
 use std::{
-    convert::Infallible, net::SocketAddr, path::PathBuf, pin::Pin, sync::Arc, time::Duration,
+    convert::Infallible,
+    net::{Ipv4Addr, SocketAddr},
+    path::PathBuf,
+    pin::Pin,
+    sync::Arc,
+    time::Duration,
 };
 
 use axum::{
@@ -24,7 +29,10 @@ use iroh_relay::{
         streams::MaybeTlsStream,
     },
 };
-use tokio::sync::{Mutex, Notify};
+use tokio::{
+    net::{TcpListener, TcpSocket},
+    sync::{Mutex, Notify},
+};
 use tower::ServiceExt;
 use tracing::{debug, info, warn};
 use zoomriya_keys::{Purpose, REQUEST_SIGNATURE_HEADER, RequestSignature, open};
@@ -34,6 +42,7 @@ use zoomriya_serve::TlsListener;
 use crate::{
     boxes, enrol,
     gate::{Gate, ListRefused},
+    meter::{CONN_HEADER, Meter},
 };
 
 /// Largest removed-device list we read.
@@ -199,6 +208,8 @@ struct Front {
     relay: RelayServiceWithNotify,
     api: Router,
     peer: SocketAddr,
+    /// The loopback port this connection reaches us from: the meter's name for it.
+    port: u16,
 }
 
 type FrontBody = Either<BytesBody, Body>;
@@ -210,9 +221,13 @@ impl Service<hyper::Request<Incoming>> for Front {
 
     fn call(&self, mut req: hyper::Request<Incoming>) -> Self::Future {
         if req.uri().path() == RELAY_PATH {
+            // Replaces anything the client sent under the same name.
+            req.headers_mut()
+                .insert(CONN_HEADER, header::HeaderValue::from(self.port));
             let fut = self.relay.call(req);
             Box::pin(async move { fut.await.map(|r| r.map(Either::Left)) })
         } else {
+            req.headers_mut().remove(CONN_HEADER);
             req.extensions_mut()
                 .insert(axum::extract::ConnectInfo(self.peer));
             let api = self.api.clone();
@@ -225,8 +240,20 @@ impl Service<hyper::Request<Incoming>> for Front {
     }
 }
 
-/// Serves HTTPS forever.
-pub async fn serve(listener: TlsListener, relay: RelayService, api: Router) {
+/// Serves HTTPS forever. Each TLS connection is passed on, counted, over
+/// loopback to the inner side, where iroh and our API answer it.
+pub async fn serve(listener: TlsListener, relay: RelayService, api: Router, meter: Arc<Meter>) {
+    let inner = match TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await {
+        Ok(l) => l,
+        Err(err) => {
+            warn!("can't listen on loopback: {err}");
+            return;
+        }
+    };
+    let Ok(inner_addr) = inner.local_addr() else {
+        return;
+    };
+    tokio::spawn(serve_inner(inner, relay, api, meter.clone()));
     let listener = Arc::new(listener);
     loop {
         let (tcp, peer) = match listener.accept().await {
@@ -239,32 +266,80 @@ pub async fn serve(listener: TlsListener, relay: RelayService, api: Router) {
         };
         let _ = tcp.set_nodelay(true);
         let listener = listener.clone();
-        let relay = relay.clone();
-        let api = api.clone();
+        let meter = meter.clone();
         tokio::spawn(async move {
-            let tls = match listener.handshake(tcp).await {
-                Ok(Some(tls)) => tls,
-                Ok(None) => return,
-                Err(err) => {
+            let tls = match tokio::time::timeout(ESTABLISH, listener.handshake(tcp)).await {
+                Ok(Ok(Some(tls))) => tls,
+                Ok(Ok(None)) => return,
+                Ok(Err(err)) => {
                     debug!("TLS from {peer}: {err}");
                     return;
                 }
+                Err(_) => return,
             };
+            let Ok(sock) = TcpSocket::new_v4() else {
+                return;
+            };
+            let port = match sock
+                .bind((Ipv4Addr::LOCALHOST, 0).into())
+                .and_then(|()| sock.local_addr())
+            {
+                Ok(a) => a.port(),
+                Err(err) => {
+                    warn!("loopback: {err}");
+                    return;
+                }
+            };
+            let conn = meter.open(port, peer);
+            if let Ok(to_iroh) = sock.connect(inner_addr).await {
+                let _ = to_iroh.set_nodelay(true);
+                meter.pump(tls, to_iroh, &conn).await;
+            }
+            meter.close(port);
+        });
+    }
+}
+
+/// The inner side: loopback connections from [`serve`] only.
+async fn serve_inner(inner: TcpListener, relay: RelayService, api: Router, meter: Arc<Meter>) {
+    loop {
+        let (tcp, from) = match inner.accept().await {
+            Ok(c) => c,
+            Err(err) => {
+                warn!("loopback accept: {err}");
+                tokio::time::sleep(Duration::from_millis(100)).await;
+                continue;
+            }
+        };
+        // Only our own outer side, which noted the port first.
+        let Some(conn) = from
+            .ip()
+            .is_loopback()
+            .then(|| meter.get(from.port()))
+            .flatten()
+        else {
+            continue;
+        };
+        let _ = tcp.set_nodelay(true);
+        let relay = relay.clone();
+        let api = api.clone();
+        tokio::spawn(async move {
             let established = Arc::new(Notify::new());
             let front = Front {
                 relay: RelayServiceWithNotify::new(relay, established.clone()),
                 api,
-                peer,
+                peer: conn.peer,
+                port: from.port(),
             };
             let conn = hyper::server::conn::http1::Builder::new()
-                .serve_connection(TokioIo::new(MaybeTlsStream::Tls(tls)), front)
+                .serve_connection(TokioIo::new(MaybeTlsStream::Plain(tcp)), front)
                 .with_upgrades();
             // A connection that hasn't become a relay connection within the
             // limit is closed, like iroh's own server does.
             tokio::select! {
-                res = conn => if let Err(err) = res { debug!("{peer}: {err}") },
+                res = conn => if let Err(err) = res { debug!("{from}: {err}") },
                 _ = established.notified() => {}
-                _ = tokio::time::sleep(ESTABLISH) => debug!("{peer}: took too long"),
+                _ = tokio::time::sleep(ESTABLISH) => debug!("{from}: took too long"),
             }
         });
     }
@@ -356,7 +431,7 @@ mod tests {
             enrolled: None,
             clock_allowance: 600,
         });
-        tokio::spawn(serve(listener, relay, api));
+        tokio::spawn(serve(listener, relay, api, gate.meter.clone()));
         Running {
             url: format!("https://localhost:{port}"),
             root: cert.cert.der().clone(),
@@ -445,6 +520,13 @@ mod tests {
             next_datagram(&mut the_box).await.as_deref(),
             Some(&b"hello box"[..])
         );
+
+        // Counted on the box's own connection, and listed as connected.
+        let counted = r.gate.meter.take();
+        assert_eq!(counted.len(), 1, "only the box is counted");
+        assert_eq!(counted[0].0, b.public());
+        assert!(counted[0].1 >= 9, "at least the datagram itself");
+        assert_eq!(r.gate.connected_boxes(), vec![(b.public(), 1)]);
 
         // The box removes the phone: its live connection is dropped, and it
         // can't come back with the same pass.

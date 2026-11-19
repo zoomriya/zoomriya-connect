@@ -14,7 +14,7 @@ use data_encoding::BASE64URL_NOPAD;
 use iroh::{
     Endpoint, EndpointAddr, RelayMap, RelayMode, RelayUrl, TransportAddr, endpoint::presets,
 };
-use p256::ecdsa::{Signature, SigningKey, signature::Signer};
+use p256::ecdsa::{Signature, signature::Signer};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use zoomriya_keys::{SecretKey, link_key_message};
@@ -54,7 +54,7 @@ async fn main() -> Result<()> {
 
 async fn pair(url: &str, file: &str) -> Result<()> {
     let code = PairingCode::from_url(url).context("not a pairing code")?;
-    let chip = SigningKey::random(&mut rand_core::OsRng);
+    let chip = zoomriya_keys::new_test_chip();
     let link = SecretKey::generate();
     let ep = Endpoint::builder(presets::Minimal)
         .secret_key(link.clone())
@@ -73,7 +73,7 @@ async fn pair(url: &str, file: &str) -> Result<()> {
     let sig: Signature = chip.sign(&link_key_message(&link.public()));
     let req = PairRequest {
         secret: code.secret,
-        device_key: BASE64URL_NOPAD.encode(chip.verifying_key().to_encoded_point(true).as_bytes()),
+        device_key: BASE64URL_NOPAD.encode(chip.verifying_key().to_sec1_point(true).as_bytes()),
         link: link.public().into(),
         link_sig: BASE64URL_NOPAD.encode(sig.to_der().as_bytes()),
         name: "Test phone".into(),

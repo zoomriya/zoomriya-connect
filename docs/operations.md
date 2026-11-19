@@ -31,11 +31,11 @@ are in [`deploy/`](../deploy).
 | 1. Build | `cargo build --release -p zoomriya-control-plane` | `cargo build --release -p zoomriya-relay` |
 | 2. Program | `/usr/local/bin/zoomriya-control-plane` | `/usr/local/bin/zoomriya-relay` |
 | 3. User | `deploy/zoomriya-connect.sysusers` to `/usr/lib/sysusers.d/zoomriya-connect.conf`, then `systemd-sysusers` | The same |
-| 4. Settings | `deploy/control-plane.toml` to `/etc/zoomriya-control-plane/` | `deploy/relay.toml` to `/etc/zoomriya-relay/` |
+| 4. Settings | `deploy/control-plane.toml` to `/etc/zoomriya-control-plane/` | `deploy/relay.toml` to `/etc/zoomriya-relay/`. On each relay, set `name` and the certificate's domain to its own: `relay1.zoomriya.net`, `relay2.zoomriya.net` |
 | 5. Keys | `relay-keys`: one control plane to relay key a line, at least 32 characters (`openssl rand -base64 48`) | `feed.key`: one of those keys |
 | 6. Service | `deploy/zoomriya-control-plane.service` | `deploy/zoomriya-relay.service` |
 | 7. Start | `systemctl enable --now zoomriya-control-plane` | `systemctl enable --now zoomriya-relay` |
-| 8. GUI | `cd admin-web && npm ci && npm run build`, then `dist/` to `/usr/share/zoomriya-connect/admin` | The same |
+| 8. GUI and account page | `cd admin-web && npm ci && npm run build`, then `dist/` to `/usr/share/zoomriya-connect/admin` and `dist-account/` to `/usr/share/zoomriya-connect/account` | `dist/` only |
 | 9. Sign-in token | `zoomriya-control-plane admin-token --config FILE NAME` | `zoomriya-relay admin-token --config FILE NAME` |
 
 | Other server | How |
@@ -65,10 +65,14 @@ within a second. The GUI does the same things.
 | Command | What it does |
 |---|---|
 | `zoomriya-control-plane status --config FILE` | How many boxes: all, with a factory token, stolen, switched off |
-| `zoomriya-control-plane factory-tokens --config FILE TOKENS` | Adds factory tokens, one a line. Only their hashes are kept |
+| `zoomriya-control-plane factory-tokens --config FILE TOKENS` | Adds factory tokens, one a line, each with its box's ID. Only the tokens' hashes are kept |
 | `zoomriya-control-plane switch-off --config FILE NAME` | The name stops answering, after a report. `switch-on` undoes it |
 | `zoomriya-control-plane mark-stolen --config FILE NAME` | Relays refuse the box and its devices within seconds |
 | `zoomriya-control-plane reports --config FILE` | Reports not yet dealt with. `report-done ID` closes one |
+| `zoomriya-control-plane accounts --config FILE` | Every ZOOMRIYA Connect account, with its boxes |
+| `zoomriya-control-plane account-new --config FILE USERNAME` | A family's account, for up to 3 boxes. Shows its password once |
+| `zoomriya-control-plane account-reset --config FILE USERNAME` | A new password, shown once. The old one and every sign-in stop working |
+| `zoomriya-control-plane account-block --config FILE USERNAME` | Its boxes stop working away from home within seconds; it can't sign in. `account-unblock` undoes it |
 | `zoomriya-relay enrol-code --config FILE` | A family's own relay only: a one-time code for Box Desktop |
 | `admin-token --config FILE NAME` (either server) | A sign-in token for the GUI, shown once. Remove its line from the tokens file to take it back |
 
@@ -147,10 +151,21 @@ cope with floods, and must never be used to flood others.
 | Being flooded with questions | Answers limited per asking address (response rate limiting). The two servers are at different companies, each with its own flood protection |
 | Being used to flood someone else with big answers | Answers only for our own names, never anyone else's (no recursion). Small answers. Rate limiting per address. Repeated big answers are cut short, so the asker has to come back over TCP |
 | Someone changing a box's name | Each box can change only its own name, with its own DNS update key |
+| Someone taking a family's own domain first | We answer for an own domain only once its registrar's NS record names that box's own name server (`<box id>.ns.zoomriya.net`) |
 | Someone copying the whole zone | Only `ns2` can copy it, over HTTPS, with its own key |
 
 The relays have their own limits: connections per address, and speed per
-connection, besides the [per-box limits](architecture.md#the-relay-on-a-server).
+connection, besides the [monthly allowance](architecture.md#the-relay-on-a-server).
+
+| Allowance setting, in the GUI | Starts at |
+|---|---|
+| Self-installed boxes, GB a month | 0: no limit |
+| Ready-made boxes (factory token), GB a month | 0: no limit |
+| Speed once past it | 1 Mbit/s |
+| One box's own allowance | The usual one |
+
+Set ours from the [soak test](testing.md) before launch. A family's own server
+keeps no limit unless they set one.
 
 ## Changing our keys
 

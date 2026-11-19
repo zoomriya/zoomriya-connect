@@ -155,6 +155,17 @@ p { margin: 0; }
 .textarea { min-height: 140px; resize: vertical; font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; }
 .search { max-width: 280px; }
 
+.field { display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; }
+.with-unit { display: flex; align-items: center; gap: 10px; }
+.with-unit .input { width: 140px; }
+.new-account { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
+.new-account .field { flex: 1; min-width: 200px; }
+.new-account .field:nth-child(2) { flex: 0 0 auto; min-width: 0; }
+.input.narrow { width: 90px; }
+.selectable { user-select: all; }
+.account-main { margin: 0 auto; max-width: 760px; }
+.account-choices { display: flex; flex-wrap: wrap; gap: 10px; }
+.warn-text { color: var(--zr-warning); }
 .notice { padding: 10px 14px; border-radius: var(--radius-small); background: var(--zr-surface-nested); }
 .notice.bad { color: var(--zr-danger); }
 .notice.good { color: var(--zr-success); }

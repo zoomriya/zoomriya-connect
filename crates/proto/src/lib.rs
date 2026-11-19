@@ -58,6 +58,26 @@ pub struct RegisterRequest {
     /// The factory token of a ready-made box, if it has one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub factory_token: Option<String>,
+    /// The family's ZOOMRIYA Connect account, the first time: links the box to
+    /// it. Never kept on the box; registering again doesn't need it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account: Option<AccountLogin>,
+}
+
+/// A ZOOMRIYA Connect account's sign-in. Separate from ZOOMRIYA ID: an
+/// operator issues it.
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AccountLogin {
+    /// The username the operator gave.
+    pub username: String,
+    /// The password.
+    pub password: String,
+}
+
+impl std::fmt::Debug for AccountLogin {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "AccountLogin({})", self.username)
+    }
 }
 
 /// The answer to a registration.
@@ -71,6 +91,9 @@ pub struct RegisterResponse {
     pub share_fqdn: String,
     /// Whether the box registered with a factory token.
     pub factory: bool,
+    /// The account the box is linked to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account: Option<String>,
 }
 
 /// `PUT /v1/boxes/{name}/home`: where the name points. Signed with the DNS update key.
@@ -145,6 +168,72 @@ pub struct BoxFeed {
     pub changes: Vec<BoxChange>,
 }
 
+/// `POST /v1/relay/report`: what a relay saw since its last report.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RelayReport {
+    /// The relay's name, such as `relay1.zoomriya.net`.
+    pub relay: String,
+    /// Bytes each box sent and received through the relay since the last
+    /// report, counted on the box's own connection.
+    pub used: Vec<BoxUse>,
+    /// Every box connected now, with how many of its devices are.
+    pub connected: Vec<BoxConnected>,
+}
+
+/// One box's bytes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BoxUse {
+    /// The box key.
+    pub key: Key,
+    /// Bytes.
+    pub bytes: u64,
+}
+
+/// One box connected to a relay.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BoxConnected {
+    /// The box key.
+    pub key: Key,
+    /// Its devices connected through this relay.
+    pub devices: u32,
+}
+
+/// The control plane's answer to [`RelayReport`].
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RelayReportAnswer {
+    /// Boxes past this month's allowance: slowed until the month ends.
+    pub slow: Vec<Key>,
+    /// How fast a slowed box may go, in bytes a second, each way.
+    pub slow_bytes_per_second: u32,
+}
+
+/// `POST /v1/boxes/{name}/relay-use`: the box's use of our relays this month.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RelayUse {
+    /// The month, such as `2026-11` (UTC).
+    pub month: String,
+    /// Bytes through our relays this month.
+    pub used: u64,
+    /// The month's allowance in bytes; 0 for none.
+    pub allowance: u64,
+    /// Past the allowance: slowed until the month ends.
+    pub slowed: bool,
+}
+
+/// The month, such as `2026-11`, of a time in seconds since 1970 (UTC).
+pub fn month_of(secs: u64) -> String {
+    // Days to a civil date (Howard Hinnant's algorithm).
+    let z = (secs / 86_400) as i64 + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = yoe + era * 400 + i64::from(m <= 2);
+    format!("{y:04}-{m:02}")
+}
+
 /// One device the box removed, for the relay.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RemovedDevice {
@@ -199,6 +288,9 @@ pub struct WellKnown {
     pub share: String,
     /// The zone box names live under, such as `zoomriya.app`.
     pub zone: String,
+    /// The families' account page, such as `https://connect.zoomriya.net/account/`.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub account_page: String,
 }
 
 /// An admin note, sealed by the box key ([`zoomriya_keys::Purpose::AdminNote`]):
@@ -342,6 +434,15 @@ pub struct ZoneName {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn months() {
+        assert_eq!(super::month_of(0), "1970-01");
+        assert_eq!(super::month_of(1_798_761_600 - 1), "2026-12");
+        assert_eq!(super::month_of(1_798_761_600), "2027-01");
+        assert_eq!(super::month_of(1_709_164_800), "2024-02");
+        assert_eq!(super::month_of(1_709_251_200), "2024-03");
+    }
+
     use super::*;
 
     #[test]

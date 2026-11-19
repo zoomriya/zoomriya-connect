@@ -91,14 +91,14 @@ doesn't say who you are: a street or a word, not your surname.
 | Option | The box's name | Who looks after its DNS | In the middle |
 |---|---|---|---|
 | 1. A ZOOMRIYA name (the default) | `maplehouse.zoomriya.app` | ZOOMRIYA | ZOOMRIYA's relay |
-| 2. Your own domain, through ZOOMRIYA | `home.smith.ca`, handed to ZOOMRIYA with one NS record at your DNS provider ([see below](#your-own-domain-through-zoomriya)) | ZOOMRIYA | ZOOMRIYA's relay |
+| 2. Your own domain, through ZOOMRIYA | `home.smith.ca`, guests at `share.smith.ca`: you type `smith.ca`, and add two NS records at your registrar ([see below](#your-own-domain-through-zoomriya)) | ZOOMRIYA | ZOOMRIYA's relay |
 | 3. [Your own server](#your-own-server) | `home.smith.ca` | Your server | Your relay |
 | 4. [Your Cloudflare Tunnel](#your-cloudflare-tunnel) | `home.smith.ca` | Cloudflare, on your account | Cloudflare |
 
 | Option | Suits families who | Upkeep |
 |---|---|---|
 | 1 | Want it to just work | None |
-| 2 | Want their own name | A few DNS records |
+| 2 | Want their own name | Two DNS records |
 | 3 | Don't want ZOOMRIYA involved at all | A server of their own: updates, certificates, the bill |
 | 4 | Don't want ZOOMRIYA involved, and don't want to look after a server | A Cloudflare account and a domain |
 
@@ -107,33 +107,33 @@ ZOOMRIYA Box behind it.
 
 ### Your own domain, through ZOOMRIYA
 
-You add records at your domain provider, wherever you bought `smith.ca`. No
-server of your own is needed: they point at names ZOOMRIYA already answers.
-Box Desktop shows the exact lines to copy, checks them, and says which one is
-wrong if something's missing.
+You bought `smith.ca` from a registrar. In Box Desktop you type `smith.ca`,
+nothing more. The box picks the names:
 
-**One NS record**, if your provider allows it (most do):
+| Name | What it is |
+|---|---|
+| `home.smith.ca` | The box's name. If `home` is already in use on your domain, the box picks `homebox` |
+| `share.smith.ca` | The guests' door: short, for the links you send |
+| `smith.ca` itself | Never touched: your email (`you@smith.ca`), your website and everything else stay where they are |
 
-| Record | Points at | Covers |
-|---|---|---|
-| `home.smith.ca` NS | `ns1.zoomriya.net` and `ns2.zoomriya.net` | Everything under `home.smith.ca`: the box's name, the guests' door, and both certificate checks |
+Then you add **two NS records** at your registrar, both pointing at your
+box's own name server. Box Desktop shows the lines to copy, and checks them
+when you're done:
 
-**Four CNAME records**, only if your provider doesn't allow NS records for
-part of a domain:
+| Record | Points at |
+|---|---|
+| `home.smith.ca` NS | `k7f3qm2xpa.ns.zoomriya.net` |
+| `share.smith.ca` NS | `k7f3qm2xpa.ns.zoomriya.net` |
 
-| Record | Points at | What for |
-|---|---|---|
-| `home.smith.ca` CNAME | `maplehouse.zoomriya.app` | The box's name |
-| `_acme-challenge.home.smith.ca` CNAME | `_acme-challenge.maplehouse.zoomriya.app` | The certificate check for the box's name |
-| `share.home.smith.ca` CNAME | `maplehouse-share.zoomriya.app` | The guests' door |
-| `_acme-challenge.share.home.smith.ca` CNAME | `_acme-challenge.maplehouse-share.zoomriya.app` | The certificate check for the door |
+`k7f3qm2xpa` is your box's ID. Every ZOOMRIYA Box gets its own at the
+factory, and it never changes; a box you set up yourself gets one when it
+first registers. It's how we know the domain is yours: only you can add it
+at your registrar, so nobody can take your domain first. It says nothing
+about who you are or your box's ZOOMRIYA name. The name leads to our DNS server now, and to both once the second one
+is running, with nothing for you to change.
 
-A single CNAME on `home.smith.ca` isn't enough: it doesn't cover the names
-under it, which the certificate and the door need.
-
-On your own domain, the box always gets a name under it, like
-`home.smith.ca`. Never `smith.ca` itself: that stays for your website, your
-email and everything else.
+If your registrar doesn't allow NS records for part of a domain, use a
+ZOOMRIYA name instead.
 
 The box's name never points at your home's address on the internet. Away from
 home, the app doesn't use the name to find the box, so pointing it at your
@@ -254,7 +254,7 @@ nothing on your router is opened. ZOOMRIYA's servers play no part.
 This isn't ZOOMRIYA Connect: there's no relay, no hole punching and no
 control plane. Cloudflare sits in the middle every time.
 
-![Option 4, your Cloudflare Tunnel. Cloudflare, on your own account, has two names: home.smith.ca goes to the family door on the box, and share.home.smith.ca goes to the album viewer only. The ZOOMRIYA app on a phone, or the ZOOMRIYA browser extension on a laptop, seals everything for the box; a guest's browser needs nothing. The router opens nothing, because the box dials out. In the box, cloudflared hands family requests to connectd, which checks the device's key, then to the web server, which is never on the internet; guest requests go only to the album viewer. Cloudflare can see shared guest albums, but can't open the family's sealed requests.](cloudflare-tunnel.svg)
+![Option 4, your Cloudflare Tunnel. Cloudflare, on your own account, has two names: home.smith.ca goes to the family door on the box, and share.smith.ca goes to the album viewer only. The ZOOMRIYA app on a phone, or the ZOOMRIYA browser extension on a laptop, seals everything for the box; a guest's browser needs nothing. The router opens nothing, because the box dials out. In the box, cloudflared hands family requests to connectd, which checks the device's key, then to the web server, which is never on the internet; guest requests go only to the album viewer. Cloudflare can see shared guest albums, but can't open the family's sealed requests.](cloudflare-tunnel.svg)
 
 **How it compares**
 
@@ -280,7 +280,7 @@ and the photos in any album you share.
 |---|---|---|---|
 | `smith.ca` | Whatever you like | You, not ZOOMRIYA | Your website, your email, everything else. Never the box |
 | `home.smith.ca` | Cloudflare, then the tunnel to the family door on the box | The ZOOMRIYA app and the browser extension | Family access away from home. Cloudflare only ever passes on sealed traffic |
-| `share.home.smith.ca` | Cloudflare, then the tunnel to the album viewer only | Guests | Share links. Never the sign-in page or the apps |
+| `share.smith.ca` | Cloudflare, then the tunnel to the album viewer only | Guests | Share links. Never the sign-in page or the apps |
 
 The two names go to two different places on the box, and browsers keep
 different names apart, as with ZOOMRIYA Connect.
@@ -392,9 +392,7 @@ one:
   guests' door, such as `maplehouse.zoomriya.app` and
   `maplehouse-share.zoomriya.app`.
 - If you use your own domain, the box's one certificate is for that instead:
-  `home.smith.ca` and `share.home.smith.ca`. Your ZOOMRIYA name isn't in it,
-  so the certificate doesn't tell anyone there's a ZOOMRIYA Box behind your
-  domain.
+  `home.smith.ca` and `share.smith.ca`.
 - If Let's Encrypt can't issue one, the box gets it from Google Trust
   Services instead. The padlock looks the same.
 - To prove the box owns those names, our control plane puts a temporary
@@ -405,5 +403,5 @@ one:
 - The certificate's secret key is made on the box and never leaves it. Our
   control plane never has it.
 - With [your Cloudflare Tunnel](#your-cloudflare-tunnel), Cloudflare
-  gives `home.smith.ca` and `share.home.smith.ca` their padlock. The app and the
+  gives `home.smith.ca` and `share.smith.ca` their padlock. The app and the
   extension don't rely on it: they check the box's own key, pinned at pairing.
