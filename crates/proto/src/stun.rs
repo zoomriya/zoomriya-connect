@@ -1,7 +1,6 @@
-//! Just enough STUN (RFC 8489) to learn the box's public address on the
-//! laptops' WebRTC port: one binding request, from that same socket, to the
-//! guests' relay. Laptops away from home are offered that address, and the
-//! two sides punch through their routers as WebRTC does.
+//! Just enough STUN (RFC 8489): one binding request and its answer. connectd
+//! learns the box's public address on the laptops' WebRTC port with it, and a
+//! relay checks the TURN server beside it is answering.
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 

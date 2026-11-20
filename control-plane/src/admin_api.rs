@@ -59,6 +59,8 @@ pub fn router(admin: Shared) -> Router {
         .route("/allowances", get(allowances).put(set_allowances))
         .route("/boxes/{name}/allowance", post(box_allowance))
         .route("/connected", get(connected))
+        .route("/servers", get(servers))
+        .route("/servers/{name}/forget", post(forget_server))
         .route("/accounts", get(accounts).post(new_account))
         .route("/accounts/{username}/{action}", post(account_action))
         .with_state(admin)
@@ -89,7 +91,7 @@ async fn overview(State(a): State<Shared>) -> Response {
     let (boxes_online, guests_online) = a.api.hub.counts();
     let now_connected = a.api.seen.connected(now);
     let month = zoomriya_proto::month_of(now);
-    let (Ok(month_bytes), Ok(allowances), Ok((accounts_all, accounts_blocked))) = (
+    let (Ok((month_relay, month_turn)), Ok(allowances), Ok((accounts_all, accounts_blocked))) = (
         s.relay_use_total(&month),
         s.allowances(),
         s.account_counts(),
@@ -97,7 +99,13 @@ async fn overview(State(a): State<Shared>) -> Response {
         return failed("reading the database");
     };
     let relays = a.relays.lock().map(|r| r.clone()).unwrap_or_default();
+    let servers = s.servers(&month).unwrap_or_default();
+    let servers_online = servers
+        .iter()
+        .filter(|r| now.saturating_sub(r.last_seen) <= ONLINE_FOR)
+        .count();
     Json(serde_json::json!({
+        "servers": { "online": servers_online, "all": servers.len() },
         "kind": "control_plane",
         "version": env!("CARGO_PKG_VERSION"),
         "zone": a.api.zone,
@@ -112,7 +120,7 @@ async fn overview(State(a): State<Shared>) -> Response {
             "boxes": now_connected.len(),
             "devices": now_connected.iter().map(|c| u64::from(c.2)).sum::<u64>(),
         },
-        "relay_use": { "month": month, "bytes": month_bytes },
+        "relay_use": { "month": month, "bytes": month_relay, "turn": month_turn },
         "allowances": allowances,
         "accounts": { "all": accounts_all, "blocked": accounts_blocked },
     }))
@@ -159,7 +167,8 @@ async fn boxes(State(a): State<Shared>, Query(q): Query<Search>) -> Response {
             } else {
                 al.default_gb
             });
-            let slowed = allowance_gb > 0 && b.used > u64::from(allowance_gb) * GB;
+            let slowed =
+                allowance_gb > 0 && b.used.saturating_add(b.turn) > u64::from(allowance_gb) * GB;
             let (relay, devices) = live
                 .get(&b.key)
                 .map_or((None, 0), |(r, d)| (Some(r.clone()), *d));
@@ -173,6 +182,58 @@ async fn boxes(State(a): State<Shared>, Query(q): Query<Search>) -> Response {
         })
         .collect();
     Json(lines).into_response()
+}
+
+/// A server counts as online if it reported within this long.
+const ONLINE_FOR: u64 = 120;
+
+/// Every server: how it's doing, and what it moved this month.
+async fn servers(State(a): State<Shared>) -> Response {
+    let now = (a.api.now)();
+    let month = zoomriya_proto::month_of(now);
+    let Ok(rows) = a.api.store.servers(&month) else {
+        return failed("reading the database");
+    };
+    let mut totals = [0u64; 4];
+    let list: Vec<serde_json::Value> = rows
+        .into_iter()
+        .map(|r| {
+            for (t, v) in totals.iter_mut().zip([r.rx, r.tx, r.relay, r.turn]) {
+                *t = t.saturating_add(v);
+            }
+            serde_json::json!({
+                "name": r.name,
+                "online": now.saturating_sub(r.last_seen) <= ONLINE_FOR,
+                "last_seen": r.last_seen,
+                "stats": r.stats,
+                "month": { "rx": r.rx, "tx": r.tx, "relay": r.relay, "turn": r.turn },
+            })
+        })
+        .collect();
+    Json(serde_json::json!({
+        "now": now,
+        "month": month,
+        "servers": list,
+        "totals": { "rx": totals[0], "tx": totals[1], "relay": totals[2], "turn": totals[3] },
+    }))
+    .into_response()
+}
+
+/// Takes a server off the Servers page, for one shut down for good. It
+/// comes back if it reports again.
+async fn forget_server(
+    State(a): State<Shared>,
+    Extension(AdminName(who)): Extension<AdminName>,
+    Path(name): Path<String>,
+) -> Response {
+    match a.api.store.forget_server(&name) {
+        Ok(true) => {
+            tracing::info!(admin = %who, server = %name, "server forgotten");
+            StatusCode::NO_CONTENT.into_response()
+        }
+        Ok(false) => (StatusCode::NOT_FOUND, "No such server.\n").into_response(),
+        Err(e) => failed(e),
+    }
 }
 
 /// Every box connected to a relay now.

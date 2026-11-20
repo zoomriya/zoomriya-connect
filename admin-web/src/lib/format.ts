@@ -36,3 +36,10 @@ export function size(bytes: number, lang: Lang): string {
 	const n = new Intl.NumberFormat(lang, { maximumFractionDigits: digits }).format(v);
 	return `${n}\u00a0${units[i]}`;
 }
+
+/** How long, in the biggest whole unit: "3 days", "5 hours", "12 minutes". */
+export function duration(seconds: number, lang: Lang): string {
+	const s = Math.max(0, seconds);
+	const [v, unit] = s >= 86400 ? [Math.floor(s / 86400), 'day'] : s >= 3600 ? [Math.floor(s / 3600), 'hour'] : [Math.floor(s / 60), 'minute'];
+	return new Intl.NumberFormat(lang, { style: 'unit', unit, unitDisplay: 'long' }).format(v);
+}

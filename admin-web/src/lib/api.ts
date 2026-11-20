@@ -75,9 +75,12 @@ export interface ControlPlaneOverview {
 	guest_relay: boolean;
 	relays: RelayHealth[];
 	connected: { boxes: number; devices: number };
-	relay_use: { month: string; bytes: number };
+	/** This month: through the relays, and through the TURN servers beside them. */
+	relay_use: { month: string; bytes: number; turn: number };
 	allowances: Allowances;
 	accounts: { all: number; blocked: number };
+	/** Servers reporting now, of all that ever did. */
+	servers: { online: number; all: number };
 }
 
 /** A family's ZOOMRIYA Connect account. */
@@ -97,6 +100,42 @@ export interface Allowances {
 	factory_gb: number;
 	/** How fast a box past its allowance may go, in kilobytes a second. */
 	slow_kbps: number;
+}
+
+/** How a server is doing, as it last reported. */
+export interface ServerStats {
+	name: string;
+	role: 'control plane' | 'relay' | 'second DNS' | string;
+	version: string;
+	/** When the program started, seconds since 1970. */
+	started: number;
+	/** Seconds since the machine started. */
+	uptime: number;
+	load: number;
+	cpus: number;
+	mem_total: number;
+	mem_used: number;
+	disk_total: number;
+	disk_used: number;
+	/** The TURN server beside a relay: answering, not, or none (null). */
+	turn: boolean | null;
+}
+
+/** One line of the Servers page. */
+export interface ServerLine {
+	name: string;
+	online: boolean;
+	last_seen: number;
+	stats: ServerStats;
+	/** This month, in bytes: the network in and out, and through the relay and TURN. */
+	month: { rx: number; tx: number; relay: number; turn: number };
+}
+
+export interface ServersPage {
+	now: number;
+	month: string;
+	servers: ServerLine[];
+	totals: { rx: number; tx: number; relay: number; turn: number };
 }
 
 export interface ConnectedBox {
@@ -121,7 +160,13 @@ export interface RelayOverview {
 		refused_removed: number;
 		refused_expired: number;
 		dropped: number;
+		/** Bytes through the TURN server beside it since the relay started. */
+		turn: number;
 	};
+	/** This machine, now. */
+	server: ServerStats;
+	/** Seconds since 1970, when the overview was made. */
+	now: number;
 }
 
 export type Overview = ControlPlaneOverview | RelayOverview;
@@ -137,6 +182,8 @@ export interface BoxSummary {
 	has_record: boolean;
 	/** Bytes through the relays this month. */
 	used: number;
+	/** Bytes through the TURN servers this month, besides `used`. */
+	turn: number;
 	/** Its own allowance in GB, if set (0: no limit). */
 	own_allowance_gb: number | null;
 	/** The allowance that applies, in GB (0: no limit). */

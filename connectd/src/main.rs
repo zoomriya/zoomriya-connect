@@ -24,7 +24,6 @@ mod net;
 mod relays;
 mod server;
 mod state;
-mod stun;
 
 #[cfg(test)]
 mod e2e;

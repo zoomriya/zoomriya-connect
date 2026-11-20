@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { post, type RelayOverview } from '../lib/api';
-	import { count, shortKey } from '../lib/format';
+	import ServerCard from './ServerCard.svelte';
+	import { count, shortKey, size } from '../lib/format';
 	import { ui } from '../lib/ui.svelte';
 	import { fill } from '../lib/words';
 
@@ -78,7 +79,11 @@
 				<div class="row"><span class="secondary">{w.refusedRemoved}</span><strong>{n(overview.since_start.refused_removed)}</strong></div>
 				<div class="row"><span class="secondary">{w.refusedExpired}</span><strong>{n(overview.since_start.refused_expired)}</strong></div>
 				<div class="row"><span class="secondary">{w.dropped}</span><strong>{n(overview.since_start.dropped)}</strong></div>
+				{#if overview.server.turn !== null}
+					<div class="row"><span class="secondary">{w.turnSinceStart}</span><strong>{size(overview.since_start.turn, ui.lang)}</strong></div>
+				{/if}
 			</div>
 		</section>
+		<ServerCard line={{ name: w.thisServer, online: true, last_seen: overview.now, stats: overview.server, month: null }} now={overview.now} />
 	</div>
 </div>

@@ -17,7 +17,7 @@ use zoomriya_proto::{
     VERSION_HEADER,
 };
 
-use crate::gate::Gate;
+use crate::{gate::Gate, turn::Turn};
 
 /// What's saved: where the feed got to, and the boxes.
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -68,8 +68,21 @@ pub fn restore(file: &Path, gate: &Gate) -> Result<u64> {
     Ok(saved.seq)
 }
 
-/// Asks the control plane what changed, and reports each box's use and
-/// who's connected, forever.
+/// What else the report carries: the TURN server's use, and how the
+/// machine is doing.
+#[derive(Debug, Clone)]
+pub struct Side {
+    /// The TURN server beside this relay.
+    pub turn: Option<Arc<Turn>>,
+    /// The state directory, whose disk the Servers page shows.
+    pub state_dir: PathBuf,
+    /// When the relay started, in seconds since 1970.
+    pub started: u64,
+}
+
+/// Asks the control plane what changed, and reports each box's use, who's
+/// connected and how the server is doing, forever.
+#[allow(clippy::too_many_arguments)]
 pub async fn follow(
     gate: Arc<Gate>,
     url: String,
@@ -78,6 +91,7 @@ pub async fn follow(
     every: Duration,
     file: PathBuf,
     mut seq: u64,
+    side: Side,
 ) {
     let client = match reqwest::Client::builder()
         .timeout(Duration::from_secs(20))
@@ -126,15 +140,31 @@ pub async fn follow(
                 }
             }
         }
-        report(&client, &base, &key, &name, &gate).await;
+        report(&client, &base, &key, &name, &gate, &side).await;
         tokio::time::sleep(every).await;
     }
 }
 
 /// Sends what each box used and who's connected; slows whom the answer names.
 /// Counts that didn't get through go in the next report.
-async fn report(client: &reqwest::Client, base: &str, key: &str, name: &str, gate: &Gate) {
+async fn report(
+    client: &reqwest::Client,
+    base: &str,
+    key: &str,
+    name: &str,
+    gate: &Gate,
+    side: &Side,
+) {
     let used = gate.meter.take();
+    let turn_used = side.turn.as_ref().map(|t| t.take()).unwrap_or_default();
+    let mut server = zoomriya_serve::host::stats(
+        name,
+        "relay",
+        env!("CARGO_PKG_VERSION"),
+        side.started,
+        &side.state_dir,
+    );
+    server.turn = side.turn.as_ref().map(|t| t.up());
     let body = RelayReport {
         relay: name.to_string(),
         used: used
@@ -152,6 +182,14 @@ async fn report(client: &reqwest::Client, base: &str, key: &str, name: &str, gat
                 devices,
             })
             .collect(),
+        turn: turn_used
+            .iter()
+            .map(|(k, bytes)| BoxUse {
+                key: Key(*k),
+                bytes: *bytes,
+            })
+            .collect(),
+        server: Some(server),
     };
     let answer = async {
         client
@@ -177,6 +215,9 @@ async fn report(client: &reqwest::Client, base: &str, key: &str, name: &str, gat
         }
         Err(err) => {
             gate.meter.put_back(used);
+            if let Some(t) = &side.turn {
+                t.put_back(turn_used);
+            }
             tracing::debug!("report: {err:#}");
         }
     }

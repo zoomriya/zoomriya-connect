@@ -265,6 +265,13 @@ pub struct SecondaryConfig {
     /// How often to ask, in seconds.
     #[serde(default = "five")]
     pub poll_seconds: u64,
+    /// This server's name on the first server's Servers page.
+    #[serde(default = "ns2")]
+    pub name: String,
+}
+
+fn ns2() -> String {
+    "ns2".into()
 }
 
 fn five() -> u64 {

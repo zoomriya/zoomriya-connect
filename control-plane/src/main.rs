@@ -322,6 +322,17 @@ fn zones(n: &config::Names) -> dns::Zones {
     }
 }
 
+/// The host part of a URL, such as `connect.zoomriya.net`.
+fn url_host(url: &str) -> String {
+    url.split("://")
+        .nth(1)
+        .unwrap_or(url)
+        .split(['/', ':'])
+        .next()
+        .unwrap_or(url)
+        .to_string()
+}
+
 /// The second DNS server: DNS only, from a copy of the first's zone.
 async fn secondary(cfg: config::SecondaryConfig) -> Result<()> {
     let key = std::fs::read_to_string(&cfg.key_file)
@@ -339,6 +350,7 @@ async fn secondary(cfg: config::SecondaryConfig) -> Result<()> {
         cfg.primary_url.clone(),
         key,
         Duration::from_secs(cfg.poll_seconds.max(1)),
+        (cfg.name.clone(), zoomriya_serve::now()),
     ));
     info!("second DNS server running, copying {}", cfg.primary_url);
     zoomriya_serve::shutdown_signal().await;
@@ -350,6 +362,34 @@ async fn run(cfg: Config) -> Result<()> {
     let store = Arc::new(Store::open(&cfg.database)?);
     let (api, dns) = build(&cfg, store.clone())?;
     dns::serve(cfg.dns.bind, dns).await?;
+
+    // This server on the GUI's Servers page, every half minute.
+    {
+        let store = store.clone();
+        let name = url_host(&cfg.names.control_plane_url);
+        let dir = cfg
+            .database
+            .parent()
+            .map(std::path::Path::to_path_buf)
+            .unwrap_or_else(|| "/".into());
+        let started = zoomriya_serve::now();
+        tokio::spawn(async move {
+            let mut every = tokio::time::interval(Duration::from_secs(30));
+            loop {
+                every.tick().await;
+                let stats = zoomriya_serve::host::stats(
+                    &name,
+                    "control plane",
+                    env!("CARGO_PKG_VERSION"),
+                    started,
+                    &dir,
+                );
+                if let Err(err) = store.server_report(&stats, zoomriya_serve::now(), 0, 0) {
+                    warn!("this server's numbers: {err:#}");
+                }
+            }
+        });
+    }
 
     // Notice the operator commands' changes.
     let watched = store.clone();

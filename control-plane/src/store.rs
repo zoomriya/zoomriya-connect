@@ -20,7 +20,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use sha2::{Digest, Sha256};
 use zoomriya_keys::{Key, PublicKey};
 use zoomriya_proto::{
-    AcmeTarget, BoxChange, BoxFeed, BoxState, HomeAddrs, RegisterRequest,
+    AcmeTarget, BoxChange, BoxFeed, BoxState, HomeAddrs, RegisterRequest, ServerStats,
     names::{self, NameRules},
 };
 
@@ -122,6 +122,27 @@ pub struct BoxSummary {
     pub own_allowance_gb: Option<u32>,
     /// The account it's linked to.
     pub account: Option<String>,
+    /// Bytes through the TURN servers beside our relays this month, besides `used`.
+    pub turn: u64,
+}
+
+/// One server, as the GUI's Servers page lists it.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub struct ServerRow {
+    /// Its name.
+    pub name: String,
+    /// When it last reported, in seconds since 1970.
+    pub last_seen: u64,
+    /// Its numbers then.
+    pub stats: ServerStats,
+    /// Bytes its network received this month.
+    pub rx: u64,
+    /// Bytes it sent this month.
+    pub tx: u64,
+    /// Bytes boxes moved through it as a relay this month.
+    pub relay: u64,
+    /// Bytes through the TURN server beside it this month.
+    pub turn: u64,
 }
 
 /// What a registration did.
@@ -275,6 +296,23 @@ CREATE TABLE IF NOT EXISTS relay_use (
     bytes    INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (box_key, month)
 );
+CREATE TABLE IF NOT EXISTS servers (
+    name       TEXT PRIMARY KEY,
+    role       TEXT NOT NULL,
+    last_seen  INTEGER NOT NULL,
+    stats      TEXT NOT NULL,
+    net_rx     INTEGER NOT NULL DEFAULT 0,
+    net_tx     INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS server_use (
+    name   TEXT NOT NULL,
+    month  TEXT NOT NULL,
+    rx     INTEGER NOT NULL DEFAULT 0,
+    tx     INTEGER NOT NULL DEFAULT 0,
+    relay  INTEGER NOT NULL DEFAULT 0,
+    turn   INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (name, month)
+);
 CREATE TABLE IF NOT EXISTS allowances (
     box_key  TEXT PRIMARY KEY,
     gb       INTEGER NOT NULL
@@ -388,6 +426,13 @@ impl Store {
             .exists([])?;
         if !has_account {
             db.execute_batch("ALTER TABLE boxes ADD COLUMN account_id INTEGER")?;
+        }
+        // Added with TURN for laptops: each box's bytes through TURN.
+        let has_turn: bool = db
+            .prepare("SELECT 1 FROM pragma_table_info('relay_use') WHERE name = 'turn'")?
+            .exists([])?;
+        if !has_turn {
+            db.execute_batch("ALTER TABLE relay_use ADD COLUMN turn INTEGER NOT NULL DEFAULT 0")?;
         }
         let version: i64 = db.query_row("PRAGMA data_version", [], |r| r.get(0))?;
         let store = Self {
@@ -1103,7 +1148,8 @@ impl Store {
         let db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
         let mut st = db.prepare(
             "SELECT b.name, b.box_key, b.factory, b.stolen, b.disabled, b.registered_at,
-                    b.door_until, a.box_key IS NOT NULL, COALESCE(u.bytes, 0), al.gb, ac.username
+                    b.door_until, a.box_key IS NOT NULL, COALESCE(u.bytes, 0), al.gb, ac.username,
+                    COALESCE(u.turn, 0)
              FROM boxes b LEFT JOIN address_records a ON a.box_key = b.box_key
              LEFT JOIN relay_use u ON u.box_key = b.box_key AND u.month = ?3
              LEFT JOIN allowances al ON al.box_key = b.box_key
@@ -1126,6 +1172,7 @@ impl Store {
                     used: r.get::<_, i64>(8)?.max(0) as u64,
                     own_allowance_gb: r.get(9)?,
                     account: r.get(10)?,
+                    turn: r.get::<_, i64>(11)?.max(0) as u64,
                 })
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
@@ -1289,16 +1336,29 @@ impl Store {
 
     /// Adds a relay's counts to the month. Unknown boxes are skipped.
     pub fn add_relay_use(&self, month: &str, used: &[(PublicKey, u64)]) -> Result<()> {
+        self.add_use(month, used, false)
+    }
+
+    /// Adds the counts of the TURN server beside a relay to the month.
+    pub fn add_turn_use(&self, month: &str, used: &[(PublicKey, u64)]) -> Result<()> {
+        self.add_use(month, used, true)
+    }
+
+    fn add_use(&self, month: &str, used: &[(PublicKey, u64)], turn: bool) -> Result<()> {
         let mut db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
         let tx = db.transaction()?;
+        let sql = if turn {
+            "INSERT INTO relay_use (box_key, month, turn)
+             SELECT box_key, ?2, ?3 FROM boxes WHERE box_key = ?1
+             ON CONFLICT (box_key, month) DO UPDATE SET turn = turn + excluded.turn"
+        } else {
+            "INSERT INTO relay_use (box_key, month, bytes)
+             SELECT box_key, ?2, ?3 FROM boxes WHERE box_key = ?1
+             ON CONFLICT (box_key, month) DO UPDATE SET bytes = bytes + excluded.bytes"
+        };
         for (key, bytes) in used {
             let bytes = i64::try_from(*bytes).unwrap_or(i64::MAX);
-            tx.execute(
-                "INSERT INTO relay_use (box_key, month, bytes)
-                 SELECT box_key, ?2, ?3 FROM boxes WHERE box_key = ?1
-                 ON CONFLICT (box_key, month) DO UPDATE SET bytes = bytes + excluded.bytes",
-                params![key.to_z32(), month, bytes],
-            )?;
+            tx.execute(sql, params![key.to_z32(), month, bytes])?;
         }
         tx.commit()?;
         Ok(())
@@ -1314,7 +1374,7 @@ impl Store {
              LEFT JOIN allowances al ON al.box_key = u.box_key
              WHERE u.month = ?1
                AND COALESCE(al.gb, CASE WHEN b.factory THEN ?3 ELSE ?2 END) > 0
-               AND u.bytes > COALESCE(al.gb, CASE WHEN b.factory THEN ?3 ELSE ?2 END) * ?4",
+               AND u.bytes + u.turn > COALESCE(al.gb, CASE WHEN b.factory THEN ?3 ELSE ?2 END) * ?4",
         )?;
         let keys = q
             .query_map(params![month, a.default_gb, a.factory_gb, GB as i64], |r| {
@@ -1324,12 +1384,13 @@ impl Store {
         Ok(keys)
     }
 
-    /// One box's use this month: bytes, and its allowance in bytes (0: none).
+    /// One box's use this month, relay and TURN together: bytes, and its
+    /// allowance in bytes (0: none).
     pub fn relay_use(&self, key: &PublicKey, month: &str) -> Result<(u64, u64)> {
         let a = self.allowances()?;
         let db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
         let (factory, own, used): (bool, Option<i64>, i64) = db.query_row(
-            "SELECT b.factory, al.gb, COALESCE(u.bytes, 0) FROM boxes b
+            "SELECT b.factory, al.gb, COALESCE(u.bytes + u.turn, 0) FROM boxes b
              LEFT JOIN allowances al ON al.box_key = b.box_key
              LEFT JOIN relay_use u ON u.box_key = b.box_key AND u.month = ?2
              WHERE b.box_key = ?1",
@@ -1342,15 +1403,108 @@ impl Store {
         Ok((used.max(0) as u64, u64::from(gb) * GB))
     }
 
-    /// Bytes through our relays this month, all boxes together.
-    pub fn relay_use_total(&self, month: &str) -> Result<u64> {
+    /// Bytes through our relays this month, all boxes together: relay, TURN.
+    pub fn relay_use_total(&self, month: &str) -> Result<(u64, u64)> {
         let db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
-        let n: i64 = db.query_row(
-            "SELECT COALESCE(SUM(bytes), 0) FROM relay_use WHERE month = ?1",
+        let (relay, turn): (i64, i64) = db.query_row(
+            "SELECT COALESCE(SUM(bytes), 0), COALESCE(SUM(turn), 0) FROM relay_use WHERE month = ?1",
             params![month],
-            |r| r.get(0),
+            |r| Ok((r.get(0)?, r.get(1)?)),
         )?;
-        Ok(n.max(0) as u64)
+        Ok((relay.max(0) as u64, turn.max(0) as u64))
+    }
+
+    /// Keeps a server's latest numbers, and adds what it moved since its
+    /// last report to the month: its network (from the machine's counters,
+    /// which start again at zero when it restarts), and its relay and TURN
+    /// bytes.
+    pub fn server_report(
+        &self,
+        stats: &ServerStats,
+        now: u64,
+        relay: u64,
+        turn: u64,
+    ) -> Result<()> {
+        let mut db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
+        let tx = db.transaction()?;
+        let before: Option<(i64, i64)> = tx
+            .query_row(
+                "SELECT net_rx, net_tx FROM servers WHERE name = ?1",
+                params![stats.name],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?;
+        let grew = |now: u64, then: i64| {
+            let then = then.max(0) as u64;
+            if now >= then { now - then } else { now }
+        };
+        // The first report only sets where counting starts.
+        let (rx, tx_bytes) = match before {
+            Some((r, t)) => (grew(stats.net_rx, r), grew(stats.net_tx, t)),
+            None => (0, 0),
+        };
+        let big = |n: u64| i64::try_from(n).unwrap_or(i64::MAX);
+        tx.execute(
+            "INSERT INTO servers (name, role, last_seen, stats, net_rx, net_tx)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+             ON CONFLICT (name) DO UPDATE SET role = excluded.role, last_seen = excluded.last_seen,
+                 stats = excluded.stats, net_rx = excluded.net_rx, net_tx = excluded.net_tx",
+            params![
+                stats.name,
+                stats.role,
+                big(now),
+                serde_json::to_string(stats)?,
+                big(stats.net_rx),
+                big(stats.net_tx)
+            ],
+        )?;
+        tx.execute(
+            "INSERT INTO server_use (name, month, rx, tx, relay, turn) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+             ON CONFLICT (name, month) DO UPDATE SET rx = rx + excluded.rx, tx = tx + excluded.tx,
+                 relay = relay + excluded.relay, turn = turn + excluded.turn",
+            params![
+                stats.name,
+                zoomriya_proto::month_of(now),
+                big(rx),
+                big(tx_bytes),
+                big(relay),
+                big(turn)
+            ],
+        )?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Every server that ever reported, with this month's bandwidth.
+    pub fn servers(&self, month: &str) -> Result<Vec<ServerRow>> {
+        let db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
+        let mut q = db.prepare(
+            "SELECT s.name, s.last_seen, s.stats, COALESCE(u.rx, 0), COALESCE(u.tx, 0),
+                    COALESCE(u.relay, 0), COALESCE(u.turn, 0)
+             FROM servers s LEFT JOIN server_use u ON u.name = s.name AND u.month = ?1
+             ORDER BY s.role, s.name",
+        )?;
+        let rows = q
+            .query_map(params![month], |r| {
+                let stats: String = r.get(2)?;
+                Ok(ServerRow {
+                    last_seen: r.get::<_, i64>(1)?.max(0) as u64,
+                    stats: serde_json::from_str(&stats).unwrap_or_default(),
+                    rx: r.get::<_, i64>(3)?.max(0) as u64,
+                    tx: r.get::<_, i64>(4)?.max(0) as u64,
+                    relay: r.get::<_, i64>(5)?.max(0) as u64,
+                    turn: r.get::<_, i64>(6)?.max(0) as u64,
+                    name: r.get(0)?,
+                })
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(rows)
+    }
+
+    /// Forgets a server, for one taken down for good.
+    pub fn forget_server(&self, name: &str) -> Result<bool> {
+        let db = self.db.lock().map_err(|e| anyhow::anyhow!("{e}"))?;
+        Ok(db.execute("DELETE FROM servers WHERE name = ?1", params![name])? > 0)
     }
 
     /// Names for box keys, for the GUI's list of connected boxes.
@@ -2080,7 +2234,7 @@ mod tests {
             .expect("adds");
         s.add_relay_use("2026-12", &[(b.public(), 99 * GB)])
             .expect("adds");
-        assert_eq!(s.relay_use_total(month).expect("total"), 6 * GB);
+        assert_eq!(s.relay_use_total(month).expect("total"), (6 * GB, 0));
 
         // No limit until an operator sets one.
         assert_eq!(s.allowances().expect("read"), Allowances::default());
@@ -2112,5 +2266,33 @@ mod tests {
         // The GUI's list shows this month's use and any own allowance.
         let list = s.list_boxes("", 10).expect("list");
         assert!(list.iter().all(|b| b.own_allowance_gb.is_none()));
+    }
+
+    #[test]
+    fn server_bandwidth_survives_restarts() {
+        let s = Store::open_memory().expect("store");
+        let now = 1_795_000_000; // November 2026
+        let month = zoomriya_proto::month_of(now);
+        let at = |rx: u64, tx: u64| ServerStats {
+            name: "relay1.zoomriya.net".into(),
+            role: "relay".into(),
+            net_rx: rx,
+            net_tx: tx,
+            ..Default::default()
+        };
+        s.server_report(&at(1_000, 1_000), now, 0, 0)
+            .expect("first");
+        s.server_report(&at(1_600, 1_100), now + 10, 50, 7)
+            .expect("grew");
+        // The machine restarted: its counters began again from zero.
+        s.server_report(&at(300, 200), now + 20, 0, 0)
+            .expect("restarted");
+        let rows = s.servers(&month).expect("rows");
+        assert_eq!(rows.len(), 1);
+        assert_eq!((rows[0].rx, rows[0].tx), (600 + 300, 100 + 200));
+        assert_eq!((rows[0].relay, rows[0].turn), (50, 7));
+        assert_eq!(rows[0].last_seen, now + 20);
+        assert!(s.forget_server("relay1.zoomriya.net").expect("forget"));
+        assert!(s.servers(&month).expect("rows").is_empty());
     }
 }

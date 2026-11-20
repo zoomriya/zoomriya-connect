@@ -15,8 +15,7 @@ The numbers on this page (how often, how fast) are suggestions, like the
 |---|---|---|---|
 | **Control plane** | One server: `ns1.zoomriya.net`, the address server, registrations, the outside check, guests' setup messages | Registered names and their keys, the DNS zone, address records | Restore from backup (below). Families keep connecting meanwhile: see [When things go wrong](architecture.md#when-things-go-wrong) |
 | **Second DNS server** | `ns2.zoomriya.net`, at another hosting company | A copy of the zone | Set up again. It copies the zone from the first |
-| **Relays** | At least two regions | Nothing that needs keeping | Boxes move to another relay. Set up again |
-| **Guests' relay** (TURN) | Beside the relays | Nothing that needs keeping | Guests use the door or WebRTC meanwhile. Set up again |
+| **Relays** | At least two regions, each with TURN beside it on the same server and address ([TURN beside a relay](#turn-beside-a-relay)) | Nothing that needs keeping | Boxes move to another relay. Set up again |
 | **Guest page** | `share.zoomriya.net`, static | Nothing: it's built from the repository | Publish it again |
 | **Probes** | Small servers in several regions | Nothing | Set up again |
 | **Benchmark machine** | One machine of our own, always the same, so results compare | Results by commit | Results are also copied to the backups |
@@ -41,7 +40,7 @@ are in [`deploy/`](../deploy).
 | Other server | How |
 |---|---|
 | **Second DNS server** (`ns2`) | The same program: `deploy/control-plane-ns2.toml` and `deploy/zoomriya-ns2.service`. Give it one of the first server's `zone-keys` |
-| **Guests' relay** | Debian 13's TURN server (`coturn`) with `deploy/turnserver.conf`. Its `static-auth-secret` is the first line of the control plane's `turn-secrets`. Add our own servers' addresses as `denied-peer-ip` |
+| **TURN** | On each relay's server: see [TURN beside a relay](#turn-beside-a-relay) |
 
 | Port | Server | Open to |
 |---|---|---|
@@ -51,7 +50,7 @@ are in [`deploy/`](../deploy).
 | UDP 7842 | Relay | Everyone: QUIC address discovery |
 | TCP 9090 | Relay | The server itself only: numbers for the dashboard |
 | TCP 8444 | Both | The server itself only: the GUI. Reach it with `ssh -L 8444:127.0.0.1:8444 server` |
-| UDP 3478, TCP 443 | Guests' relay | Everyone. UDP 3478 also answers STUN for boxes and laptops ([Laptops](laptops.md#connecting)) |
+| UDP and TCP 3478 | Relay (coturn) | Everyone: TURN, and STUN for boxes and laptops ([Laptops](laptops.md#connecting)). TURN over TLS comes in on the relay's TCP 443 |
 
 Certificates come from Let's Encrypt over port 443 by themselves, or from
 files, read again every hour. The services run with only the right to use
@@ -100,7 +99,67 @@ meanwhile: after a restore, a name with a certificate in the public logs from
 the last 90 days goes only to a box that proves it holds that certificate's
 key.
 
+### TURN beside a relay
+
+Each relay's server also runs TURN (Debian 13's `coturn`), for laptops whose
+WebRTC can't connect directly, and for guests. **One server, one address:**
+the relay's front door shares port 443 by the name each connection asks for.
+
+| Connection on TCP 443 asks for | Goes to |
+|---|---|
+| `relay1.zoomriya.net` (or anything else) | The relay, as always |
+| `turn.zoomriya.net` | The relay opens the TLS with its own certificate, which covers both names, and passes the TURN stream to coturn on `127.0.0.1:3478`. WebRTC's own encryption between the laptop and the box runs inside it |
+| A `[[pass_through]]` name, such as a family's `connect.smith.ca` | Passed on unopened to the program that answers it on the same server, which keeps its own certificate |
+
+| Step | On the relay's server |
+|---|---|
+| 1 | `apt install coturn`, then `deploy/turnserver.conf` to `/etc/turnserver.conf`. Add our own servers' addresses as `denied-peer-ip` |
+| 2 | One secret, at least 32 characters (`openssl rand -base64 48`), in three places: coturn's `static-auth-secret`, `/etc/zoomriya-relay/turn-secret`, and the first line of the control plane's `turn-secrets` (guests' credentials) |
+| 3 | Let the relay read coturn's log: `mkdir -p /var/log/turnserver && chown turnserver:turnserver /var/log/turnserver && chmod 750 /var/log/turnserver`, and `systemctl edit zoomriya-relay` with `[Service]` `SupplementaryGroups=turnserver`. Rotate the log with `copytruncate` (logrotate) |
+| 4 | The `[turn]` section in `relay.toml`, and `turn.zoomriya.net` in the certificate's domains |
+| 5 | DNS: `turn.zoomriya.net` at the relay's address. Firewall: UDP and TCP 3478 open |
+| 6 | `systemctl restart coturn zoomriya-relay`. The Servers page shows the TURN server answering |
+
+| What | How |
+|---|---|
+| Credentials | Boxes ask their relay (`POST /zoomriya/v1/turn`, signed with the box key). They last a day, and laptops get new ones each time they connect. The username is the box key, so coturn's records name the box |
+| Counting | coturn writes each session's bytes, by username, to its log (`verbose`). The relay reads the log and reports each box's TURN bytes with its relay bytes. TURN counts towards the box's monthly allowance; it can't be slowed, only the relay can |
+| Checking | The relay sends coturn a STUN request every 30 seconds; the Servers page shows the answer |
+
+**Moving TURN to its own server later.** Boxes and laptops only know the name
+`turn.zoomriya.net`, so nothing changes for them.
+
+| Change | Where |
+|---|---|
+| Point `turn.zoomriya.net` at the new server | DNS |
+| coturn answers port 443 itself: `tls-listening-port=443`, with its own certificate | The new server's `turnserver.conf` |
+| Drop `turn.zoomriya.net` from the relay's certificate, and point `[turn] local` at the new server, for the check | The relay's `relay.toml` |
+| Get coturn's log to the relay, for counting: forward it with rsyslog, or we add a TURN-only mode to `zoomriya-relay` | The new server |
+
 ## Watching it
+
+**The GUI's Servers page** shows every server we run, each reporting every
+half minute (relays with every poll):
+
+| Server | Reports |
+|---|---|
+| Control plane | Itself |
+| Each relay, with its TURN server | With its usual report (`/v1/relay/report`) |
+| Second DNS server | `POST /v1/server/report`, with its zone-copy key |
+
+| Shown | From |
+|---|---|
+| Online, or not reporting (nothing for two minutes) | When it last reported |
+| Uptime, version, load, memory, disk | The machine (`/proc`, the data directory's disk) |
+| Received and sent this month | The machine's network counters, added up per month; a restart starts them again without losing the month |
+| Through the relay, and through TURN, this month | The boxes' counts, as for the allowance |
+| The TURN server answering | The relay's check |
+| The relay seen from outside | The control plane's own check of each relay |
+
+A server shut down for good can be removed from the list; it comes back if it
+reports again. The Overview shows how many are online, and the Boxes page
+each box's relay and TURN use. A family's own relay shows its own server on
+its GUI's front page.
 
 Every server's numbers go to one dashboard, reachable only by the team. The
 relays' numbers (port 9090) and the control plane's are never on the internet.
@@ -109,6 +168,8 @@ relays' numbers (port 9090) and the control plane's are never on the internet.
 |---|---|
 | The [probes](testing.md#benchmarks-on-every-change): each relay, a test box, DNS, a test guest link | Any probe fails twice in a row, or gets more than 50% slower than its usual |
 | Relays: processor, memory, connections, data | Over 70% processor for 10 minutes. Memory still growing after a day |
+| A server not reporting (the Servers page) | Two minutes without a report |
+| A TURN server not answering | Two checks in a row |
 | Refused connections on the relays | Five times the usual rate: someone may be trying passes |
 | New registrations | Five times the usual rate, or many from one address |
 | DNS answers | Any server not answering, or answers taking over 100 ms |
@@ -177,7 +238,7 @@ The keys families hold are covered in
 | **DNS update keys** (one per box) | The box. The control plane holds only the public half | Not needed: each works for one name only | A leaked public half is harmless. If a box's key leaks, that box gets a new one at its next check-in | Nothing |
 | **Zone-copy key** (`ns1` to `ns2`) | Both DNS servers | Every year. Old and new both work while `zone-keys` lists both | Change it on both | Nothing |
 | **Our servers' certificates** (`relay.`, `share.`, the control plane) | Each server | Automatically, every 60 days | Revoke, and get new ones at once | Nothing |
-| **Guests' relay secret**, which makes the one-hour credentials | The control plane (`turn-secrets`) and the guests' relay (`static-auth-secret`) | Every month: change both together. Credentials made in the last hour with the old secret stop working | Change it at once. Links in use reconnect | A guest may wait a few seconds |
+| **TURN secret**, which makes TURN credentials | The control plane (`turn-secrets`), each relay (`turn-secret`) and each coturn (`static-auth-secret`) | Every month: change all three together. Guests' credentials last an hour, laptops' a day: those made with the old secret stop working | Change it at once. Links and laptops in use reconnect, and laptops get new credentials as they do | A guest or laptop may wait a few seconds |
 | **Control plane to relay key**, for the list of registered boxes | The control plane and each relay | Every year | Change it at once | Nothing |
 | **Factory tokens** | Made at the factory. The control plane keeps which ones were used | Never: each is used once | Void the batch's unused tokens. Those boxes still register, with normal limits, until they get new tokens in an update | Higher relay limits wait for an update |
 | **Logins to our servers** | Each team member, their own | When they leave, the same day | Remove it, and check what it did | Nothing |

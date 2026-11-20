@@ -757,6 +757,7 @@ async fn second_dns_server_copies() {
         r.http.clone(),
         ZONE_KEY.into(),
         std::time::Duration::from_millis(100),
+        ("ns2.zoomriya.net".into(), 1),
     ));
     for _ in 0..50 {
         if copy.entry("maple").is_some() {
@@ -765,6 +766,30 @@ async fn second_dns_server_copies() {
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
     assert_eq!(copy.entry("maple"), r.store.entry("maple"));
+    // It also said how it's doing, for the Servers page.
+    for _ in 0..50 {
+        if !r.store.servers("2000-01").expect("servers").is_empty() {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    let servers = r.store.servers("2000-01").expect("servers");
+    let ns2 = servers
+        .iter()
+        .find(|s| s.name == "ns2.zoomriya.net")
+        .expect("ns2 listed");
+    assert_eq!(ns2.stats.role, "second DNS");
+    // Without the key, nobody can.
+    let res = r
+        .client
+        .send(
+            "POST",
+            &format!("{}/v1/server/report", r.http),
+            &[("authorization", "Bearer wrong".to_string())],
+            br#"{"name":"evil"}"#.to_vec(),
+        )
+        .await;
+    assert_eq!(res.status, 401);
 }
 
 #[tokio::test]
@@ -811,7 +836,9 @@ async fn the_gui_api() {
 
 #[tokio::test]
 async fn monthly_allowance_end_to_end() {
-    use zoomriya_proto::{BoxConnected, BoxUse, RelayReport, RelayReportAnswer, RelayUse};
+    use zoomriya_proto::{
+        BoxConnected, BoxUse, RelayReport, RelayReportAnswer, RelayUse, ServerStats,
+    };
     let r = start().await;
     let (maple, _) = registered(&r, "maple").await;
     let auth = |t: &str| vec![("authorization", format!("Bearer {t}"))];
@@ -828,6 +855,18 @@ async fn monthly_allowance_end_to_end() {
             key: maple.public().into(),
             devices: 1,
         }],
+        // And 999 bytes through the TURN server beside it.
+        turn: vec![BoxUse {
+            key: maple.public().into(),
+            bytes: 999,
+        }],
+        server: Some(ServerStats {
+            name: "whatever the relay says".into(),
+            net_rx: 1_000,
+            net_tx: 2_000,
+            turn: Some(true),
+            ..Default::default()
+        }),
     };
     let body = serde_json::to_vec(&report).expect("json");
     let url = format!("{}/v1/relay/report", r.http);
@@ -860,6 +899,14 @@ async fn monthly_allowance_end_to_end() {
         relay: "relay1.zoomriya.net".into(),
         used: vec![],
         connected: report.connected.clone(),
+        turn: vec![],
+        // The machine's counters grew by 500 and 700 bytes.
+        server: Some(ServerStats {
+            net_rx: 1_500,
+            net_tx: 2_700,
+            turn: Some(true),
+            ..Default::default()
+        }),
     };
     let res = r
         .client
@@ -880,7 +927,7 @@ async fn monthly_allowance_end_to_end() {
         .await;
     assert_eq!(res.status, 200, "{}", String::from_utf8_lossy(&res.body));
     let u: RelayUse = serde_json::from_slice(&res.body).expect("use");
-    assert_eq!(u.used, 3_000_000_001);
+    assert_eq!(u.used, 3_000_001_000, "relay and TURN together");
     assert_eq!(u.allowance, 3_000_000_000);
     assert!(u.slowed);
     // Another box can't ask about this one.
@@ -952,6 +999,36 @@ async fn monthly_allowance_end_to_end() {
     let o: serde_json::Value = serde_json::from_slice(&res.body).expect("json");
     assert_eq!(o["connected"]["boxes"], 1);
     assert_eq!(o["relay_use"]["bytes"], 3_000_000_001u64);
+    assert_eq!(o["relay_use"]["turn"], 999);
+
+    // The Servers page: the relay under its own name, what it moved this
+    // month, and its TURN server answering.
+    let res = r
+        .client
+        .send(
+            "GET",
+            &format!("{}/admin/api/servers", r.admin),
+            &auth(&r.admin_token),
+            vec![],
+        )
+        .await;
+    let s: serde_json::Value = serde_json::from_slice(&res.body).expect("json");
+    let relay = s["servers"]
+        .as_array()
+        .expect("list")
+        .iter()
+        .find(|x| x["name"] == "relay1.zoomriya.net")
+        .expect("relay listed")
+        .clone();
+    assert_eq!(relay["online"], true);
+    assert_eq!(relay["stats"]["role"], "relay");
+    assert_eq!(relay["stats"]["turn"], true);
+    assert_eq!(relay["month"]["relay"], 3_000_000_001u64);
+    assert_eq!(relay["month"]["turn"], 999);
+    // The first report set where counting starts; the next grew 500 in and
+    // 700 out; the last, with the same counters, added nothing.
+    assert_eq!(relay["month"]["rx"], 500);
+    assert_eq!(relay["month"]["tx"], 700);
 }
 
 #[tokio::test]

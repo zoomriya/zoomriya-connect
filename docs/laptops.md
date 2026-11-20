@@ -73,14 +73,30 @@ serves them all; each package leaves out the other browser's files.
 
 | Step | At home | Away |
 |---|---|---|
-| 1 | The extension makes a WebRTC offer, signed with its device key | The same. STUN tells WebRTC the laptop's public address |
+| 1 | The extension makes a WebRTC offer, signed with its device key | The same. STUN tells WebRTC the laptop's public address, and TURN credentials are ready in case nothing direct works |
 | 2 | It sends the offer to the box's home address (TCP 7445). It waits 3 seconds at most | Nothing answers at home, so it sends the offer to the first relay, with its pass and a signature by its link key |
 | 3 | | The relay checks the pass and passes the offer to the box, which is waiting on the relay for offers |
 | 4 | The box checks the device key's signature and answers, sealed by the box key, with a fresh pass | The same, back through the relay. The box offers its public address too, which STUN on its WebRTC port told it |
-| 5 | WebRTC connects on the home network | WebRTC connects straight to the box through both routers. The relay never carries the box's pages |
+| 5 | WebRTC connects on the home network | WebRTC connects straight to the box through both routers, or through TURN if it can't ([below](#when-the-direct-path-fails)). The relay never carries the box's pages |
 
 The pass comes fresh with every answer, so a laptop used at least once a
 month never needs pairing again.
+
+### When the direct path fails
+
+Some networks block WebRTC's direct path: hotel, airport, office and school
+Wi-Fi that blocks UDP, or routers that change addresses in ways hole punching
+can't follow. Then WebRTC falls back to **TURN**, a server that passes the
+encrypted traffic between the laptop and the box. It runs beside each relay
+([TURN beside a relay](operations.md#turn-beside-a-relay)).
+
+| What | How |
+|---|---|
+| Credentials | The box asks its relay for them (signed with the box key), keeps them while more than half their day is left, and sends them in every answer, sealed with the rest. The laptop keeps them for its next connection |
+| Order | WebRTC tries direct first. TURN only when nothing direct works: UDP 3478, then TCP 3478, then TLS on port 443 for networks that allow nothing but the web |
+| Out-of-date credentials | If the connection fails with the credentials kept from last time and the answer brought new ones, the extension tries once more with them |
+| Privacy | TURN passes WebRTC's encrypted traffic. It can't read or change the box's pages, as with the relay |
+| Bandwidth | Counted per box from the TURN server's own records, in the box's monthly allowance, and on the GUI's Servers page |
 
 | Port on the box | From | What |
 |---|---|---|
@@ -266,7 +282,6 @@ the same way. A copy from anywhere else can't update itself in.
 | A few things in Firefox | See [Firefox's limits](#limits) |
 | The box's apps (not Box Desktop) | Not yet in any browser: the extension reaches Box Desktop only, for now |
 | Port forwards over TCP | WebRTC can't use the box's TCP door |
-| Networks that block UDP, or routers that can't be punched through | Not yet: needs the guests' relay (TURN) for laptops, next |
 
 ## If the checks fail
 

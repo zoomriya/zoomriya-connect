@@ -26,3 +26,13 @@ source = "enrolled"
 bind = "127.0.0.1:8444"
 tokens_file = "/var/lib/zoomriya-relay/admin-tokens"
 web_dir = "/usr/share/zoomriya-connect/admin"
+
+# TURN beside your relay, for laptops whose WebRTC can't go direct: install
+# coturn with deploy/turnserver.conf (realm and secret yours), add
+# turn.smith.ca to the certificate's domains above, and uncomment:
+# [turn]
+# name = "turn.smith.ca"
+# local = "127.0.0.1:3478"
+# urls = ["turn:turn.smith.ca:3478?transport=udp", "turn:turn.smith.ca:3478?transport=tcp", "turns:turn.smith.ca:443?transport=tcp"]
+# secret_file = "/var/lib/zoomriya-relay/turn-secret"
+# log = "/var/log/turnserver/turnserver.log"

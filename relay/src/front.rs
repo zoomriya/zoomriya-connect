@@ -45,6 +45,8 @@ use crate::{
     gate::{Gate, ListRefused},
     laptops,
     meter::{CONN_HEADER, Meter},
+    sni::{self, Sni},
+    turn,
 };
 
 /// Largest removed-device list we read.
@@ -63,6 +65,8 @@ pub struct Api {
     pub clock_allowance: u64,
     /// Laptops' offers from away, waiting for their boxes.
     pub laptops: Arc<laptops::Hub>,
+    /// The TURN server beside this relay, if there is one.
+    pub turn: Option<Arc<turn::Turn>>,
 }
 
 /// A family relay's enrolment state.
@@ -106,6 +110,7 @@ pub fn router(api: Api) -> Router {
         )
         .route(laptop::RELAY_WAIT, post(laptops::wait))
         .route(laptop::RELAY_ANSWER, post(laptops::answer))
+        .route(zoomriya_proto::RELAY_TURN, post(turn::credentials))
         .layer(DefaultBodyLimit::max(MAX_LIST))
         .with_state(api)
 }
@@ -250,9 +255,65 @@ impl Service<hyper::Request<Incoming>> for Front {
     }
 }
 
-/// Serves HTTPS forever. Each TLS connection is passed on, counted, over
-/// loopback to the inner side, where iroh and our API answer it.
-pub async fn serve(listener: TlsListener, relay: RelayService, api: Router, meter: Arc<Meter>) {
+/// Where connections for other names on port 443 go.
+#[derive(Debug, Clone, Default)]
+pub struct Routes {
+    /// Names passed on unopened: name, where.
+    pub pass_through: Vec<(String, SocketAddr)>,
+    /// TURN over TLS: its name, and coturn's TCP port on this machine.
+    pub turn: Option<(String, SocketAddr)>,
+}
+
+impl Routes {
+    fn pass_to(&self, name: &str) -> Option<SocketAddr> {
+        self.pass_through
+            .iter()
+            .find(|(n, _)| n.eq_ignore_ascii_case(name))
+            .map(|(_, to)| *to)
+    }
+}
+
+/// Reads the name a connection asks for, without taking anything from it.
+async fn peek_name(tcp: &tokio::net::TcpStream) -> Option<String> {
+    let mut buf = vec![0u8; sni::MAX_HELLO + 5];
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+    loop {
+        let n = tokio::time::timeout_at(deadline, tcp.peek(&mut buf))
+            .await
+            .ok()?
+            .ok()?;
+        if n == 0 {
+            return None;
+        }
+        match sni::read(&buf[..n]) {
+            Sni::Name(name) => return Some(name),
+            Sni::None => return None,
+            Sni::More if n >= buf.len() => return None,
+            Sni::More => tokio::time::sleep(Duration::from_millis(20)).await,
+        }
+    }
+}
+
+/// Copies both ways until either side closes.
+async fn splice<A, B>(mut a: A, mut b: B)
+where
+    A: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+    B: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+{
+    let _ = tokio::io::copy_bidirectional(&mut a, &mut b).await;
+}
+
+/// Serves HTTPS forever. A connection for a passed-through name goes on
+/// unopened; one for the TURN name goes to coturn once its TLS is opened;
+/// every other TLS connection is passed on, counted, over loopback to the
+/// inner side, where iroh and our API answer it.
+pub async fn serve(
+    listener: TlsListener,
+    relay: RelayService,
+    api: Router,
+    meter: Arc<Meter>,
+    routes: Routes,
+) {
     let inner = match TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await {
         Ok(l) => l,
         Err(err) => {
@@ -277,7 +338,18 @@ pub async fn serve(listener: TlsListener, relay: RelayService, api: Router, mete
         let _ = tcp.set_nodelay(true);
         let listener = listener.clone();
         let meter = meter.clone();
+        let routes = routes.clone();
         tokio::spawn(async move {
+            // Another program's name on this machine: passed on unopened.
+            if !routes.pass_through.is_empty()
+                && let Some(to) = peek_name(&tcp).await.and_then(|n| routes.pass_to(&n))
+            {
+                match tokio::net::TcpStream::connect(to).await {
+                    Ok(up) => splice(tcp, up).await,
+                    Err(err) => debug!("pass through to {to}: {err}"),
+                }
+                return;
+            }
             let tls = match tokio::time::timeout(ESTABLISH, listener.handshake(tcp)).await {
                 Ok(Ok(Some(tls))) => tls,
                 Ok(Ok(None)) => return,
@@ -287,6 +359,22 @@ pub async fn serve(listener: TlsListener, relay: RelayService, api: Router, mete
                 }
                 Err(_) => return,
             };
+            // TURN over TLS: the relay's certificate covers its name; what's
+            // inside goes to coturn on this machine. WebRTC's own encryption
+            // runs inside it, between the laptop and the box.
+            if let Some((name, to)) = &routes.turn
+                && tls
+                    .get_ref()
+                    .1
+                    .server_name()
+                    .is_some_and(|n| n.eq_ignore_ascii_case(name))
+            {
+                match tokio::net::TcpStream::connect(to).await {
+                    Ok(up) => splice(tls, up).await,
+                    Err(err) => debug!("TURN on {to}: {err}"),
+                }
+                return;
+            }
             let Ok(sock) = TcpSocket::new_v4() else {
                 return;
             };
@@ -409,9 +497,15 @@ mod tests {
     }
 
     async fn start() -> Running {
+        start_with(Routes::default()).await
+    }
+
+    async fn start_with(routes: Routes) -> Running {
         let _ = rustls::crypto::ring::default_provider().install_default();
         let dir = tempfile::tempdir().expect("dir");
-        let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).expect("cert");
+        let cert =
+            rcgen::generate_simple_self_signed(vec!["localhost".into(), "turn.localhost".into()])
+                .expect("cert");
         let (c, k) = (dir.path().join("cert.pem"), dir.path().join("key.pem"));
         std::fs::write(&c, cert.cert.pem()).expect("write");
         std::fs::write(&k, cert.signing_key.serialize_pem()).expect("write");
@@ -441,8 +535,9 @@ mod tests {
             enrolled: None,
             clock_allowance: 600,
             laptops: Arc::default(),
+            turn: None,
         });
-        tokio::spawn(serve(listener, relay, api, gate.meter.clone()));
+        tokio::spawn(serve(listener, relay, api, gate.meter.clone(), routes));
         Running {
             url: format!("https://localhost:{port}"),
             root: cert.cert.der().clone(),
@@ -495,6 +590,108 @@ mod tests {
                 _ => return None,
             }
         }
+    }
+
+    /// A program on this machine: answers what it got first, with a label.
+    async fn program(label: &'static str) -> SocketAddr {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let l = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind");
+        let addr = l.local_addr().expect("addr");
+        tokio::spawn(async move {
+            while let Ok((mut s, _)) = l.accept().await {
+                tokio::spawn(async move {
+                    let mut buf = [0u8; 4];
+                    if s.read_exact(&mut buf).await.is_ok() {
+                        let _ = s.write_all(format!("{label}:").as_bytes()).await;
+                        let _ = s.write_all(&buf).await;
+                    }
+                });
+            }
+        });
+        addr
+    }
+
+    #[tokio::test]
+    async fn other_names_on_port_443() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let connect = program("connect").await;
+        let coturn = program("turn").await;
+        let r = start_with(Routes {
+            pass_through: vec![("connect.localhost".into(), connect)],
+            turn: Some(("turn.localhost".into(), coturn)),
+        })
+        .await;
+        let port: u16 = r
+            .url
+            .rsplit(':')
+            .next()
+            .expect("port")
+            .parse()
+            .expect("port");
+
+        // Passed on unopened: the program gets the TLS hello itself.
+        let mut raw = tokio::net::TcpStream::connect(("127.0.0.1", port))
+            .await
+            .expect("tcp");
+        let hello = {
+            let provider = Arc::new(rustls::crypto::ring::default_provider());
+            let config = rustls::ClientConfig::builder_with_provider(provider)
+                .with_safe_default_protocol_versions()
+                .expect("versions")
+                .with_root_certificates(rustls::RootCertStore::empty())
+                .with_no_client_auth();
+            let mut c = rustls::ClientConnection::new(
+                Arc::new(config),
+                rustls::pki_types::ServerName::try_from("connect.localhost").expect("name"),
+            )
+            .expect("client");
+            let mut out = Vec::new();
+            c.write_tls(&mut out).expect("hello");
+            out
+        };
+        raw.write_all(&hello).await.expect("send");
+        let mut got = [0u8; 12];
+        raw.read_exact(&mut got).await.expect("answer");
+        assert_eq!(&got[..8], b"connect:");
+        assert_eq!(&got[8..], &hello[..4], "the hello arrived unopened");
+
+        // TURN: TLS opened by the relay, the stream inside goes to coturn.
+        let mut roots = rustls::RootCertStore::empty();
+        roots.add(r.root.clone()).expect("root");
+        let provider = Arc::new(rustls::crypto::ring::default_provider());
+        let config = rustls::ClientConfig::builder_with_provider(provider)
+            .with_safe_default_protocol_versions()
+            .expect("versions")
+            .with_root_certificates(roots)
+            .with_no_client_auth();
+        let tcp = tokio::net::TcpStream::connect(("127.0.0.1", port))
+            .await
+            .expect("tcp");
+        let mut tls = tokio_rustls::TlsConnector::from(Arc::new(config))
+            .connect(
+                rustls::pki_types::ServerName::try_from("turn.localhost").expect("name"),
+                tcp,
+            )
+            .await
+            .expect("TLS");
+        tls.write_all(b"ping").await.expect("send");
+        let mut got = [0u8; 9];
+        tls.read_exact(&mut got).await.expect("answer");
+        assert_eq!(&got, b"turn:ping");
+
+        // Everything else is still the relay.
+        let http = reqwest::Client::builder()
+            .tls_certs_only([reqwest::Certificate::from_der(&r.root).expect("root")])
+            .build()
+            .expect("client");
+        let res = http
+            .get(format!("{}/healthz", r.url))
+            .send()
+            .await
+            .expect("get");
+        assert_eq!(res.status(), 200);
     }
 
     #[tokio::test]

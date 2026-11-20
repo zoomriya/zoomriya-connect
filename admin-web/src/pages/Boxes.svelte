@@ -46,8 +46,9 @@
 		}
 	}
 
+	// Relay and TURN together, as the allowance counts them.
 	function usage(b: BoxSummary): string {
-		const used = size(b.used, ui.lang);
+		const used = size(b.used + b.turn, ui.lang);
 		return b.allowance_gb === 0 ? used : fill(w.ofAllowance, { used, allowance: size(b.allowance_gb * 1e9, ui.lang) });
 	}
 
@@ -104,7 +105,7 @@
 						</td>
 						<td>
 							<div class="badges">
-								<span class="secondary">{usage(b)}</span>
+								<span class="secondary" title={fill(w.relayAndTurn, { relay: size(b.used, ui.lang), turn: size(b.turn, ui.lang) })}>{usage(b)}</span>
 								{#if b.slowed}<span class="badge warn">{w.slowed}</span>{/if}
 								{#if b.own_allowance_gb !== null}<span class="badge accent">{w.ownAllowance}</span>{/if}
 							</div>

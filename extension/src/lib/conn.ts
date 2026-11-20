@@ -5,7 +5,7 @@
 // gets the answer: {t:'response'}, then {t:'chunk'}s, then {t:'end'}, or
 // {t:'error'}. The port may send {t:'cancel'}.
 
-import type { Box, BoxUpdate } from './box';
+import type { Box, BoxUpdate, IceServer } from './box';
 import { CHANNEL, MAX_CHUNK, chunk, end, readData, type Frame } from './frames';
 import { framed, linkPublic, loadKeys, openSealed, sha256, signDevice, signRequest, type Keys } from './keys';
 import { utf8 } from './codec';
@@ -32,7 +32,10 @@ export function setOnUpdate(f: (boxKey: string, update: BoxUpdate) => void) {
 }
 
 /** Why the box can't be reached, in words for the page. */
-class Unreachable extends Error {}
+class Unreachable extends Error {
+	/** Newer ICE servers the box sent, worth one more try with. */
+	fresh?: IceServer[];
+}
 
 async function connect(box: Box): Promise<Conn> {
 	const keys = await loadKeys();
@@ -84,7 +87,18 @@ async function connect(box: Box): Promise<Conn> {
 	const update: BoxUpdate = { pass: answer.pass, until: answer.until, relays: answer.relays, ice: answer.ice, tls_keys: answer.tls_keys };
 	onUpdate(box.boxKey, update);
 	await pc.setRemoteDescription({ type: 'answer', sdp: answer.sdp });
-	await c.open;
+	try {
+		await c.open;
+	} catch (e) {
+		pc.close();
+		// The TURN credentials kept from last time may have run out: the
+		// answer brought new ones, so the caller tries once more with them.
+		const fresh = answer.ice ?? [];
+		if (e instanceof Unreachable && fresh.length && JSON.stringify(fresh) !== JSON.stringify(box.ice ?? [])) {
+			e.fresh = fresh;
+		}
+		throw e;
+	}
 	return c;
 }
 
@@ -205,7 +219,13 @@ async function ready(box: Box): Promise<Conn> {
 	if (conn && conn.dc.readyState === 'open') return conn;
 	if (!connecting) {
 		connecting = (async () => {
-			const c = await connect(box);
+			let c: Conn;
+			try {
+				c = await connect(box);
+			} catch (e) {
+				if (!(e instanceof Unreachable) || !e.fresh) throw e;
+				c = await connect({ ...box, ice: e.fresh });
+			}
 			conn = c;
 			return c;
 		})().finally(() => {

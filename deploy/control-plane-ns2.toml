@@ -7,6 +7,8 @@ primary_url = "https://connect.zoomriya.net"
 # One of the keys in the first server's zone-keys file.
 key_file = "/etc/zoomriya-control-plane/zone-key"
 poll_seconds = 5
+# Its name on the first server's Servers page.
+name = "ns2.zoomriya.net"
 
 # The same names as the first server.
 [names]

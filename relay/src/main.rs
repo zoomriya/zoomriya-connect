@@ -29,6 +29,8 @@ mod front;
 mod gate;
 mod laptops;
 mod meter;
+mod sni;
+mod turn;
 
 use config::{Boxes, Config};
 use gate::{Gate, GateAccess, GateConfig};
@@ -139,6 +141,28 @@ async fn serve(cfg: Config) -> Result<()> {
     gate.set_clients(relay.clients().clone());
 
     let mut tasks = tokio::task::JoinSet::new();
+    let started = zoomriya_serve::now();
+
+    // The TURN server beside this relay: counted from its log, checked
+    // every half minute.
+    let turn = match &cfg.turn {
+        Some(t) => {
+            let reports = matches!(cfg.boxes, Boxes::ControlPlane { .. });
+            let turn = Arc::new(turn::Turn::new(t.clone(), reports)?);
+            let follow = turn.clone();
+            tasks.spawn(async move { follow.follow_log().await });
+            let check = turn.clone();
+            tasks.spawn(async move {
+                let mut every = tokio::time::interval(Duration::from_secs(30));
+                loop {
+                    every.tick().await;
+                    check.check().await;
+                }
+            });
+            Some(turn)
+        }
+        None => None,
+    };
 
     // Where the list of boxes comes from.
     let enrolled = match &cfg.boxes {
@@ -161,6 +185,11 @@ async fn serve(cfg: Config) -> Result<()> {
                 Duration::from_secs((*poll_seconds).max(1)),
                 boxes_file.clone(),
                 seq,
+                boxes::Side {
+                    turn: turn.clone(),
+                    state_dir: cfg.state_dir.clone(),
+                    started,
+                },
             ));
             None
         }
@@ -171,8 +200,13 @@ async fn serve(cfg: Config) -> Result<()> {
     };
 
     // HTTPS: the relay and our API.
-    let listener =
-        zoomriya_serve::TlsListener::bind(cfg.https.bind, &cfg.https.cert, &[b"http/1.1"]).await?;
+    // TURN over TLS may ask for its own protocol name.
+    let alpn: &[&[u8]] = if turn.is_some() {
+        &[b"http/1.1", b"stun.turn"]
+    } else {
+        &[b"http/1.1"]
+    };
+    let listener = zoomriya_serve::TlsListener::bind(cfg.https.bind, &cfg.https.cert, alpn).await?;
     let tls = listener.config();
     let laptops = Arc::new(laptops::Hub::default());
     {
@@ -190,12 +224,22 @@ async fn serve(cfg: Config) -> Result<()> {
         enrolled,
         clock_allowance: cfg.limits.clock_allowance_seconds,
         laptops: laptops.clone(),
+        turn: turn.clone(),
     });
+    let routes = front::Routes {
+        pass_through: cfg
+            .pass_through
+            .iter()
+            .map(|p| (p.name.to_ascii_lowercase(), p.to))
+            .collect(),
+        turn: turn.as_ref().map(|t| t.route()),
+    };
     tasks.spawn(front::serve(
         listener,
         relay.clone(),
         api,
         gate.meter.clone(),
+        routes,
     ));
 
     // Plain HTTP: the captive-portal check only.
@@ -246,6 +290,13 @@ async fn serve(cfg: Config) -> Result<()> {
         let routes = admin_api::router(Arc::new(admin_api::Admin {
             gate: gate.clone(),
             enrol_dir: matches!(cfg.boxes, Boxes::Enrolled).then(|| cfg.state_dir.clone()),
+            state_dir: cfg.state_dir.clone(),
+            started,
+            turn: turn.clone(),
+            name: match &cfg.boxes {
+                Boxes::ControlPlane { name, .. } => name.clone(),
+                Boxes::Enrolled => String::new(),
+            },
         }));
         let router = zoomriya_serve::admin::router(
             routes,

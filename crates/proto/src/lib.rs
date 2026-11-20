@@ -13,6 +13,7 @@ pub mod addrs;
 pub mod laptop;
 pub mod link;
 pub mod names;
+pub mod stun;
 
 /// The protocol version this build speaks.
 pub const PROTOCOL_VERSION: u32 = 1;
@@ -170,7 +171,7 @@ pub struct BoxFeed {
 }
 
 /// `POST /v1/relay/report`: what a relay saw since its last report.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct RelayReport {
     /// The relay's name, such as `relay1.zoomriya.net`.
     pub relay: String,
@@ -179,6 +180,50 @@ pub struct RelayReport {
     pub used: Vec<BoxUse>,
     /// Every box connected now, with how many of its devices are.
     pub connected: Vec<BoxConnected>,
+    /// Bytes each box's devices sent and received through the TURN server
+    /// beside this relay since the last report, from its own records.
+    #[serde(default)]
+    pub turn: Vec<BoxUse>,
+    /// How the server is doing, for the GUI's Servers page.
+    #[serde(default)]
+    pub server: Option<ServerStats>,
+}
+
+/// How one of our servers is doing: sent with each relay's report, by the
+/// second DNS server (`POST /v1/server/report`), and taken by the control
+/// plane from its own machine.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct ServerStats {
+    /// Its name, such as `relay1.zoomriya.net`.
+    pub name: String,
+    /// `control plane`, `relay` or `second DNS`.
+    pub role: String,
+    /// The program's version.
+    pub version: String,
+    /// When the program started, in seconds since 1970.
+    pub started: u64,
+    /// Seconds since the machine started.
+    pub uptime: u64,
+    /// Load over the last minute, and how many processors share it.
+    pub load: f32,
+    /// Processors.
+    pub cpus: u32,
+    /// Memory, in bytes.
+    pub mem_total: u64,
+    /// Memory in use (not available), in bytes.
+    pub mem_used: u64,
+    /// The disk holding the program's data, in bytes.
+    pub disk_total: u64,
+    /// Used on that disk, in bytes.
+    pub disk_used: u64,
+    /// Bytes received on the machine's network interfaces since it started.
+    pub net_rx: u64,
+    /// Bytes sent since it started.
+    pub net_tx: u64,
+    /// The TURN server beside a relay: `Some(true)` answering, `Some(false)`
+    /// not answering, `None` none here.
+    #[serde(default)]
+    pub turn: Option<bool>,
 }
 
 /// One box's bytes.
@@ -379,6 +424,11 @@ pub struct DoorCheck {
     /// What happened, in plain words, for Box Desktop.
     pub detail: String,
 }
+
+/// `POST /zoomriya/v1/turn` on a relay, signed with the box key: credentials
+/// for the TURN server beside that relay, for laptops (and later guests).
+/// The username names the box, so the relay counts each box's TURN use.
+pub const RELAY_TURN: &str = "/zoomriya/v1/turn";
 
 /// `POST /v1/boxes/{name}/turn`: one-hour credentials for the guests' relay,
 /// asked for by the box after it checked a guest's token. The box passes

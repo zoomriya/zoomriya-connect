@@ -5522,6 +5522,7 @@ dependencies = [
  "data-encoding",
  "futures-util",
  "getrandom 0.3.4",
+ "hmac 0.12.1",
  "http",
  "http-body-util",
  "hyper",
@@ -5535,11 +5536,13 @@ dependencies = [
  "rustls",
  "serde",
  "serde_json",
+ "sha1 0.10.7",
  "sha2 0.10.9",
  "subtle",
  "tempfile",
  "thiserror 2.0.21",
  "tokio",
+ "tokio-rustls",
  "toml 0.9.12+spec-1.1.0",
  "tower",
  "tracing",
@@ -5559,6 +5562,7 @@ dependencies = [
  "getrandom 0.3.4",
  "hyper",
  "hyper-util",
+ "rustix",
  "rustls",
  "serde",
  "sha2 0.10.9",
@@ -5571,6 +5575,7 @@ dependencies = [
  "tower-http",
  "tracing",
  "tracing-subscriber",
+ "zoomriya-proto",
 ]
 
 [[package]]

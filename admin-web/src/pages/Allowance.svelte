@@ -45,6 +45,10 @@
 			<div class="stat-value">{size(overview.relay_use.bytes, ui.lang)}</div>
 		</div>
 		<div class="card stat">
+			<div class="stat-label">{w.turnUseThisMonth}</div>
+			<div class="stat-value">{size(overview.relay_use.turn, ui.lang)}</div>
+		</div>
+		<div class="card stat">
 			<div class="stat-label">{w.connectedBoxes}</div>
 			<div class="stat-value">{count(overview.connected.boxes, ui.lang)}</div>
 		</div>

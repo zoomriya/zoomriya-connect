@@ -46,8 +46,9 @@ use tokio::{
 };
 use tracing::{debug, info, warn};
 use zoomriya_keys::{DeviceKey, Purpose, SecretKey, seal, sign_request};
+use zoomriya_proto::stun;
 use zoomriya_proto::{
-    ErrorBody,
+    ErrorBody, RELAY_TURN, TurnCredentials,
     laptop::{
         CHANNEL, Data, Frame, IceServer, LaptopAnswer, LaptopOffer, LaptopPairRequest,
         LaptopPaired, MAX_CHUNK, OFFER_CLOCK, RELAY_ANSWER, RELAY_WAIT, RELAY_WAIT_SECONDS,
@@ -59,7 +60,6 @@ use crate::{
     config::Target,
     devices::{Device, Devices},
     link::proxy_v2_header,
-    stun,
 };
 
 /// Most laptops connected at once.
@@ -89,6 +89,10 @@ pub struct Laptops {
     pub desktop: String,
     /// The box's certificate bundle, whose key Firefox checks.
     pub bundle: std::path::PathBuf,
+    /// For the relays' TURN credentials.
+    http: reqwest::Client,
+    /// TURN credentials from a relay, kept until half their life is gone.
+    turn: tokio::sync::Mutex<Option<(TurnCredentials, u64)>>,
     /// New sessions, for the WebRTC loop.
     offers: mpsc::Sender<NewSession>,
 }
@@ -114,6 +118,8 @@ pub struct Setup {
     pub desktop: String,
     /// The box's certificate bundle.
     pub bundle: std::path::PathBuf,
+    /// For the relays.
+    pub http: reqwest::Client,
 }
 
 /// The home endpoint, on the home network only: HTTPS with the box's
@@ -178,6 +184,7 @@ impl Laptops {
             stun,
             desktop,
             bundle,
+            http,
         } = setup;
         let socket = UdpSocket::bind(SocketAddr::from(([0, 0, 0, 0], udp_port)))
             .await
@@ -199,6 +206,8 @@ impl Laptops {
                 stun: stun.clone(),
                 desktop,
                 bundle,
+                http,
+                turn: tokio::sync::Mutex::new(None),
                 offers: tx,
             }),
             run(socket, port, hosts, stun, rx, Arc::new(forward)),
@@ -247,23 +256,74 @@ impl Laptops {
                 pass,
                 until,
                 relays: self.relays.clone(),
-                ice: self.ice(),
+                ice: self.ice().await,
                 tls_keys: tls_keys(&self.bundle),
             },
         ))
     }
 
-    /// The ICE servers laptops use: STUN only.
-    fn ice(&self) -> Vec<IceServer> {
-        if self.stun.is_empty() {
-            return vec![];
+    /// The ICE servers laptops use: STUN, and TURN for when the direct path
+    /// fails, with credentials from a relay (docs/laptops.md).
+    pub async fn ice(&self) -> Vec<IceServer> {
+        let mut out = Vec::new();
+        if !self.stun.is_empty() {
+            out.push(IceServer {
+                urls: self.stun.clone(),
+                username: None,
+                credential: None,
+            });
         }
-        vec![IceServer {
-            urls: self.stun.clone(),
-            username: None,
-            credential: None,
-        }]
+        if let Some(t) = self.turn_credentials().await {
+            out.push(IceServer {
+                urls: t.urls,
+                username: Some(t.username),
+                credential: Some(t.credential),
+            });
+        }
+        out
     }
+
+    /// Credentials for the TURN server beside one of the relays: the ones
+    /// kept, or new ones from the first relay that has a TURN server.
+    async fn turn_credentials(&self) -> Option<TurnCredentials> {
+        let mut kept = self.turn.lock().await;
+        let now = crate::now();
+        if let Some((c, until)) = kept.as_ref()
+            && now + c.ttl / 2 < *until
+        {
+            return Some(c.clone());
+        }
+        for relay in &self.relays {
+            match fetch_turn(&self.http, &self.box_key, relay).await {
+                Ok(c) => {
+                    *kept = Some((c.clone(), now + c.ttl));
+                    return Some(c);
+                }
+                Err(e) => debug!(%relay, "TURN credentials: {e:#}"),
+            }
+        }
+        // None new: the old ones while they last.
+        kept.as_ref()
+            .filter(|(_, until)| now < *until)
+            .map(|(c, _)| c.clone())
+    }
+}
+
+/// Asks a relay for credentials for the TURN server beside it.
+async fn fetch_turn(
+    http: &reqwest::Client,
+    box_key: &SecretKey,
+    relay: &str,
+) -> Result<TurnCredentials> {
+    let sig = sign_request(box_key, "POST", RELAY_TURN, crate::now(), b"");
+    let res = http
+        .post(format!("{}{RELAY_TURN}", relay.trim_end_matches('/')))
+        .header(zoomriya_keys::REQUEST_SIGNATURE_HEADER, sig)
+        .timeout(Duration::from_secs(10))
+        .send()
+        .await?;
+    anyhow::ensure!(res.status().is_success(), "relay said {}", res.status());
+    Ok(res.json().await?)
 }
 
 /// The key of the box's certificate, as Firefox shows it for a page: SHA-256
@@ -393,7 +453,7 @@ async fn pair(
                     until: p.device.pass_until,
                     server: l.server.clone(),
                     relays: l.relays.clone(),
-                    ice: l.ice(),
+                    ice: l.ice().await,
                     desktop: l.desktop.clone(),
                     tls_keys: tls_keys(&l.bundle),
                 },

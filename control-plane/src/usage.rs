@@ -4,7 +4,7 @@
 //!
 //! | Route | Who | Signed with |
 //! |---|---|---|
-//! | `POST /v1/relay/report` | Relays, every poll | Control plane to relay key |
+//! | `POST /v1/relay/report` | Relays, every poll: each box's relay and TURN bytes, who's connected, how the server is doing | Control plane to relay key |
 //! | `POST /v1/boxes/{name}/relay-use` | The box, for Box Desktop | Box key |
 
 #![allow(clippy::result_large_err)]
@@ -95,10 +95,28 @@ pub async fn report(State(api): State<Arc<Api>>, headers: HeaderMap, body: Bytes
         .filter(|u| u.bytes > 0)
         .map(|u| (u.key.0, u.bytes))
         .collect();
+    let turn: Vec<(PublicKey, u64)> = r
+        .turn
+        .iter()
+        .filter(|u| u.bytes > 0)
+        .map(|u| (u.key.0, u.bytes))
+        .collect();
     let s = &api.store;
-    if let Err(e) = s.add_relay_use(&month, &used) {
+    if let Err(e) = s
+        .add_relay_use(&month, &used)
+        .and_then(|()| s.add_turn_use(&month, &turn))
+    {
         tracing::error!("relay use: {e:#}");
         return error(500, "internal", "Something went wrong on our side.");
+    }
+    if let Some(mut stats) = r.server {
+        // The name and role are the report's, whatever the stats say.
+        stats.name = r.relay.clone();
+        stats.role = "relay".into();
+        let sum = |v: &[(PublicKey, u64)]| v.iter().fold(0u64, |t, (_, b)| t.saturating_add(*b));
+        if let Err(e) = s.server_report(&stats, now, sum(&used), sum(&turn)) {
+            tracing::warn!("server report: {e:#}");
+        }
     }
     api.seen.put(&r.relay, now, r.connected);
     match (s.over_allowance(&month), s.allowances()) {

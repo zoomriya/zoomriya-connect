@@ -178,8 +178,14 @@ address.
 | `smith.ca` | Whatever you like | You, not ZOOMRIYA | Your website, your email, everything else. Never the box |
 | `connect.smith.ca` | Your server | The box and the apps, in the background | Lists your other names, knows where your box is, tells your relay which box is yours, and checks from outside whether the box can be reached |
 | `relay.smith.ca` | Your server | The box and the apps, in the background | Your relay: tried alongside the direct ways, helps with hole punching, and carries the connection when nothing direct works |
-| `share.smith.ca` | Your server | Guests | The page a share link opens, and the guests' relay |
+| `share.smith.ca` | Your server | Guests | The page a share link opens |
+| `turn.smith.ca` | Your server | Laptops and guests' browsers, in the background | TURN: carries an encrypted connection when nothing direct works |
 | `home.smith.ca` | Your box, on your home network | Your family, in a browser at home | Your box. `https://home.smith.ca` opens it with a proper padlock |
+
+**One server, one address.** `connect.`, `relay.`, `share.` and `turn.`
+all point at the same server and address. The relay answers port 443 and
+hands each connection to the right program by the name it asks for
+([TURN beside a relay](operations.md#turn-beside-a-relay)).
 
 **Why so many names?**
 

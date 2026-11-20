@@ -31,6 +31,52 @@ pub struct Config {
     /// The GUI and its admin API.
     #[serde(default)]
     pub admin: Option<zoomriya_serve::admin::AdminConfig>,
+    /// The TURN server beside this relay, if there is one.
+    #[serde(default)]
+    pub turn: Option<Turn>,
+    /// Other names on this server's port 443, passed on unopened to the
+    /// program that answers them on this machine: a family's control plane
+    /// beside its relay, say. Each keeps its own certificate.
+    #[serde(default)]
+    pub pass_through: Vec<PassThrough>,
+}
+
+/// The TURN server (coturn) beside this relay.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Turn {
+    /// The name TURN over TLS uses on port 443, such as `turn.zoomriya.net`.
+    /// The relay's certificate must cover it too.
+    pub name: String,
+    /// coturn on this machine, TCP and UDP: usually `127.0.0.1:3478`.
+    pub local: SocketAddr,
+    /// What laptops are told, as WebRTC wants them, such as
+    /// `turn:turn.zoomriya.net:3478?transport=udp` and
+    /// `turns:turn.zoomriya.net:443?transport=tcp`.
+    pub urls: Vec<String>,
+    /// The secret shared with coturn (`static-auth-secret`), one line.
+    pub secret_file: PathBuf,
+    /// How long credentials work, in seconds.
+    #[serde(default = "a_day")]
+    pub ttl_seconds: u64,
+    /// coturn's log file, for each box's use (`verbose` and `log-file` in
+    /// coturn's settings). Without it, TURN isn't counted.
+    #[serde(default)]
+    pub log: Option<PathBuf>,
+}
+
+fn a_day() -> u64 {
+    86_400
+}
+
+/// A name passed on unopened.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PassThrough {
+    /// The name asked for, such as `connect.smith.ca`.
+    pub name: String,
+    /// Where it goes on this machine, such as `127.0.0.1:8443`.
+    pub to: SocketAddr,
 }
 
 /// The HTTPS listener.
@@ -127,6 +173,12 @@ impl Config {
             (1..=366).contains(&cfg.limits.longest_pass_days),
             "longest_pass_days: 1 to 366"
         );
+        if let Some(t) = &cfg.turn {
+            anyhow::ensure!(
+                (600..=7 * 86_400).contains(&t.ttl_seconds),
+                "turn.ttl_seconds: ten minutes to a week"
+            );
+        }
         Ok(cfg)
     }
 }

@@ -4,6 +4,7 @@
 //! serving an axum router on it; the time; logging.
 
 pub mod admin;
+pub mod host;
 
 use std::{
     net::SocketAddr,

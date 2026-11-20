@@ -316,6 +316,7 @@ async fn online(ctx: &Arc<Ctx>) -> Result<()> {
                         lc.desktop_url.trim_end_matches('/').to_string()
                     },
                     bundle: ctx.cfg.certs_dir.join(acme::BUNDLE),
+                    http: ctx.http.clone(),
                 },
             )
             .await

@@ -197,3 +197,12 @@ p { margin: 0; }
 	.main { padding: 20px 16px 40px; }
 	.table .hide-narrow { display: none; }
 }
+
+/* A usage bar: memory, disk. */
+.row-main.grow { flex: 1; max-width: 260px; }
+.meter { height: 6px; width: 100%; border-radius: 999px; background: var(--zr-surface-nested); overflow: hidden; margin-top: 4px; }
+.meter > span { display: block; height: 100%; border-radius: inherit; background: var(--zr-primary); }
+.meter.warn > span { background: var(--zr-warning); }
+.meter.bad > span { background: var(--zr-danger); }
+.server-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.server-head h2 { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 1.05rem; word-break: break-all; }

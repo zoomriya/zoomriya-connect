@@ -1,13 +1,12 @@
 <script lang="ts">
 	import type { ControlPlaneOverview } from '../lib/api';
-	import { ago, count, size } from '../lib/format';
+	import { count, size } from '../lib/format';
 	import { ui } from '../lib/ui.svelte';
 	import { fill } from '../lib/words';
 
 	let { overview, onrefresh }: { overview: ControlPlaneOverview; onrefresh: () => void } = $props();
 	const w = $derived(ui.w);
 	const n = (v: number) => count(v, ui.lang);
-	const now = () => Math.floor(Date.now() / 1000);
 </script>
 
 <div class="page-head">
@@ -24,7 +23,12 @@
 		<div class="card stat"><div class="stat-label">{w.registered}</div><div class="stat-value">{n(overview.boxes.all)}</div></div>
 		<div class="card stat"><div class="stat-label">{w.connectedBoxes}</div><div class="stat-value">{n(overview.connected.boxes)}</div></div>
 		<div class="card stat"><div class="stat-label">{w.connectedDevices}</div><div class="stat-value">{n(overview.connected.devices)}</div></div>
+		<div class="card stat" class:warn={overview.servers.online < overview.servers.all}>
+			<div class="stat-label">{w.serversStat}</div>
+			<div class="stat-value">{fill(w.nOfAll, { n: n(overview.servers.online), all: n(overview.servers.all) })}</div>
+		</div>
 		<div class="card stat"><div class="stat-label">{w.relayUseThisMonth}</div><div class="stat-value">{size(overview.relay_use.bytes, ui.lang)}</div></div>
+		<div class="card stat"><div class="stat-label">{w.turnUseThisMonth}</div><div class="stat-value">{size(overview.relay_use.turn, ui.lang)}</div></div>
 		<div class="card stat"><div class="stat-label">{w.newToday}</div><div class="stat-value">{n(overview.new.day)}</div></div>
 		<div class="card stat"><div class="stat-label">{w.newThisWeek}</div><div class="stat-value">{n(overview.new.week)}</div></div>
 		<div class="card stat" class:warn={overview.reports_open > 0}>
@@ -38,22 +42,6 @@
 	</div>
 
 	<div class="grid two">
-		<section class="card">
-			<h2>{w.relays}</h2>
-			<div class="rows">
-				{#each overview.relays as r (r.url)}
-					<div class="row">
-						<div class="row-main">
-							<div class="row-title"><span class="dot {r.up ? 'up' : 'down'}"></span>{r.url.replace(/^https:\/\//, '')}</div>
-							<div class="row-sub">{ago(r.checked, now(), ui.lang)}</div>
-						</div>
-						<span class="badge {r.up ? 'good' : 'bad'}">{r.up ? `${w.relayUp} · ${r.ms} ${w.ms}` : w.relayDown}</span>
-					</div>
-				{:else}
-					<p class="muted"><span class="dot idle"></span>{w.notCheckedYet}</p>
-				{/each}
-			</div>
-		</section>
 		<section class="card">
 			<h2>{w.guests}</h2>
 			<div class="rows">

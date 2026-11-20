@@ -1,5 +1,6 @@
-//! The relay's admin API, behind the GUI: how it's doing, and for a family's
-//! own relay, the one-time code that introduces a box.
+//! The relay's admin API, behind the GUI: how it's doing (the machine and
+//! its TURN server too), and for a family's own relay, the one-time code that
+//! introduces a box.
 
 use std::{path::PathBuf, sync::Arc};
 
@@ -13,7 +14,7 @@ use axum::{
 use tracing::info;
 use zoomriya_serve::admin::AdminName;
 
-use crate::{enrol, gate::Gate};
+use crate::{enrol, gate::Gate, turn::Turn};
 
 /// What the admin API needs.
 pub struct Admin {
@@ -21,6 +22,14 @@ pub struct Admin {
     pub gate: Arc<Gate>,
     /// Set for a family's own relay: where codes live.
     pub enrol_dir: Option<PathBuf>,
+    /// The state directory, whose disk the GUI shows.
+    pub state_dir: PathBuf,
+    /// When the relay started.
+    pub started: u64,
+    /// The TURN server beside it.
+    pub turn: Option<Arc<Turn>>,
+    /// Its name, if it has one in a control plane.
+    pub name: String,
 }
 
 type Shared = Arc<Admin>;
@@ -46,8 +55,18 @@ async fn overview(State(a): State<Shared>) -> Response {
         + m.refused_unknown_box.get()
         + m.refused_removed.get()
         + m.refused_stolen.get();
+    let mut server = zoomriya_serve::host::stats(
+        &a.name,
+        "relay",
+        env!("CARGO_PKG_VERSION"),
+        a.started,
+        &a.state_dir,
+    );
+    server.turn = a.turn.as_ref().map(|t| t.up());
     Json(serde_json::json!({
         "kind": "relay",
+        "now": zoomriya_serve::now(),
+        "server": server,
         "version": env!("CARGO_PKG_VERSION"),
         "mode": if a.enrol_dir.is_some() { "enrolled" } else { "control_plane" },
         "boxes": a.gate.boxes().len(),
@@ -63,6 +82,7 @@ async fn overview(State(a): State<Shared>) -> Response {
             "refused_removed": m.refused_removed.get(),
             "refused_expired": m.refused_expired.get(),
             "dropped": m.dropped.get(),
+            "turn": a.turn.as_ref().map_or(0, |t| t.total()),
         },
     }))
     .into_response()

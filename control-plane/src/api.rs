@@ -202,6 +202,7 @@ pub fn router(api: Shared) -> Router {
         .route("/v1/signal/box", get(crate::signal::box_socket))
         .route("/v1/signal/guest/{name}", get(crate::signal::guest_socket))
         .route("/v1/zone", get(crate::zone::copy))
+        .route("/v1/server/report", post(crate::zone::server_report))
         .layer(DefaultBodyLimit::max(MAX_BODY))
         .nest_service("/account", zoomriya_serve::admin::page(&api.account_page))
         .with_state(api)

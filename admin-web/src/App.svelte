@@ -10,9 +10,10 @@
 	import OverviewPage from './pages/Overview.svelte';
 	import RelayPage from './pages/Relay.svelte';
 	import Reports from './pages/Reports.svelte';
+	import Servers from './pages/Servers.svelte';
 	import SignIn from './pages/SignIn.svelte';
 
-	type Page = 'overview' | 'accounts' | 'boxes' | 'connected' | 'allowance' | 'reports' | 'tokens';
+	type Page = 'overview' | 'servers' | 'accounts' | 'boxes' | 'connected' | 'allowance' | 'reports' | 'tokens';
 
 	let overview = $state<Overview | null>(null);
 	let page = $state<Page>('overview');
@@ -57,6 +58,11 @@
 		overview?.kind === 'control_plane'
 			? [
 					{ id: 'overview', label: w.overview },
+					{
+						id: 'servers',
+						label: w.servers,
+						count: overview.servers.all - overview.servers.online || undefined
+					},
 					{ id: 'accounts', label: w.accounts },
 					{ id: 'boxes', label: w.boxes },
 					{ id: 'connected', label: w.connected, count: overview.connected.boxes || undefined },
@@ -117,6 +123,8 @@
 				<RelayPage {overview} onrefresh={refresh} />
 			{:else if page === 'overview'}
 				<OverviewPage {overview} onrefresh={refresh} />
+			{:else if page === 'servers'}
+				<Servers {overview} />
 			{:else if page === 'accounts'}
 				<Accounts onchange={refresh} />
 			{:else if page === 'boxes'}
