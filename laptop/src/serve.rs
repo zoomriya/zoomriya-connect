@@ -17,6 +17,10 @@
 //! the hop is a top-level move from one to the other. It only proves the
 //! browser was opened by the app; the box's own sign-in and Origin checks
 //! still guard every change.
+//!
+//! The apps adapt to the path (docs/direct-plus.md §9): every answer from
+//! the box carries `Zoomriya-Path: direct` or `relay`, and
+//! `/.zoomriya/path` answers `{"path": "direct" | "relay" | "down"}`.
 
 use std::{
     collections::HashMap,
@@ -59,7 +63,14 @@ pub type Opening = Pin<Box<dyn Future<Output = Result<Box<dyn Io>>> + Send>>;
 pub trait Upstream: Send + Sync + 'static {
     /// A fresh stream to the web server called `target` on the box.
     fn open(&self, target: &'static str) -> Opening;
+    /// How the connection runs now: `direct`, `relay` or `down`.
+    fn path(&self) -> &'static str {
+        "direct"
+    }
 }
+
+/// The header telling the apps how the connection runs.
+pub const PATH_HEADER: &str = "zoomriya-path";
 
 /// Which of the two addresses a request came to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -333,9 +344,23 @@ impl<U: Upstream> Server<U> {
                 ),
             };
         }
+        if req.uri().path() == "/.zoomriya/path" {
+            let mut r = Response::new(full(format!("{{\"path\":\"{}\"}}", self.upstream.path())));
+            r.headers_mut().insert(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/json"),
+            );
+            r.headers_mut()
+                .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+            return r;
+        }
         Self::strip_cookie(&mut req);
         match self.forward(site, req).await {
-            Ok(r) => r,
+            Ok(mut r) => {
+                r.headers_mut()
+                    .insert(PATH_HEADER, HeaderValue::from_static(self.upstream.path()));
+                r
+            }
             Err(e) => {
                 debug!("forwarding: {e:#}");
                 page(
@@ -608,12 +633,28 @@ mod tests {
         assert!(r.starts_with("HTTP/1.1 200"), "{r}");
         assert!(r.ends_with("from-b"), "{r}");
         assert_eq!(header(&r, "set-cookie"), Some("app=1"));
+        assert_eq!(header(&r, PATH_HEADER), Some("direct"));
         let seen = fake.seen.lock().expect("lock").clone();
         assert_eq!(seen[0], "target desktop");
         let head = &seen[1];
         assert!(head.starts_with("GET /api/people HTTP/1.1\r\n"), "{head}");
         assert!(head.contains("cookie: theirs=1; other=2\r\n"), "{head}");
         assert!(!head.contains("s3cret"), "{head}");
+    }
+
+    #[tokio::test]
+    async fn the_apps_can_ask_for_the_path() {
+        let fake = FakeBox::start().await;
+        let (_, at) = laptop(&fake).await;
+        let signed_in = "Cookie: zoomriya_laptop=s3cret\r\n";
+        for host in [APPS_HOST, DESKTOP_HOST] {
+            let r = ask(at, host, "/.zoomriya/path", signed_in).await;
+            assert!(r.starts_with("HTTP/1.1 200"), "{r}");
+            assert!(r.ends_with("{\"path\":\"direct\"}"), "{r}");
+        }
+        let r = ask(at, APPS_HOST, "/.zoomriya/path", "").await;
+        assert!(r.starts_with("HTTP/1.1 403"), "{r}");
+        assert!(fake.seen.lock().expect("lock").is_empty(), "answered here");
     }
 
     #[tokio::test]

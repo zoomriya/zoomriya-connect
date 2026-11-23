@@ -1,7 +1,7 @@
 //! connectd running: the link on the box's port, with no ZOOMRIYA server. At
-//! home, devices pair and connect over the home network; away, at the box's
-//! direct addresses (docs/direct-plus.md). Later phases add the DHT record,
-//! the box's own relay behind a Tor onion service, and punching.
+//! home, devices pair and connect over the home network; away, at the
+//! addresses in the box's DHT record, or through the box's own relay behind
+//! its onion service while punching finds a direct path (docs/direct-plus.md).
 
 use std::{
     net::{Ipv4Addr, Ipv6Addr, SocketAddr},
@@ -10,13 +10,16 @@ use std::{
 
 use anyhow::{Context, Result};
 use tracing::{info, warn};
-use zoomriya_keys::SecretKey;
+use zoomriya_keys::{SecretKey, record::RecordSecret};
 
 use crate::{
     config::Config,
     devices::Devices,
     link::{Link, LinkConfig, Live},
+    reach::Reach,
+    relay::Relay,
 };
+use zoomriya_tor::{Onion, Tor};
 
 /// Everything connectd shares between its parts.
 pub struct Ctx {
@@ -28,6 +31,12 @@ pub struct Ctx {
     pub devices: Arc<Devices>,
     /// Live connections, while the link runs.
     pub live: Mutex<Option<Live>>,
+    /// The secret behind the box's record in the DHT.
+    pub record: RecordSecret,
+    /// What the box knows about being reached from away.
+    pub reach: Mutex<Reach>,
+    /// The box's onion address, once its relay runs behind it.
+    pub onion: Mutex<Option<String>>,
 }
 
 impl std::fmt::Debug for Ctx {
@@ -45,6 +54,9 @@ impl Ctx {
             box_key: crate::files::key(&cfg.box_key())?,
             devices: Arc::new(Devices::open(&crate::link::devices_file(&cfg.data_dir))?),
             live: Mutex::new(None),
+            record: crate::files::record_secret(&cfg.record_secret())?,
+            reach: Mutex::default(),
+            onion: Mutex::default(),
             cfg,
         })
     }
@@ -52,6 +64,19 @@ impl Ctx {
 
 /// Runs the link until `stop` finishes, then closes it.
 pub async fn run(ctx: Arc<Ctx>, stop: impl Future<Output = ()>) -> Result<()> {
+    let (relay, onion) = if ctx.cfg.tor {
+        let relay = Relay::start(ctx.box_key.public(), ctx.devices.clone()).await?;
+        let onion = onion_service(&ctx, relay.addr)
+            .map_err(|e| warn!("the onion service: {e:#}"))
+            .ok();
+        (Some(relay), onion)
+    } else {
+        (None, None)
+    };
+    let onion_address = onion.as_ref().map(|o| o.address.clone());
+    if let Ok(mut o) = ctx.onion.lock() {
+        o.clone_from(&onion_address);
+    }
     let link = Link::start(
         ctx.box_key.clone(),
         LinkConfig {
@@ -61,6 +86,9 @@ pub async fn run(ctx: Arc<Ctx>, stop: impl Future<Output = ()>) -> Result<()> {
             ],
             targets: ctx.cfg.targets.clone(),
             pairing_from_loopback: false,
+            record: Some(ctx.record.clone()),
+            relay: relay.as_ref().map(|r| r.url.clone()),
+            onion: onion_address,
         },
         ctx.devices.clone(),
     )
@@ -69,10 +97,16 @@ pub async fn run(ctx: Arc<Ctx>, stop: impl Future<Output = ()>) -> Result<()> {
         *l = Some(link.live.clone());
     }
     info!("link on");
+    let publishing = tokio::spawn(crate::reach::keep_published(
+        ctx.clone(),
+        link.router.endpoint().clone(),
+        ctx.record.clone(),
+    ));
     let mdns = announce(&ctx)
         .map_err(|e| warn!("announcing on the home network: {e:#}"))
         .ok();
     stop.await;
+    publishing.abort();
     if let Some(m) = mdns {
         let _ = m.shutdown();
     }
@@ -81,7 +115,29 @@ pub async fn run(ctx: Arc<Ctx>, stop: impl Future<Output = ()>) -> Result<()> {
         *l = None;
     }
     link.router.shutdown().await.ok();
+    drop(onion);
+    if let Some(r) = relay {
+        r.stop().await;
+    }
     Ok(())
+}
+
+/// Tor, and the onion service in front of the relay. Tor joins the network
+/// in the background; the address is known at once.
+fn onion_service(ctx: &Ctx, relay: SocketAddr) -> Result<Onion> {
+    for dir in [ctx.cfg.tor_state(), ctx.cfg.tor_cache()] {
+        std::fs::create_dir_all(&dir).with_context(|| format!("making {}", dir.display()))?;
+        restrict(&dir)?;
+    }
+    let tor = Tor::start(&ctx.cfg.tor_state(), &ctx.cfg.tor_cache())?;
+    tor.serve("box-relay", relay)
+}
+
+/// Tor refuses folders others can read or write.
+fn restrict(dir: &std::path::Path) -> Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700))
+        .with_context(|| format!("restricting {}", dir.display()))
 }
 
 /// Announces the link on the home network, with the box key, so the laptop

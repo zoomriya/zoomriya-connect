@@ -25,6 +25,8 @@ mod devices;
 mod files;
 mod link;
 mod net;
+mod reach;
+mod relay;
 
 #[cfg(test)]
 mod e2e;

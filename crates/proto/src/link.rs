@@ -101,6 +101,15 @@ pub enum PairResponse {
     Paired {
         /// Where to reach the box directly.
         addrs: Vec<SocketAddr>,
+        /// The secret behind the box's record in the DHT, base64url
+        /// ([`zoomriya_keys::record`]): how the device finds the box from
+        /// away.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        record: Option<String>,
+        /// The box's onion address, `….onion`: its own relay through Tor,
+        /// for when no direct path works.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        onion: Option<String>,
     },
     /// A laptop's pairing, step 2: the box's SPAKE2 message and its
     /// confirmation ([`crate::laptop`]).

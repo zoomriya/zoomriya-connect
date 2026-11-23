@@ -10,6 +10,7 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use zoomriya_keys::{
     PublicKey,
     pake::{self, Side},
+    record::RecordSecret,
 };
 use zoomriya_proto::{
     laptop::{LaptopFinish, LaptopHello, normalise_code},
@@ -45,6 +46,10 @@ pub struct Paired {
     pub box_key: PublicKey,
     /// Where the box can be reached directly.
     pub addrs: Vec<SocketAddr>,
+    /// The secret behind the box's DHT record, if it gave one.
+    pub record: Option<RecordSecret>,
+    /// The box's onion address, if its relay runs behind Tor.
+    pub onion: Option<String>,
 }
 
 const STEP: Duration = Duration::from_secs(20);
@@ -144,7 +149,11 @@ pub async fn laptop(
             .map_err(|_| PairError::Broken)?;
         send.finish().map_err(|_| PairError::Broken)?;
         match serde_json::from_str(&line(&mut recv).await?).map_err(|_| PairError::Broken)? {
-            PairResponse::Paired { addrs: said } => {
+            PairResponse::Paired {
+                addrs: said,
+                record,
+                onion,
+            } => {
                 let mut all = addrs.to_vec();
                 all.extend(said);
                 all.sort();
@@ -152,6 +161,8 @@ pub async fn laptop(
                 Ok(Paired {
                     box_key,
                     addrs: all,
+                    record: record.and_then(|r| RecordSecret::from_b64(&r).ok()),
+                    onion: onion.filter(|o| crate::onion_ok(o)),
                 })
             }
             PairResponse::Refused { code, message } => Err(if code == "pairing_code" {

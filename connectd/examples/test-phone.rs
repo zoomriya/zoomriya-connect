@@ -78,7 +78,7 @@ async fn pair(url: &str, file: &str) -> Result<()> {
     let mut line = String::new();
     BufReader::new(recv).read_line(&mut line).await?;
     match serde_json::from_str::<PairResponse>(&line)? {
-        PairResponse::Paired { addrs } => {
+        PairResponse::Paired { addrs, .. } => {
             let mut all = code.addrs.clone();
             all.extend(addrs);
             all.sort();

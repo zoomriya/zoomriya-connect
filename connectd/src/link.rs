@@ -1,7 +1,8 @@
 //! connectd's side of iroh: pairing at home, and the family link from
 //! anywhere. iroh chooses the paths; connectd decides who gets in, on every
-//! path, from its own list. No relay and no address record yet: Direct+
-//! adds the box's own relay over Tor and the DHT record (docs/direct-plus.md).
+//! path, from its own list. Away, devices reach the box at the addresses in
+//! its DHT record, or through the box's own relay behind its onion service
+//! (crate::relay, docs/direct-plus.md §3).
 
 use std::{
     collections::HashMap,
@@ -14,7 +15,7 @@ use std::{
 use anyhow::{Context, Result};
 use data_encoding::BASE64URL_NOPAD;
 use iroh::{
-    Endpoint, RelayMode, TransportAddr,
+    Endpoint, RelayMap, RelayMode, RelayUrl, TransportAddr,
     endpoint::{Connection, RecvStream, SendStream, presets},
     protocol::{AcceptError, ProtocolHandler, Router},
 };
@@ -23,6 +24,7 @@ use tracing::{debug, info, warn};
 use zoomriya_keys::{
     PublicKey, SecretKey,
     pake::{self, Side},
+    record::RecordSecret,
 };
 use zoomriya_proto::{
     laptop::{LaptopFinish, LaptopHello},
@@ -43,12 +45,18 @@ pub const VERSION: u32 = 1;
 /// How the endpoint is set up.
 #[derive(Debug, Clone)]
 pub struct LinkConfig {
+    /// The secret behind the box's DHT record, given to devices at pairing.
+    pub record: Option<RecordSecret>,
     /// Where to listen.
     pub bind: Vec<SocketAddr>,
     /// The box's web servers.
     pub targets: Vec<Target>,
     /// Pairing over loopback: tests only.
     pub pairing_from_loopback: bool,
+    /// The box's own iroh relay, on the box itself (crate::relay).
+    pub relay: Option<RelayUrl>,
+    /// The onion address in front of that relay, given to devices.
+    pub onion: Option<String>,
 }
 
 /// Live connections, by link key, so a removed device is cut off at once.
@@ -112,7 +120,10 @@ impl Link {
         let mut b = Endpoint::builder(presets::Minimal)
             .secret_key(box_key)
             .alpns(vec![LINK_ALPN.to_vec(), PAIR_ALPN.to_vec()])
-            .relay_mode(RelayMode::Disabled);
+            .relay_mode(match &cfg.relay {
+                Some(url) => RelayMode::Custom(RelayMap::from(url.clone())),
+                None => RelayMode::Disabled,
+            });
         for addr in &cfg.bind {
             b = b
                 .bind_addr(*addr)
@@ -208,7 +219,7 @@ fn from_home(conn: &Connection, loopback_ok: bool) -> bool {
 /// How long a laptop has for its last pairing step.
 const LAPTOP_STEP: Duration = Duration::from_secs(60);
 
-fn outcome(r: Result<(Device, Vec<SocketAddr>), Refused>) -> PairResponse {
+fn outcome(r: Result<(Device, Vec<SocketAddr>), Refused>, cfg: &LinkConfig) -> PairResponse {
     match r {
         Ok((device, addrs)) => {
             info!(
@@ -217,7 +228,11 @@ fn outcome(r: Result<(Device, Vec<SocketAddr>), Refused>) -> PairResponse {
                 laptop = device.laptop,
                 "paired"
             );
-            PairResponse::Paired { addrs }
+            PairResponse::Paired {
+                addrs,
+                record: cfg.record.as_ref().map(RecordSecret::to_b64),
+                onion: cfg.onion.clone(),
+            }
         }
         Err(why) => {
             warn!(%why, "pairing refused");
@@ -292,9 +307,13 @@ impl ProtocolHandler for PairHandler {
                 s.devices
                     .pair(&req, &from, crate::now())
                     .map(|d| (d, s.direct_addrs())),
+                &s.cfg,
             )
         } else if let Ok(hello) = serde_json::from_str::<LaptopHello>(&line) {
-            outcome(pair_laptop(s, &from, &hello, &mut send, &mut recv).await)
+            outcome(
+                pair_laptop(s, &from, &hello, &mut send, &mut recv).await,
+                &s.cfg,
+            )
         } else {
             PairResponse::Refused {
                 code: "bad_request".into(),

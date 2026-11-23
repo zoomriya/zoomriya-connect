@@ -24,6 +24,10 @@ pub struct Config {
     /// The box's own web servers that paired devices reach.
     #[serde(default = "targets")]
     pub targets: Vec<Target>,
+    /// The box's own relay behind a Tor onion service, for devices with no
+    /// direct path (docs/direct-plus.md §3). Off only in tests.
+    #[serde(default = "yes")]
+    pub tor: bool,
 }
 
 /// One of the box's web servers.
@@ -46,6 +50,9 @@ pub struct Target {
 
 fn data_dir() -> PathBuf {
     PathBuf::from("/data/zoomriya-connect")
+}
+fn yes() -> bool {
+    true
 }
 fn port() -> u16 {
     443
@@ -102,6 +109,21 @@ impl Config {
     /// The box key's file.
     pub fn box_key(&self) -> PathBuf {
         self.data_dir.join("box.key")
+    }
+
+    /// Tor's keys and state, the onion service's key among them.
+    pub fn tor_state(&self) -> PathBuf {
+        self.data_dir.join("tor")
+    }
+
+    /// What Tor downloads about the network.
+    pub fn tor_cache(&self) -> PathBuf {
+        self.data_dir.join("tor-cache")
+    }
+
+    /// The file holding the secret behind the box's DHT record.
+    pub fn record_secret(&self) -> PathBuf {
+        self.data_dir.join("record.key")
     }
 }
 

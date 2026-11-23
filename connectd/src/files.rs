@@ -32,6 +32,26 @@ pub fn write_private(file: &Path, bytes: &[u8]) -> Result<()> {
     Ok(())
 }
 
+/// Reads the secret behind the box's DHT record, or makes one the first time.
+pub fn record_secret(file: &Path) -> Result<zoomriya_keys::record::RecordSecret> {
+    use zoomriya_keys::record::RecordSecret;
+    match std::fs::read(file) {
+        Ok(b) => {
+            let bytes: [u8; 32] = b
+                .as_slice()
+                .try_into()
+                .with_context(|| format!("{} isn't a record secret", file.display()))?;
+            Ok(RecordSecret::from_bytes(bytes))
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            let s = RecordSecret::generate().map_err(|e| anyhow::anyhow!("{e}"))?;
+            write_private(file, &s.to_bytes())?;
+            Ok(s)
+        }
+        Err(e) => Err(e).with_context(|| format!("reading {}", file.display())),
+    }
+}
+
 /// Reads an Ed25519 key, or makes one the first time.
 pub fn key(file: &Path) -> Result<SecretKey> {
     match std::fs::read(file) {

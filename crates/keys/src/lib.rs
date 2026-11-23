@@ -14,6 +14,7 @@ pub use iroh_base::{PublicKey, SecretKey, Signature};
 
 mod device;
 pub mod pake;
+pub mod record;
 
 pub use device::{DeviceKey, link_key_message, new_test_chip};
 

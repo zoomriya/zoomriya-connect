@@ -31,6 +31,7 @@ tracing-subscriber.workspace = true
 zoomriya-keys.workspace = true
 zoomriya-link.workspace = true
 zoomriya-proto.workspace = true
+zoomriya-tor.workspace = true
 
 [dev-dependencies]
 tempfile = "3"

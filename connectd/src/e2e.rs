@@ -101,6 +101,8 @@ async fn a_phone_from_pairing_to_removal() {
     let devices = Arc::new(Devices::open(&dir.path().join("devices.json")).expect("devices"));
     let box_key = SecretKey::generate();
     let web = web_server().await;
+    let record = zoomriya_keys::record::RecordSecret::generate().expect("secret");
+    let secret_b64 = record.to_b64();
     let link = Link::start(
         box_key.clone(),
         LinkConfig {
@@ -112,6 +114,9 @@ async fn a_phone_from_pairing_to_removal() {
                 proxy_protocol: true,
             }],
             pairing_from_loopback: true,
+            relay: None,
+            onion: None,
+            record: Some(record.clone()),
         },
         devices.clone(),
     )
@@ -158,10 +163,11 @@ async fn a_phone_from_pairing_to_removal() {
     send.finish().expect("finish");
     let mut recv = BufReader::new(recv);
     let answer: PairResponse = serde_json::from_str(&line(&mut recv).await).expect("answer");
-    let PairResponse::Paired { addrs } = answer else {
+    let PairResponse::Paired { addrs, record, .. } = answer else {
         panic!("{answer:?}")
     };
     assert!(!addrs.is_empty(), "where to reach the box directly");
+    assert_eq!(record, Some(secret_b64.clone()), "how to find it from away");
     assert!(devices.by_link(&link_key.public()).is_some());
     conn.close(0u32.into(), b"done");
 
@@ -228,6 +234,9 @@ async fn a_laptop_pairs_with_the_short_code() {
                 proxy_protocol: true,
             }],
             pairing_from_loopback: true,
+            relay: None,
+            onion: None,
+            record: None,
         },
         devices.clone(),
     )
@@ -277,7 +286,14 @@ async fn a_laptop_pairs_with_the_short_code() {
     assert!(again.is_err());
 
     // Now the laptop's link: a web stream to Box Desktop, labelled.
-    let client = Client::new(ep, box_key.public(), paired.addrs, Arc::new(|_| {}));
+    let client = Client::new(
+        ep,
+        box_key.public(),
+        paired.addrs,
+        None,
+        None,
+        Arc::new(|_| {}),
+    );
     let (mut send, mut recv) = client.web("desktop").await.expect("stream");
     send.write_all(b"hello").await.expect("body");
     send.finish().expect("finish");

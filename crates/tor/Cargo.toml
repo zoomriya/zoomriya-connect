@@ -1,0 +1,23 @@
+[package]
+name = "zoomriya-tor"
+description = "Tor (Arti) for Direct+: the box's onion service in front of its iroh relay, and the apps' way to reach it"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+arti-client = { version = "0.48", default-features = false, features = ["tokio", "rustls", "compression", "onion-service-client", "onion-service-service", "static-sqlite"] }
+futures = "0.3"
+safelog = "0.10"
+tor-cell = "0.48"
+tor-hsservice = "0.48"
+tor-proto = { version = "0.48", default-features = false }
+tor-rtcompat = { version = "0.48", default-features = false, features = ["tokio", "rustls"] }
+tokio.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true

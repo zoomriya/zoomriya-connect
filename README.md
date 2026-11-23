@@ -15,7 +15,7 @@ devices get in, and everything between a device and the box is encrypted.
 | Step | What happens |
 |---|---|
 | Pairing, at home | Scan the QR code on the box with the ZOOMRIYA phone app, or type the short code into the ZOOMRIYA laptop app. The box adds the device to its own list. No internet needed |
-| Connecting | The app connects to the box with iroh (QUIC), over the home network, IPv6, or a port the router opened. Later phases find the box through the BitTorrent DHT and, when no direct path works, reach the box's own relay through Tor while punching continues |
+| Connecting | The app connects to the box with iroh (QUIC), over the home network, IPv6, or a port the router opened, finding it through its sealed record in the BitTorrent DHT. When no direct path works, it reaches the box's own relay through Tor, and iroh moves to a direct path once punching works |
 | Who gets in | The box's own list of paired devices, checked on every path and every stream. Removing a device cuts it off at once |
 | Laptops | The laptop app connects; the browser shows the box at `http://zoomriya.localhost:7480` |
 
@@ -26,7 +26,8 @@ devices get in, and everything between a device and the box is encrypted.
 | `connectd/` | The box's side: pairing, the device list, the link, Box Desktop's API |
 | `crates/keys` | Box and device keys |
 | `crates/proto` | What the apps and connectd say to each other |
-| `crates/link` | The apps' side: finding the box at home, pairing, the connection |
+| `crates/link` | The apps' side: finding the box at home and in the DHT, pairing, the connection |
+| `crates/tor` | Tor (Arti): the box's onion service in front of its own relay, and the apps' way to it |
 | `laptop/` | The laptop app's core and its command line (`zoomriya-laptop`) |
 | `laptop/app` | The laptop app: a tray app (Tauri) that only connects; the browser shows the box |
 | `crates/punch`, `crates/ffi` | Punching and the phone app's bindings (later phases) |

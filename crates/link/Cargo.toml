@@ -10,13 +10,16 @@ publish.workspace = true
 [dependencies]
 anyhow.workspace = true
 data-encoding.workspace = true
+futures = "0.3"
 getrandom = "0.3"
 iroh.workspace = true
+mainline = { version = "8", default-features = false, features = ["async"] }
 mdns-sd = "0.22"
 p256 = { version = "0.14", default-features = false, features = ["ecdsa", "std"] }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+url = "2"
 tokio.workspace = true
 tracing.workspace = true
 zoomriya-keys.workspace = true

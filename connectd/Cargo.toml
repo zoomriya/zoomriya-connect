@@ -18,7 +18,9 @@ data-encoding.workspace = true
 getrandom = "0.3"
 if-addrs = "0.15"
 iroh.workspace = true
+iroh-relay = { version = "=1.4.2", default-features = false, features = ["server"] }
 mdns-sd = "0.22"
+portmapper = { version = "0.20", default-features = false }
 rustls.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -30,10 +32,11 @@ toml.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 zoomriya-keys.workspace = true
+zoomriya-link.workspace = true
 zoomriya-proto.workspace = true
+zoomriya-tor.workspace = true
 
 [dev-dependencies]
-zoomriya-link.workspace = true
 serde_json.workspace = true
 p256 = { version = "0.14", default-features = false, features = ["ecdsa", "std"] }
 tempfile = "3"

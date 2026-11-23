@@ -22,6 +22,16 @@ ignore = [
     # through iroh's own relay client code, which we use unchanged so iroh
     # updates stay a version number. Look again when iroh moves off it.
     { id = "RUSTSEC-2026-0543", reason = "unmaintained, no vulnerability; only via iroh" },
+    # Through Arti (Tor), the newest release. Look again at each Arti update.
+    # rsa: the timing attack needs a private RSA key; Arti only checks relays'
+    # RSA signatures with their public keys.
+    { id = "RUSTSEC-2023-0071", reason = "private-key timing attack; Arti only verifies with public keys" },
+    { id = "RUSTSEC-2024-0436", reason = "paste: unmaintained, no vulnerability; only via Arti" },
+    { id = "RUSTSEC-2026-0542", reason = "humantime: unmaintained, no vulnerability; only via Arti" },
+    # SQLite's stale-memory read needs database files written by someone
+    # else; Arti's cache folder is the service's own, mode 0700. Fixed when
+    # Arti moves to rusqlite 0.41.
+    { id = "RUSTSEC-2026-0459", reason = "local only; Arti's cache folder is private; awaiting Arti's rusqlite 0.41" },
 ]
 
 [licenses]
@@ -47,6 +57,10 @@ exceptions = [
     { allow = ["MPL-2.0"], crate = "dtoa-short" },
     { allow = ["MPL-2.0"], crate = "option-ext" },
     { allow = ["MPL-2.0"], crate = "selectors" },
+    # Public-domain-like and permissive, through Arti (Tor) only.
+    { allow = ["Unlicense"], crate = "async_executors" },
+    { allow = ["CC0-1.0"], crate = "notify" },
+    { allow = ["BSL-1.0"], crate = "xxhash-rust" },
 ]
 confidence-threshold = 0.9
 

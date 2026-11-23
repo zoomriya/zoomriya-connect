@@ -5,6 +5,8 @@
 //! zoomriya-laptop pair CODE      pair at home with the code Box Desktop shows
 //! zoomriya-laptop run [--no-open] connect, and serve the box to the browser
 //! zoomriya-laptop status         paired or not
+//! zoomriya-laptop check-away     reach the box only through its DHT record
+//! zoomriya-laptop check-tor      reach the box only through its relay over Tor
 //! zoomriya-laptop forget         forget the box
 //! ```
 
@@ -16,7 +18,7 @@ use zoomriya_laptop::{
     store::{Store, default_dir},
 };
 
-const USAGE: &str = "usage: zoomriya-laptop (pair CODE | run [--no-open] | status | forget)";
+const USAGE: &str = "usage: zoomriya-laptop (pair CODE | run [--no-open] | status | check-away | check-tor | forget)";
 
 #[tokio::main]
 async fn main() -> ExitCode {
@@ -38,6 +40,8 @@ async fn main() -> ExitCode {
         ["run"] => run(true).await,
         ["run", "--no-open"] => run(false).await,
         ["status"] => status(),
+        ["check-away"] => check_away().await,
+        ["check-tor"] => check_tor().await,
         ["forget"] => forget(),
         _ => {
             eprintln!("{USAGE}");
@@ -93,6 +97,41 @@ fn status() -> Result<()> {
     match store()?.paired()? {
         Some(b) => println!("Paired with the box {}", b.key),
         None => println!("Not paired"),
+    }
+    Ok(())
+}
+
+async fn check_away() -> Result<()> {
+    let c = zoomriya_laptop::check_away(&store()?).await?;
+    match &c.record {
+        None => println!("No record found in the DHT."),
+        Some((addrs, at)) => {
+            println!("The box's record, written at {at}:");
+            for a in addrs {
+                println!("  {a}");
+            }
+        }
+    }
+    println!(
+        "{}",
+        if c.reached {
+            "Reached the box through its record."
+        } else {
+            "Not reached through the record."
+        }
+    );
+    Ok(())
+}
+
+async fn check_tor() -> Result<()> {
+    let c = zoomriya_laptop::check_tor(&store()?, std::time::Duration::from_secs(30)).await?;
+    println!(
+        "Reached the box through Tor in {:.1} s.",
+        c.connected_in.as_secs_f64()
+    );
+    match c.direct_after {
+        Some(d) => println!("Moved to a direct path {:.1} s later.", d.as_secs_f64()),
+        None => println!("Still through Tor after 30 s: no direct path found."),
     }
     Ok(())
 }

@@ -4,7 +4,7 @@
 //!
 //! | Route | What |
 //! |---|---|
-//! | `GET /v1/status` | The box key, how many devices are paired and connected, whether a code is shown |
+//! | `GET /v1/status` | The box key, how many devices are paired and connected, whether a code is shown, how the box is reached from away (`reach`), and whether its relay runs behind Tor (`tor`) |
 //! | `GET /v1/devices` | Paired devices, with how each connects |
 //! | `POST /v1/pairing` `{name, admin, laptop}` | A pairing code for the QR code; for a laptop, a short code to type into the laptop app |
 //! | `DELETE /v1/pairing` | Stops pairing |
@@ -89,6 +89,9 @@ struct Status {
     devices: usize,
     connected: usize,
     pairing: bool,
+    reach: crate::reach::Reach,
+    /// Whether the box's relay runs behind its onion service.
+    tor: bool,
 }
 
 async fn status(State(ctx): State<Shared>) -> Response {
@@ -104,6 +107,8 @@ async fn status(State(ctx): State<Shared>) -> Response {
         connected,
         pairing: ctx.devices.pairing_open(crate::now())
             || ctx.devices.laptop_pairing_open(crate::now()),
+        reach: ctx.reach.lock().map(|r| r.clone()).unwrap_or_default(),
+        tor: ctx.onion.lock().is_ok_and(|o| o.is_some()),
     })
     .into_response()
 }

@@ -6,8 +6,9 @@
 //! |---|---|
 //! | `link.key` | The link key: the laptop's iroh key (Ed25519) |
 //! | `device.key` | The device key (P-256), until the keychain or TPM holds it |
-//! | `box.json` | The paired box: its key, name and addresses |
+//! | `box.json` | The paired box: its key, its addresses, the secret behind its DHT record, its onion address |
 //! | `browser.secret` | The session cookie's value |
+//! | `tor/`, `tor-cache/` | Tor's state and what it downloads, when the box has an onion address |
 
 use std::{
     net::SocketAddr,
@@ -27,6 +28,13 @@ pub struct PairedBox {
     pub key: Key,
     /// Where it was last reached.
     pub addrs: Vec<SocketAddr>,
+    /// The secret behind its record in the DHT, base64url: how the laptop
+    /// finds it from away.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub record: Option<String>,
+    /// Its onion address: its own relay through Tor.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub onion: Option<String>,
 }
 
 /// The app's folder.
@@ -97,6 +105,21 @@ impl Store {
             }
             Err(e) => Err(e).with_context(|| format!("reading {}", f.display())),
         }
+    }
+
+    /// Tor's folders, state and cache, readable by the user only.
+    pub fn tor_dirs(&self) -> Result<(PathBuf, PathBuf)> {
+        let dirs = (self.dir.join("tor"), self.dir.join("tor-cache"));
+        for d in [&dirs.0, &dirs.1] {
+            std::fs::create_dir_all(d).with_context(|| format!("making {}", d.display()))?;
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                std::fs::set_permissions(&self.dir, std::fs::Permissions::from_mode(0o700))?;
+                std::fs::set_permissions(d, std::fs::Permissions::from_mode(0o700))?;
+            }
+        }
+        Ok(dirs)
     }
 
     /// The link key, made the first time.
@@ -170,6 +193,8 @@ mod tests {
         let b = PairedBox {
             key: Key(SecretKey::generate().public()),
             addrs: vec!["192.168.1.20:443".parse().expect("addr")],
+            record: Some("c2VjcmV0".into()),
+            onion: None,
         };
         s.save_paired(&b).expect("saved");
         assert_eq!(s.paired().expect("read"), Some(b));

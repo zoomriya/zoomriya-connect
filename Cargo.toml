@@ -5,6 +5,7 @@ members = [
     "crates/link",
     "crates/punch",
     "crates/proto",
+    "crates/tor",
     "crates/ffi",
     "connectd",
     "laptop",
@@ -27,6 +28,7 @@ iroh = { version = "=1.4.2", default-features = false, features = ["tls-ring", "
 zoomriya-keys = { path = "crates/keys" }
 zoomriya-proto = { path = "crates/proto" }
 zoomriya-link = { path = "crates/link" }
+zoomriya-tor = { path = "crates/tor" }
 
 anyhow = "1"
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "query", "tokio", "ws"] }

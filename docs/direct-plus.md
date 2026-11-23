@@ -47,7 +47,7 @@ are removed; `main` keeps them. The comparison with ZOOMRIYA Connect is in
 
 | Step | What happens |
 |---|---|
-| 1 | The app tries the box's remembered addresses at once, and looks up the box's DHT record in the background |
+| 1 | The app tries the box's remembered addresses and its relay through Tor, and at the same time looks on the home network (mDNS) and up the box's DHT record. The first to connect wins |
 | 2 | It dials every address it has, IPv6 and IPv4, Wi-Fi and mobile data together. The first to answer carries data |
 | 3 | If nothing answers, it connects through Tor to the box's `.onion` address, where the box's iroh relay waits |
 | 4 | iroh swaps addresses through that relay and both sides punch at the same moment |
@@ -57,7 +57,7 @@ are removed; `main` keeps them. The comparison with ZOOMRIYA Connect is in
 | Layer | Technology | Job |
 |---|---|---|
 | Data | iroh (QUIC, multipath) over IPv6 or IPv4 | Full speed; survives network changes |
-| Finding the box | BitTorrent DHT (Mainline), through pkarr, which iroh supports | A signed record of the box's addresses, sealed for paired devices |
+| Finding the box | BitTorrent DHT (Mainline), signed mutable items (BEP 44) | A signed record of the box's addresses, sealed for paired devices |
 | Signalling | The box's iroh relay, as a Tor onion service | Reachable from anywhere, through any CGNAT, with no port opened |
 | Fallback data | The same relay over Tor | Small traffic only; big transfers wait |
 | Who gets in | The box's own device list, checked by connectd on every path and by the box's relay (iroh-relay's AccessControl) | Paired devices only; no passes, no clock, no fork of iroh |
@@ -223,7 +223,7 @@ Guests have only a browser: no app, no Tor, no DHT.
 |---|---|---|
 | App ↔ box, direct | QUIC with TLS 1.3, keyed to the box's and device's keys, pinned at pairing | Device and box only |
 | App ↔ box, through Tor | Tor's end-to-end encryption, and inside it the same iroh encryption | Device and box only; Tor relays see nothing readable |
-| DHT record | Signed by the box's key, sealed for paired devices, lookup keys changing daily | Paired devices only |
+| DHT record | Sealed with ChaCha20-Poly1305 and signed with a key that changes daily, both made from a secret the box gives each device at pairing. The box's key is never in the DHT, so nobody can tell which records belong to the same box | Paired devices only |
 | Laptop app ↔ laptop's browser | Plain HTTP on `zoomriya.localhost:7480`, never leaves the laptop, session token | That laptop only |
 | Browser ↔ box | HTTPS; certificate keys are made on the box and never leave it | Browser and box only |
 | Guest ↔ box | HTTPS through the door, or Tor through an onion link | Guest and box only |
@@ -256,9 +256,9 @@ zoomriya-apps, zoomriya-docs and zoomriya-id; `main` stays as it is.
 |---|---|---|---|---|
 | **0. Foundations** ✓ | The box with no ZOOMRIYA server | ZOOMRIYA Connect's servers, their GUI, the extension and the box's code for them removed; passes and the clock gone; pairing with no name, no internet and no clock ([§6](#6-pairing)); the link always on; laptops pair with the short code over iroh | `connectd/src/api.rs`, `daemon.rs`, `devices.rs`, `link.rs`; `crates/proto`, `crates/keys` | A phone and a laptop pair with a box that has no ZOOMRIYA server and no internet (`connectd/src/e2e.rs`) |
 | **1. Laptop at home** ◐ | The laptop app works on the home network | Tauri tray app: pairing with the short code, iroh to the box at home, `zoomriya.localhost:7480` in the browser; **Add a laptop** in Control Panel › Devices | New `laptop/`; `crates/link`; `connectd/src/link.rs`; Box Desktop `connect.go` and `web/` | A paired laptop opens Box Desktop and the family apps at `zoomriya.localhost:7480`, no trust step, no ZOOMRIYA Connect. Built and tested on Linux: the tray app (`laptop/app`, Tauri), pairing over mDNS and SPAKE2, both addresses in the browser, one copy at a time. Left: a run on a real box with real browsers (checks 10–12), macOS and Windows builds, signing and updates |
-| **2. Laptop away, direct** | Reach homes that can be reached | Sealed DHT record and lookup; remembered addresses; stable IPv6, PCP and UPnP pinholes, router's outside address, double NAT detection | `connectd/src/direct/dht.rs`, `net.rs`; `crates/proto`, `crates/keys`, `crates/link` | Away, the laptop reaches a home with public IPv4 or open IPv6, after the home's address changed |
-| **3. Laptop away, Tor** | Reach every home | `crates/tor` (Arti); the box's iroh relay behind an onion service; Tor fallback in the link; punching through the box's relay (items 1–5); keep punching and move over (multipath); declared connections and firewall in the OS | `crates/tor`; `connectd/src/direct/relay.rs`, `onion.rs`; `crates/link`, `crates/punch`; `packages/zoomriya-connect` | From a CGNAT home without IPv6, the laptop connects through Tor, then moves to direct without a reload. [Prototype checks](#16-prototype-checks) 1–4 pass on a laptop |
-| **4. Laptop, unnoticed Tor** | Families never notice Tor | Warm circuit; "on Tor" signal to the apps; apps adapt (thumbnails, backup waits, act at once and sync after); heavy work at home; single onion service; Tor bridges; IPv6 first; many ports at once | `crates/link`, `crates/tor`; `myapps/photos`, `chat`, `planner`, shared frontend | The [§9](#9-hiding-tors-delay) targets met on a laptop through Tor |
+| **2. Laptop away, direct** ◐ | Reach homes that can be reached | Sealed DHT record and lookup; remembered addresses; stable IPv6, PCP, NAT-PMP and UPnP port mapping, the outside address, double NAT detection | `connectd/src/reach.rs`, `net.rs`; `crates/keys/src/record.rs`; `crates/link/src/dht.rs`, `client.rs`; `laptop/` | Away, the laptop reaches a home with public IPv4 or open IPv6, after the home's address changed. Built and tested on Linux: the box publishes its record for today and tomorrow, every 30 minutes and when its addresses change; the laptop gets the secret at pairing, finds the record and connects through it (`zoomriya-laptop check-away`). connectd's status reports the reach for Box Desktop ([phase 5](#15-phases) shows it). Left: the same from another network ([check 13](#16-prototype-checks)) |
+| **3. Laptop away, Tor** ◐ | Reach every home | `crates/tor` (Arti); the box's iroh relay behind an onion service; Tor fallback in the link; punching through the box's relay (items 1–5); keep punching and move over (multipath); declared connections and firewall in the OS | `crates/tor`; `connectd/src/relay.rs`, `daemon.rs`; `crates/link`; `laptop/`; `packages/zoomriya-connect` | From a CGNAT home without IPv6, the laptop connects through Tor, then moves to direct without a reload. [Prototype checks](#16-prototype-checks) 1–4 pass on a laptop. Built and tested on Linux: connectd runs iroh's relay on 127.0.0.1, letting in only the box and paired devices, behind an Arti onion service whose key stays in the box's data folder. The box gives its onion address at pairing. The laptop app reaches the relay through a local proxy that goes only to that address, and races it against the direct tries. `zoomriya-laptop check-tor` reached the box through Tor in 10–14 s and moved to a direct path 0.5–1.5 s later; a laptop that was not paired was turned away by the relay. Left: a run from a home with no direct path, check 4, and punching beyond what iroh does itself (items 1–5) |
+| **4. Laptop, unnoticed Tor** ◔ | Families never notice Tor | Warm circuit; "on Tor" signal to the apps; apps adapt (thumbnails, backup waits, act at once and sync after); heavy work at home; single onion service; Tor bridges; IPv6 first; many ports at once | `crates/link`, `crates/tor`; `laptop/`; zoomriya-apps `packages/web`, `myapps/photos`, `chat`, `planner` | The [§9](#9-hiding-tors-delay) targets met on a laptop through Tor. Built: the laptop app connects when it starts and reconnects when the connection drops, so the way through Tor is ready before the first page; every answer from the box carries `Zoomriya-Path: direct` or `relay`, and `/.zoomriya/path` answers the same; the apps' shared `connection.svelte.ts` follows it (`connection.sendLess`). Left: the apps acting on it, bridges, many ports at once. A single onion service waits for Arti ([check 6](#16-prototype-checks)) |
 | **5. Box Desktop** | Families can see and improve their access | Control Panel › Remote access: on or off, how the box is reached, "Make remote access faster" with router steps and the provider message | `packages/box-desktop`; `docs/box-desktop.md` | An admin sees the home's case and the fix for it |
 | **6. Phone** | Everything above on phones | The phone app (Swift, Kotlin) on `crates/ffi`; QR pairing; Arti on iOS and Android; mobile data and Wi-Fi together; **leave home already connected**; "Check access from away"; **Pair a phone** in Control Panel › Devices | `crates/ffi`, `crates/link`; the phone app (new) | A phone does phases 1–4 at home and away; iOS check 5 passes |
 | **7. Names and guests** | Real padlocks and guest links | Family's own domain and dynamic DNS (records and certificates); guest links through the door; onion links; outside check through Tor; CAA record and certificate log watch | `connectd/src/dns.rs`, `acme.rs`; `zoomriya-agent`; Box Desktop | A guest opens `share.home.smith.ca`; `home.smith.ca` has a real padlock at home |
@@ -279,18 +279,19 @@ zoomriya-apps, zoomriya-docs and zoomriya-id; `main` stays as it is.
 
 | # | Check | Why |
 |---|---|---|
-| 1 | iroh reaches its relay through Arti's proxy on the phone | Believed supported, not verified |
-| 2 | The iroh relay runs well behind an Arti onion service on the box | Onion services on Arti are newer than its client |
-| 3 | Time from opening the app to a direct path, through Tor | Target under 5 s |
+| 1 | iroh reaches its relay through Arti's proxy on the phone | ✓ on a laptop (iroh's HTTP CONNECT proxy, to a proxy in front of Arti); the phone is still to check |
+| 2 | The iroh relay runs well behind an Arti onion service on the box | ✓ on a laptop standing in for the box: the descriptor is published 10 s after start |
+| 3 | Time from opening the app to a direct path, through Tor | Target under 5 s. Measured 11–15 s from a cold start, almost all of it reaching the onion service: phase 4's warm circuit and racing the direct tries hide it |
 | 4 | Speed and delay of the fallback through a warm circuit | Sets what the app must adapt |
 | 5 | Arti in the iOS app, while open | Background limits |
-| 6 | Single onion services and path weighting in Arti | §8 D |
+| 6 | Single onion services and path weighting in Arti | §8 D. Not in Arti 0.48 (still a TODO in its onion service settings); look again at each Arti update |
 | 7 | Let's Encrypt certificates for a home's public IP address | Guest links without a domain |
 | 8 | Safari treats `zoomriya.localhost` as secure | Chrome and Firefox do |
 | 9 | How often each path is used, from the beta boxes (anonymous, opt-in) | Real numbers replace the estimates |
 | 10 | connectd's mDNS announcement beside avahi on the box | Both answer on UDP 5353; connectd uses its own host name |
 | 11 | Apps in Box Desktop's windows on a laptop | `zoomriyabox.localhost` and `zoomriya.localhost` are separate sites, so an app framed in Box Desktop is a third-party frame: it may ask to sign in, or need to open in its own tab |
 | 12 | WebSockets and live updates through the laptop app, on a real box | The apps' chat and Box Desktop's events |
+| 13 | The laptop on another network (a phone's hotspot) reaches the box through its DHT record | Phase 2 was tested from the same home: the record was found in the DHT and the connection worked, but over the home network |
 
 ## 17. Open questions
 
