@@ -39,6 +39,15 @@ allow = [
     "Unicode-3.0",
     "CDLA-Permissive-2.0",
 ]
+# MPL-2.0 (file-level copyleft, which allows combining with the AGPL) only
+# for these, which come in only through Tauri's window, in the laptop app.
+exceptions = [
+    { allow = ["MPL-2.0"], crate = "cssparser" },
+    { allow = ["MPL-2.0"], crate = "cssparser-macros" },
+    { allow = ["MPL-2.0"], crate = "dtoa-short" },
+    { allow = ["MPL-2.0"], crate = "option-ext" },
+    { allow = ["MPL-2.0"], crate = "selectors" },
+]
 confidence-threshold = 0.9
 
 [bans]

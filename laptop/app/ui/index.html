@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+<title>ZOOMRIYA</title>
+<style>
+:root { --bg: #f6f8f9; --fg: #15232a; --muted: #5b6c75; --line: #d5dde1; --accent: #2266d4; --accent-fg: #fff; --error: #9d241c; }
+@media (prefers-color-scheme: dark) {
+	:root { --bg: #121b20; --fg: #e2eaed; --muted: #93a5ad; --line: #2a3a42; --accent: #5b94f0; --accent-fg: #0b1420; --error: #ff9d92; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; padding: 28px 28px 24px; background: var(--bg); color: var(--fg); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+header img { width: 36px; height: 36px; border-radius: 9px; }
+h1 { font-size: 19px; margin: 0; }
+p { margin: 0 0 16px; color: var(--muted); }
+input { width: 100%; padding: 12px 14px; font: 600 24px/1 ui-monospace, Menlo, monospace; letter-spacing: .14em; text-align: center; text-transform: uppercase; color: var(--fg); background: transparent; border: 1px solid var(--line); border-radius: 10px; }
+input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.end { display: flex; justify-content: flex-end; margin-top: 16px; }
+button { padding: 9px 18px; font: 600 15px system-ui, sans-serif; border-radius: 9px; border: 1px solid var(--line); background: transparent; color: var(--fg); cursor: pointer; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+button:disabled { opacity: .5; cursor: default; }
+.error { color: var(--error); margin: 12px 0 0; min-height: 1.4em; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header><img src="icon.png" alt=""><h1 id="title">ZOOMRIYA</h1></header>
+<form id="pairing" hidden>
+	<p id="lead"></p>
+	<input id="code" autocomplete="off" spellcheck="false" maxlength="9" placeholder="XXXX-XXXX" aria-labelledby="lead">
+	<p class="error" id="error" role="alert"></p>
+	<div class="end"><button class="primary" id="go" type="submit"></button></div>
+</form>
+<section id="paired" hidden>
+	<p id="paired-lead"></p>
+	<div class="end"><button id="forget"></button></div>
+</section>
+<script src="app.js"></script>
+</body>
+</html>

@@ -26,7 +26,10 @@ devices get in, and everything between a device and the box is encrypted.
 | `connectd/` | The box's side: pairing, the device list, the link, Box Desktop's API |
 | `crates/keys` | Box and device keys |
 | `crates/proto` | What the apps and connectd say to each other |
-| `crates/link`, `crates/punch`, `crates/ffi` | The apps' side (phase 1 onwards) |
+| `crates/link` | The apps' side: finding the box at home, pairing, the connection |
+| `laptop/` | The laptop app's core and its command line (`zoomriya-laptop`) |
+| `laptop/app` | The laptop app: a tray app (Tauri) that only connects; the browser shows the box |
+| `crates/punch`, `crates/ffi` | Punching and the phone app's bindings (later phases) |
 | `deploy/connectd.toml` | connectd's settings on the box |
 
 ## Building

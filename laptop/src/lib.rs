@@ -15,11 +15,8 @@ use std::{sync::Arc, time::Duration};
 
 use anyhow::{Context, Result};
 use tracing::info;
-use zoomriya_link::{
-    client::Client,
-    find,
-    pair::{self, PairError},
-};
+pub use zoomriya_link::{client::Client, pair::PairError};
+use zoomriya_link::{find, pair};
 
 use crate::{
     serve::{Io, Opening, Server, Upstream},

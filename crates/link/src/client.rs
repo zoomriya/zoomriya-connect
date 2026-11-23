@@ -77,6 +77,14 @@ impl Client {
         }
     }
 
+    /// Closes the connection and the endpoint, telling the box.
+    pub async fn close(&self) {
+        if let Some(c) = self.conn.lock().await.take() {
+            c.close(0u32.into(), b"bye");
+        }
+        self.ep.close().await;
+    }
+
     /// The box's addresses as known now.
     pub fn addrs(&self) -> Vec<SocketAddr> {
         self.addrs.lock().map(|a| a.clone()).unwrap_or_default()

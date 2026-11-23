@@ -1,0 +1,29 @@
+[package]
+name = "zoomriya-laptop-app"
+description = "The ZOOMRIYA laptop app: a tray app that only connects the laptop to the box; the browser is where everything happens"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "zoomriya"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2.7", features = [] }
+
+[dependencies]
+anyhow.workspace = true
+rustls.workspace = true
+serde.workspace = true
+tauri = { version = "2.12", features = ["tray-icon", "image-png"] }
+tauri-plugin-single-instance = "2.5"
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+zoomriya-laptop = { path = ".." }
+
+[lints]
+workspace = true

@@ -378,8 +378,9 @@ impl<U: Upstream> Server<U> {
         Ok(resp.map(|b| b.boxed()))
     }
 
-    /// Serves on the laptop's loopback addresses until the task is dropped.
-    pub async fn run(self: Arc<Self>) -> Result<()> {
+    /// Takes the port on the laptop's loopback addresses. Fails when it is
+    /// taken: most likely the app is already running.
+    pub async fn bind(&self) -> Result<Vec<tokio::net::TcpListener>> {
         let mut listeners = Vec::new();
         for ip in [
             std::net::IpAddr::V4(Ipv4Addr::LOCALHOST),
@@ -395,12 +396,23 @@ impl<U: Upstream> Server<U> {
             "port {} is taken: is the ZOOMRIYA app already running?",
             self.port
         );
+        Ok(listeners)
+    }
+
+    /// Serves on `listeners` until the task is dropped.
+    pub async fn serve(self: Arc<Self>, listeners: Vec<tokio::net::TcpListener>) {
         let mut tasks = tokio::task::JoinSet::new();
         for l in listeners {
             let me = self.clone();
             tasks.spawn(async move { me.accept(l).await });
         }
         while tasks.join_next().await.is_some() {}
+    }
+
+    /// Takes the port and serves until the task is dropped.
+    pub async fn run(self: Arc<Self>) -> Result<()> {
+        let listeners = self.bind().await?;
+        self.serve(listeners).await;
         Ok(())
     }
 
