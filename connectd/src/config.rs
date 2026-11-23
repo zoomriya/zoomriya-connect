@@ -28,6 +28,9 @@ pub struct Config {
     /// direct path (docs/direct-plus.md §3). Off only in tests.
     #[serde(default = "yes")]
     pub tor: bool,
+    /// Where Photos reads the guest links' addresses (crate::guests).
+    #[serde(default = "guests_file")]
+    pub guests_file: PathBuf,
 }
 
 /// One of the box's web servers.
@@ -50,6 +53,9 @@ pub struct Target {
 
 fn data_dir() -> PathBuf {
     PathBuf::from("/data/zoomriya-connect")
+}
+fn guests_file() -> PathBuf {
+    PathBuf::from("/run/zoomriya-link/guests.json")
 }
 fn yes() -> bool {
     true
@@ -119,6 +125,11 @@ impl Config {
     /// What Tor downloads about the network.
     pub fn tor_cache(&self) -> PathBuf {
         self.data_dir.join("tor-cache")
+    }
+
+    /// The family's own name: its domain and DNS key (crate::names).
+    pub fn names_file(&self) -> PathBuf {
+        self.data_dir.join("names.json")
     }
 
     /// Whether remote access away from home is on.

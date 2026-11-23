@@ -16,11 +16,13 @@ use crate::{
     away::Away,
     config::Config,
     devices::Devices,
+    guests::Guests,
     link::{Link, LinkConfig, Live},
+    names::Names,
     reach::Reach,
     relay::Relay,
 };
-use zoomriya_tor::{Onion, Tor};
+use zoomriya_tor::Tor;
 
 /// Everything connectd shares between its parts.
 pub struct Ctx {
@@ -40,6 +42,10 @@ pub struct Ctx {
     pub onion: Mutex<Option<String>>,
     /// Whether devices may reach the box away from home.
     pub away: Away,
+    /// The family's own name.
+    pub names: Arc<Names>,
+    /// The guests' door and onion service.
+    pub guests: Guests,
 }
 
 impl std::fmt::Debug for Ctx {
@@ -61,6 +67,8 @@ impl Ctx {
             reach: Mutex::default(),
             onion: Mutex::default(),
             away: Away::open(&cfg.away_file())?,
+            names: Arc::new(Names::open(&cfg.names_file())?),
+            guests: Guests::default(),
             cfg,
         })
     }
@@ -68,16 +76,22 @@ impl Ctx {
 
 /// Runs the link until `stop` finishes, then closes it.
 pub async fn run(ctx: Arc<Ctx>, stop: impl Future<Output = ()>) -> Result<()> {
-    let (relay, onion) = if ctx.cfg.tor {
+    let (relay, tor) = if ctx.cfg.tor {
         let relay =
             Relay::start(ctx.box_key.public(), ctx.devices.clone(), ctx.away.clone()).await?;
-        let onion = onion_service(&ctx, relay.addr)
-            .map_err(|e| warn!("the onion service: {e:#}"))
-            .ok();
-        (Some(relay), onion)
+        let tor = start_tor(&ctx).map_err(|e| warn!("Tor: {e:#}")).ok();
+        (Some(relay), tor)
     } else {
         (None, None)
     };
+    let serve = |name: &str, to: SocketAddr| {
+        tor.as_ref().and_then(|t| {
+            t.serve(name, to)
+                .map_err(|e| warn!("the {name} onion service: {e:#}"))
+                .ok()
+        })
+    };
+    let onion = relay.as_ref().and_then(|r| serve("box-relay", r.addr));
     let onion_address = onion.as_ref().map(|o| o.address.clone());
     if let Ok(mut o) = ctx.onion.lock() {
         o.clone_from(&onion_address);
@@ -108,11 +122,15 @@ pub async fn run(ctx: Arc<Ctx>, stop: impl Future<Output = ()>) -> Result<()> {
         link.router.endpoint().clone(),
         ctx.record.clone(),
     ));
+    let naming = tokio::spawn(crate::names::keep(ctx.clone()));
+    let guests = tokio::spawn(crate::guests::keep(ctx.clone(), tor.clone()));
     let mdns = announce(&ctx)
         .map_err(|e| warn!("announcing on the home network: {e:#}"))
         .ok();
     stop.await;
     publishing.abort();
+    naming.abort();
+    guests.abort();
     if let Some(m) = mdns {
         let _ = m.shutdown();
     }
@@ -130,13 +148,12 @@ pub async fn run(ctx: Arc<Ctx>, stop: impl Future<Output = ()>) -> Result<()> {
 
 /// Tor, and the onion service in front of the relay. Tor joins the network
 /// in the background; the address is known at once.
-fn onion_service(ctx: &Ctx, relay: SocketAddr) -> Result<Onion> {
+fn start_tor(ctx: &Ctx) -> Result<Tor> {
     for dir in [ctx.cfg.tor_state(), ctx.cfg.tor_cache()] {
         std::fs::create_dir_all(&dir).with_context(|| format!("making {}", dir.display()))?;
         restrict(&dir)?;
     }
-    let tor = Tor::start(&ctx.cfg.tor_state(), &ctx.cfg.tor_cache(), None)?;
-    tor.serve("box-relay", relay)
+    Tor::start(&ctx.cfg.tor_state(), &ctx.cfg.tor_cache(), None)
 }
 
 /// Tor refuses folders others can read or write.

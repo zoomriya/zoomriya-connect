@@ -11,6 +11,10 @@
 //! | `DELETE /v1/devices/{id}` | Removes a device, and cuts its connections at once |
 //! | `POST /v1/devices/{id}/name` `{name}` | Renames a device |
 //! | `PUT /v1/away` `{on}` | Turns remote access away from home on or off (crate::away) |
+//! | `GET /v1/names` | The family's own name: its records, the certificate, the CAA record to add, problems (never the key) |
+//! | `PUT /v1/names` `{domain, dns, acme_dns}` | Sets the family's own name and its DNS key (crate::names) |
+//! | `DELETE /v1/names` | Forgets them |
+//! | `GET /v1/guests` | The guests' door: opened by the router, reachable and only the album viewer from outside (crate::guests) |
 
 use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 
@@ -63,6 +67,8 @@ pub fn router(ctx: Shared) -> Router {
         .route("/v1/devices/{id}/name", post(rename))
         .route("/v1/pairing", post(start_pairing).delete(stop_pairing))
         .route("/v1/away", put(set_away))
+        .route("/v1/names", get(names).put(set_names).delete(forget_names))
+        .route("/v1/guests", get(guests))
         .with_state(ctx)
 }
 
@@ -251,6 +257,31 @@ async fn set_away(State(ctx): State<Shared>, Json(r): Json<SetAway>) -> Response
     };
     info!(on = r.on, cut, "remote access away from home");
     StatusCode::NO_CONTENT.into_response()
+}
+
+async fn guests(State(ctx): State<Shared>) -> Response {
+    Json(ctx.guests.status()).into_response()
+}
+
+async fn names(State(ctx): State<Shared>) -> Response {
+    Json(ctx.names.status()).into_response()
+}
+
+async fn set_names(State(ctx): State<Shared>, Json(s): Json<crate::names::Settings>) -> Response {
+    match ctx.names.set(Some(s)) {
+        Ok(()) => {
+            info!("the family's own name was set");
+            StatusCode::NO_CONTENT.into_response()
+        }
+        Err(e) => error(StatusCode::BAD_REQUEST, "names", &format!("{e:#}")),
+    }
+}
+
+async fn forget_names(State(ctx): State<Shared>) -> Response {
+    match ctx.names.set(None) {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(e) => failed(e),
+    }
 }
 
 async fn rename(

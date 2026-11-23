@@ -198,6 +198,12 @@ impl Tor {
         Ok(Self { client })
     }
 
+    /// A stream to `host`:`port` through Tor, as a stranger on the internet
+    /// would reach it.
+    pub async fn connect(&self, host: &str, port: u16) -> Result<arti_client::DataStream> {
+        Ok(self.client.connect((host, port)).await?)
+    }
+
     /// An onion service named `nickname`, forwarding [`ONION_PORT`] to `to`.
     /// Its key is kept in the state folder, so the address never changes.
     pub fn serve(&self, nickname: &str, to: SocketAddr) -> Result<Onion> {

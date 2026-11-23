@@ -30,7 +30,7 @@ are removed; `main` keeps them. The comparison with ZOOMRIYA Connect is in
 | Browser on a laptop, away | ✅ Any browser, with the laptop app connecting in the background | ❌ Without the app |
 | Guests, home can be reached | ✅ Through the door, with the family's own domain or dynamic DNS | — |
 | Guests, home on CGNAT with IPv6 | ✅ Guests with IPv6 | ❌ Guests with IPv4 only |
-| Guests, home on CGNAT without IPv6 | ✅ Onion link (Tor Browser), or send the photos | ❌ A normal link in any browser |
+| Guests, home on CGNAT without IPv6 | ✅ Send the photos | ❌ A link in any browser |
 | Home internet down | ✅ Copies already on the device | ❌ Reaching the box |
 
 ## 2. Rules
@@ -186,7 +186,7 @@ A public authority never signs `.local` names, so browsers without the app need 
 |---|---|---|---|
 | **The box's own authority** (built) | `zoomriya-xxxx.local` | ✅ after trusting `ca.crt` once per browser | Nothing; the authority is name-constrained to `.local` and home addresses |
 | **The family's own domain** | `home.smith.ca`, guests `share.home.smith.ca` (the family types only `smith.ca`) | ✅ Let's Encrypt, proved through DNS | A domain (about $10–20 a year) and their DNS provider's update key |
-| **Dynamic DNS**, optional, off by default | `smith.<service>.org` | ✅ Let's Encrypt, where the service allows the DNS check | A free account at a dynamic DNS service; a token pasted in Box Desktop |
+| **Dynamic DNS**, optional, off by default | `smith.<service>.org` | ✅ Let's Encrypt, where the service allows the DNS check | A dynamic DNS service that takes standard updates (RFC 2136); see the family's own domain |
 
 | What dynamic DNS and the own domain fix | |
 |---|---|
@@ -208,13 +208,13 @@ Guests have only a browser: no app, no Tor, no DHT.
 |---|---|
 | Public IPv4, door opened | ✅ through the door, to the album viewer only |
 | CGNAT with IPv6, door opened | ✅ for guests with IPv6 |
-| CGNAT without IPv6 | ❌ send the photos, or an onion link |
+| CGNAT without IPv6 | ❌ send the photos |
 
 | | |
 |---|---|
 | Name | The family's own domain or dynamic DNS. Without either: a bare address, with a Let's Encrypt certificate for the home's public address if available (to check) |
 | Outside check | The box checks its own door **through Tor**, as a stranger would, so only the album viewer can be reached |
-| Onion link | The album viewer as its own onion service, one per share link. Works from any home, but only in Tor Browser or Brave's Tor window. Offered only when the door cannot work, as "Link for Tor Browser" |
+| Onion link | Not for now (decided 2026-11-23): few guests have Tor Browser, and "send the photos" already works from any home. See [§17](#17-open-questions) |
 | Send the photos | The app exports the album as files, for any messenger. Always works |
 
 ## 13. Encryption and security
@@ -226,12 +226,12 @@ Guests have only a browser: no app, no Tor, no DHT.
 | DHT record | Sealed with ChaCha20-Poly1305 and signed with a key that changes daily, both made from a secret the box gives each device at pairing. The box's key is never in the DHT, so nobody can tell which records belong to the same box | Paired devices only |
 | Laptop app ↔ laptop's browser | Plain HTTP on `zoomriya.localhost:7480`, never leaves the laptop, session token | That laptop only |
 | Browser ↔ box | HTTPS; certificate keys are made on the box and never leave it | Browser and box only |
-| Guest ↔ box | HTTPS through the door, or Tor through an onion link | Guest and box only |
+| Guest ↔ box | HTTPS through the door | Guest and box only |
 
 | Weak point | |
 |---|---|
 | **Whoever controls DNS** (the family's DNS provider, a dynamic DNS service, or someone who breaks in) | Can point the name elsewhere and get a valid certificate for it, so a browser shows a padlock on a fake page |
-| Not affected | The apps (they pin the box's key), `.local` and onion links |
+| Not affected | The apps (they pin the box's key) and `.local` |
 | What helps | A CAA record allowing only the box's Let's Encrypt account; the box watches the public certificate logs for certificates it did not request and warns in Box Desktop |
 
 Data stored on the box is unchanged by any of this.
@@ -241,7 +241,7 @@ Data stored on the box is unchanged by any of this.
 | | |
 |---|---|
 | Networks that allow only approved websites | Nothing gets through; mobile data is the answer |
-| Guests reaching a CGNAT home without IPv6 at full speed in any browser | Needs a server; Direct+ offers "send the photos" or an onion link |
+| Guests reaching a CGNAT home without IPv6 in any browser | Needs a server; Direct+ offers "send the photos" |
 | A promise of full speed everywhere | Some connections run through Tor; [§9](#9-hiding-tors-delay) hides it |
 | Reaching the box when the home internet is down | Nothing does, without a SIM; the apps show their copies |
 
@@ -261,7 +261,7 @@ zoomriya-apps, zoomriya-docs and zoomriya-id; `main` stays as it is.
 | **4. Laptop, unnoticed Tor** ◐ | Families never notice Tor | Warm circuit; "on Tor" signal to the apps; apps adapt (thumbnails, backup waits, act at once and sync after); heavy work at home; single onion service; Tor bridges; IPv6 first; many ports at once | `crates/link`, `crates/tor`; `laptop/`; zoomriya-apps `packages/web`, `myapps/photos`, `chat`, `planner` | The [§9](#9-hiding-tors-delay) targets met on a laptop through Tor. Built: the laptop app connects when it starts and reconnects when the connection drops; every answer carries `Zoomriya-Path: direct` or `relay` (and `/.zoomriya/path`); the apps' shared `connection.svelte.ts` follows it. On the relay, Photos shows the thumbnail before the larger picture, a video waits for a direct path, and big uploads wait (`whenFast`); Chat shows plain messages at once and sends them in the background; Planner already ticked at once. Bridges: the family's own lines in the laptop app's `bridges.txt`, or the public Snowflake bridges when Tor has not joined within 30 s and `snowflake-client` is installed (Arti's transports, switched while running). IPv6 first: iroh already sends from both sides at once, through the relay. Left: the targets measured from a network where only Tor gets through; bridges on a network that blocks Tor; many ports at once (§7 item 8), which needs its own punching beside iroh's. A single onion service waits for Arti ([check 6](#16-prototype-checks)) |
 | **5. Box Desktop** ✓ | Families can see and improve their access | Control Panel › Remote access: on or off, how the box is reached, "Make remote access faster" with router steps and the provider message | `packages/box-desktop`; `docs/box-desktop.md`; `connectd/src/away.rs`, `api.rs` | An admin sees the home's case and the fix for it. Built: connectd keeps the switch (`away.json`; off stops the record, closes connections from away at once, and the relay lets in the box only; tested for real through Tor); its status gives the reach, the port and the switch. Box Desktop shows the case (a port the router opened, IPv6, two routers, a shared address), the paths row by row, and only the steps that fit, with the provider message to copy; French drafts. Router steps are general, not per brand |
 | **6. Phone** | Everything above on phones | The phone app (Swift, Kotlin) on `crates/ffi`; QR pairing; Arti on iOS and Android; mobile data and Wi-Fi together; **leave home already connected**; "Check access from away"; **Pair a phone** in Control Panel › Devices | `crates/ffi`, `crates/link`; the phone app (new) | A phone does phases 1–4 at home and away; iOS check 5 passes |
-| **7. Names and guests** | Real padlocks and guest links | Family's own domain and dynamic DNS (records and certificates); guest links through the door; onion links; outside check through Tor; CAA record and certificate log watch | `connectd/src/dns.rs`, `acme.rs`; `zoomriya-agent`; Box Desktop | A guest opens `share.home.smith.ca`; `home.smith.ca` has a real padlock at home |
+| **7. Names and guests** ◐ | Real padlocks and guest links | Family's own domain and dynamic DNS (records and certificates); guest links through the door; outside check through Tor; CAA record and certificate log watch | `connectd/src/names.rs`, `dns_update.rs`, `guests.rs`; zoomriya-os `zoomriya-base` (firewall), `zoomriya-agent`, Box Desktop; zoomriya-apps gateway and Photos | A guest opens `share.home.smith.ca`; `home.smith.ca` has a real padlock at home. Built: Box Desktop › Remote access › Your own name (the domain, the DNS server, a TSIG key; or acme-dns for the check; the password again); connectd keeps `home.` and `share.home.` pointing at addresses that reach the box (RFC 2136, TTL 60 s), gets and renews the certificate from Let's Encrypt through the DNS check (to `certificate/connect.pem`, which the agent already serves), shows the CAA record to add, and reads the certificate logs daily for certificates it did not ask for. The door: the gateway's guest-only site on TCP 8443 (the album viewer and its guest API; every other page 404, checked), open in the firewall, opened on the router by UPnP while the name is set, checked from outside through Tor; Photos' links go through it once it works. Tested: the signed updates against a stand-in DNS server, the guest-only site. Left: a run with a real domain, DNS server and Let's Encrypt; a door checked from a real outside; onion links not for now ([§17](#17-open-questions)) |
 | **8. Finish** | Clean up and measure | OS and user guide docs (`.local` under "Without the app"); bring `compare.md` in line; anonymous opt-in measurements | All repos | Docs match the code; the beta reports how often each path is used |
 
 | Phase | Depends on |
@@ -298,4 +298,5 @@ zoomriya-apps, zoomriya-docs and zoomriya-id; `main` stays as it is.
 | Question | Options |
 |---|---|
 | Wording | What Box Desktop and the apps say for each state, with Tor never named |
-| Which dynamic DNS services and DNS providers to support first | — |
+| Which dynamic DNS services and DNS providers to support first | Decided 2026-11-23: the standards only, RFC 2136 updates with a TSIG key, and acme-dns for the certificate's check. No provider's own API |
+| Guest links for homes the door cannot reach | Not for now (2026-11-23). Onion links work only in Tor Browser; look again with what families ask for |
