@@ -57,6 +57,8 @@ pub struct LinkConfig {
     pub relay: Option<RelayUrl>,
     /// The onion address in front of that relay, given to devices.
     pub onion: Option<String>,
+    /// Whether devices may connect from away (crate::away).
+    pub away: crate::away::Away,
 }
 
 /// Live connections, by link key, so a removed device is cut off at once.
@@ -93,6 +95,25 @@ impl Live {
             c.close(1u32.into(), b"removed");
         }
         conns.len()
+    }
+
+    /// Closes every connection that is not over the home network: remote
+    /// access was just turned off.
+    pub fn cut_away(&self, loopback_ok: bool) -> usize {
+        let Ok(mut m) = self.0.lock() else { return 0 };
+        let mut cut = 0;
+        for conns in m.values_mut() {
+            conns.retain(|c| {
+                let home = from_home(c, loopback_ok);
+                if !home {
+                    c.close(1u32.into(), b"home only");
+                    cut += 1;
+                }
+                home
+            });
+        }
+        m.retain(|_, v| !v.is_empty());
+        cut
     }
 
     /// How many devices are connected now.
@@ -341,6 +362,11 @@ impl ProtocolHandler for LinkHandler {
             conn.close(1u32.into(), b"not paired");
             return Ok(());
         };
+        if !s.cfg.away.on() && !from_home(&conn, s.cfg.pairing_from_loopback) {
+            debug!(device = %device.name, "remote access is off");
+            conn.close(1u32.into(), b"home only");
+            return Ok(());
+        }
         s.devices.seen(&device.id, crate::now());
         s.live.add(link, conn.clone());
         let result = serve_link(&s, &conn, &device).await;
@@ -361,6 +387,10 @@ async fn serve_link(s: &Arc<Shared>, conn: &Connection, device: &Device) -> Resu
         // The list is checked on every stream, not only at the start.
         if s.devices.by_link(&conn.remote_id()).is_none() {
             conn.close(1u32.into(), b"removed");
+            return Ok(());
+        }
+        if !s.cfg.away.on() && !from_home(conn, s.cfg.pairing_from_loopback) {
+            conn.close(1u32.into(), b"home only");
             return Ok(());
         }
         let kind = recv.read_u8().await?;

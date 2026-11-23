@@ -6,7 +6,7 @@
 //! | Who | Let in |
 //! |---|---|
 //! | The box itself | ✅ |
-//! | A paired device, by its link key | ✅ (iroh checks the key with a signed challenge) |
+//! | A paired device, by its link key, while remote access is on | ✅ (iroh checks the key with a signed challenge) |
 //! | Anyone else | ❌ |
 //!
 //! A device removed while connected keeps its relay connection until it
@@ -22,18 +22,19 @@ use iroh::{PublicKey, RelayUrl};
 use iroh_relay::server::{Access, AccessControl, ClientRequest, RelayConfig, Server, ServerConfig};
 use tracing::debug;
 
-use crate::devices::Devices;
+use crate::{away::Away, devices::Devices};
 
 /// Who may use the relay.
 #[derive(Debug)]
 struct Paired {
     box_key: PublicKey,
     devices: Arc<Devices>,
+    away: Away,
 }
 
 impl Paired {
     fn allows(&self, key: &PublicKey) -> bool {
-        *key == self.box_key || self.devices.by_link(key).is_some()
+        *key == self.box_key || (self.away.on() && self.devices.by_link(key).is_some())
     }
 }
 
@@ -43,7 +44,7 @@ impl AccessControl for Paired {
         if self.allows(&key) {
             Access::Allow
         } else {
-            debug!(key = %key.fmt_short(), "relay: not a paired device");
+            debug!(key = %key.fmt_short(), "relay: not let in (not paired, or remote access is off)");
             Access::Deny { reason: None }
         }
     }
@@ -61,9 +62,13 @@ pub struct Relay {
 
 impl Relay {
     /// Starts the relay on a free port of 127.0.0.1.
-    pub async fn start(box_key: PublicKey, devices: Arc<Devices>) -> Result<Self> {
+    pub async fn start(box_key: PublicKey, devices: Arc<Devices>, away: Away) -> Result<Self> {
         let mut relay = RelayConfig::new((Ipv4Addr::LOCALHOST, 0));
-        relay.access = Arc::new(Paired { box_key, devices });
+        relay.access = Arc::new(Paired {
+            box_key,
+            devices,
+            away,
+        });
         let mut cfg = ServerConfig::default();
         cfg.relay = Some(relay);
         let server = Server::spawn(cfg).await.context("starting the relay")?;
@@ -90,8 +95,15 @@ mod tests {
             Devices::open(&dir.path().join("devices.json")).unwrap_or_else(|e| panic!("{e}")),
         );
         let box_key = SecretKey::generate().public();
-        let p = Paired { box_key, devices };
+        let away = Away::default();
+        let p = Paired {
+            box_key,
+            devices,
+            away: away.clone(),
+        };
         assert!(p.allows(&box_key));
         assert!(!p.allows(&SecretKey::generate().public()));
+        away.set(false).unwrap_or_else(|e| panic!("{e}"));
+        assert!(p.allows(&box_key), "the box itself, always");
     }
 }

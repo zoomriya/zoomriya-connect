@@ -121,6 +121,11 @@ impl Config {
         self.data_dir.join("tor-cache")
     }
 
+    /// Whether remote access away from home is on.
+    pub fn away_file(&self) -> PathBuf {
+        self.data_dir.join("away.json")
+    }
+
     /// The file holding the secret behind the box's DHT record.
     pub fn record_secret(&self) -> PathBuf {
         self.data_dir.join("record.key")

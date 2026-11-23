@@ -4,12 +4,13 @@
 //!
 //! | Route | What |
 //! |---|---|
-//! | `GET /v1/status` | The box key, how many devices are paired and connected, whether a code is shown, how the box is reached from away (`reach`), and whether its relay runs behind Tor (`tor`) |
+//! | `GET /v1/status` | The box key, how many devices are paired and connected, whether a code is shown, how the box is reached from away (`reach`), whether its relay runs behind Tor (`tor`), and whether remote access away from home is on (`away`) |
 //! | `GET /v1/devices` | Paired devices, with how each connects |
 //! | `POST /v1/pairing` `{name, admin, laptop}` | A pairing code for the QR code; for a laptop, a short code to type into the laptop app |
 //! | `DELETE /v1/pairing` | Stops pairing |
 //! | `DELETE /v1/devices/{id}` | Removes a device, and cuts its connections at once |
 //! | `POST /v1/devices/{id}/name` `{name}` | Renames a device |
+//! | `PUT /v1/away` `{on}` | Turns remote access away from home on or off (crate::away) |
 
 use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 
@@ -19,7 +20,7 @@ use axum::{
     extract::{Path as UrlPath, State},
     http::StatusCode,
     response::{IntoResponse, Response},
-    routing::{delete, get, post},
+    routing::{delete, get, post, put},
 };
 use serde::{Deserialize, Serialize};
 use tracing::info;
@@ -61,6 +62,7 @@ pub fn router(ctx: Shared) -> Router {
         .route("/v1/devices/{id}", delete(remove))
         .route("/v1/devices/{id}/name", post(rename))
         .route("/v1/pairing", post(start_pairing).delete(stop_pairing))
+        .route("/v1/away", put(set_away))
         .with_state(ctx)
 }
 
@@ -92,6 +94,10 @@ struct Status {
     reach: crate::reach::Reach,
     /// Whether the box's relay runs behind its onion service.
     tor: bool,
+    /// Whether paired devices may reach the box away from home.
+    away: bool,
+    /// The box's UDP port, for the router steps.
+    port: u16,
 }
 
 async fn status(State(ctx): State<Shared>) -> Response {
@@ -109,6 +115,8 @@ async fn status(State(ctx): State<Shared>) -> Response {
             || ctx.devices.laptop_pairing_open(crate::now()),
         reach: ctx.reach.lock().map(|r| r.clone()).unwrap_or_default(),
         tor: ctx.onion.lock().is_ok_and(|o| o.is_some()),
+        away: ctx.away.on(),
+        port: ctx.cfg.port,
     })
     .into_response()
 }
@@ -213,6 +221,36 @@ async fn remove(State(ctx): State<Shared>, UrlPath(id): UrlPath<String>) -> Resp
 #[derive(Deserialize)]
 struct Rename {
     name: String,
+}
+
+#[derive(Deserialize)]
+struct SetAway {
+    on: bool,
+}
+
+/// Turns remote access away from home on or off. Off closes, at once, every
+/// connection that is not over the home network.
+async fn set_away(State(ctx): State<Shared>, Json(r): Json<SetAway>) -> Response {
+    if let Err(e) = ctx.away.set(r.on) {
+        return failed(e);
+    }
+    if !r.on
+        && let Ok(mut reach) = ctx.reach.lock()
+    {
+        reach.published.clear();
+        reach.published_at = None;
+    }
+    let cut = if r.on {
+        0
+    } else {
+        ctx.live
+            .lock()
+            .ok()
+            .and_then(|l| l.as_ref().map(|l| l.cut_away(false)))
+            .unwrap_or(0)
+    };
+    info!(on = r.on, cut, "remote access away from home");
+    StatusCode::NO_CONTENT.into_response()
 }
 
 async fn rename(

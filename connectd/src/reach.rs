@@ -140,7 +140,14 @@ pub async fn keep_published(ctx: Arc<Ctx>, endpoint: Endpoint, record: RecordSec
             ctx.cfg.port,
         );
         let now = crate::now();
-        if !reach.published.is_empty() && (reach.published != last || now >= last_at + REPUBLISH) {
+        if !ctx.away.on() {
+            // Remote access is off: nothing to find from away.
+            last.clear();
+            last_at = 0;
+            reach.published.clear();
+        } else if !reach.published.is_empty()
+            && (reach.published != last || now >= last_at + REPUBLISH)
+        {
             match dht.publish(&record, &reach.published, now).await {
                 Ok(()) => {
                     if reach.published != last {

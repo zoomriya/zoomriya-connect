@@ -9,6 +9,7 @@
 //! | `box.json` | The paired box: its key, its addresses, the secret behind its DHT record, its onion address |
 //! | `browser.secret` | The session cookie's value |
 //! | `tor/`, `tor-cache/` | Tor's state and what it downloads, when the box has an onion address |
+//! | `bridges.txt` | Optional: bridge lines into Tor, for networks that block it |
 
 use std::{
     net::SocketAddr,
@@ -120,6 +121,18 @@ impl Store {
             }
         }
         Ok(dirs)
+    }
+
+    /// The family's own bridges into Tor, from `bridges.txt` if there is one.
+    pub fn bridges(&self) -> Result<Option<zoomriya_tor::Bridges>> {
+        match std::fs::read_to_string(self.dir.join("bridges.txt")) {
+            Ok(t) => Ok(
+                Some(zoomriya_tor::Bridges::parse(&t, zoomriya_tor::find_program))
+                    .filter(|b| !b.lines.is_empty()),
+            ),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(e).context("reading bridges.txt"),
+        }
     }
 
     /// The link key, made the first time.

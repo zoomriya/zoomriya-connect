@@ -6,15 +6,23 @@
 //! |---|---|
 //! | The box | [`Tor::serve`]: an onion service with a stable address, forwarding port 80 to the box's iroh relay |
 //! | The apps | [`proxy`]: a CONNECT proxy on 127.0.0.1 for iroh, reaching only the box's onion address |
+//! | Networks that block Tor | [`Bridges`]: the family's own bridge lines, or the public ones when Tor cannot join within [`BRIDGES_AFTER`] and a transport program is installed |
 
 use std::{
     net::{Ipv4Addr, SocketAddr},
-    path::Path,
+    path::{Path, PathBuf},
     sync::Arc,
+    time::Duration,
 };
 
 use anyhow::{Context, Result};
-use arti_client::{BootstrapBehavior, TorClient, TorClientConfig, config::TorClientConfigBuilder};
+use arti_client::{
+    BootstrapBehavior, TorClient, TorClientConfig,
+    config::{
+        BridgeConfigBuilder, CfgPath, Reconfigure, TorClientConfigBuilder,
+        pt::TransportConfigBuilder,
+    },
+};
 use futures::StreamExt;
 use safelog::DisplayRedacted;
 use tokio::{
@@ -34,6 +42,102 @@ pub const ONION_PORT: u16 = 80;
 /// Longest CONNECT request the proxy reads.
 const MAX_REQUEST: usize = 4096;
 
+/// How long Tor gets to join the network before trying the public bridges.
+pub const BRIDGES_AFTER: Duration = Duration::from_secs(30);
+
+/// The public bridges, for when Tor itself is blocked: Snowflake, from the
+/// list Tor's own browser ships. Look again at each Arti update.
+const PUBLIC_BRIDGES: &[&str] = &[
+    "snowflake 192.0.2.3:80 2B280B23E1107BB62ABFC40DDCC8824814F80A72 fingerprint=2B280B23E1107BB62ABFC40DDCC8824814F80A72 url=https://snowflake-broker.torproject.net.global.prod.fastly.net/ front=cdn.sstatic.net ice=stun:stun.l.google.com:19302,stun:stun.antisip.com:3478,stun:stun.bluesip.net:3478,stun:stun.dus.net:3478,stun:stun.epygi.com:3478,stun:stun.sonetel.com:3478,stun:stun.uls.co.za:3478,stun:stun.voipgate.com:3478,stun:stun.voys.nl:3478 utls-imitate=hellorandomizedalpn",
+];
+
+/// The programs that carry each kind of bridge, by their usual names.
+const TRANSPORTS: &[(&str, &[&str])] = &[
+    ("snowflake", &["snowflake-client", "snowflake-pt-client"]),
+    ("obfs4", &["lyrebird", "obfs4proxy"]),
+    ("webtunnel", &["lyrebird"]),
+];
+
+/// Bridges into Tor, and the programs that carry them.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Bridges {
+    /// Bridge lines, without the leading `Bridge`.
+    pub lines: Vec<String>,
+    /// For each kind of bridge in the lines: its program.
+    pub transports: Vec<(String, PathBuf)>,
+}
+
+impl Bridges {
+    /// Bridge lines as given: one per line, `Bridge` in front or not, `#`
+    /// for notes. Each kind needs its program installed (`find` looks for it).
+    pub fn parse(text: &str, find: impl Fn(&str) -> Option<PathBuf>) -> Self {
+        let lines: Vec<String> = text
+            .lines()
+            .map(|l| l.trim())
+            .filter(|l| !l.is_empty() && !l.starts_with('#'))
+            .map(|l| l.strip_prefix("Bridge ").unwrap_or(l).trim().to_string())
+            .collect();
+        let mut transports: Vec<(String, PathBuf)> = Vec::new();
+        for line in &lines {
+            let kind = line.split_whitespace().next().unwrap_or_default();
+            if kind.contains(['.', ':']) || transports.iter().any(|(k, _)| k == kind) {
+                continue; // a plain bridge, or one already found
+            }
+            let program = TRANSPORTS
+                .iter()
+                .filter(|(k, _)| *k == kind)
+                .flat_map(|(_, names)| names.iter())
+                .find_map(|n| find(n));
+            if let Some(p) = program {
+                transports.push((kind.to_string(), p));
+            }
+        }
+        Self { lines, transports }
+    }
+
+    /// The public bridges, if their program is installed.
+    pub fn public(find: impl Fn(&str) -> Option<PathBuf>) -> Option<Self> {
+        let b = Self::parse(&PUBLIC_BRIDGES.join("\n"), find);
+        (!b.transports.is_empty()).then_some(b)
+    }
+
+    fn add_to(&self, b: &mut TorClientConfigBuilder) -> Result<()> {
+        for line in &self.lines {
+            let bridge: BridgeConfigBuilder = line.parse().context("a bridge line")?;
+            b.bridges().bridges().push(bridge);
+        }
+        for (kind, program) in &self.transports {
+            let mut t = TransportConfigBuilder::default();
+            t.protocols(vec![kind.parse().context("a bridge kind")?])
+                .path(CfgPath::new_literal(program.clone()))
+                .run_on_startup(true);
+            b.bridges().transports().push(t);
+        }
+        Ok(())
+    }
+}
+
+/// A program on the PATH or beside this one, by name.
+pub fn find_program(name: &str) -> Option<PathBuf> {
+    let beside = std::env::current_exe()
+        .ok()
+        .and_then(|e| e.parent().map(Path::to_path_buf));
+    let path = std::env::var_os("PATH").unwrap_or_default();
+    beside
+        .into_iter()
+        .chain(std::env::split_paths(&path))
+        .flat_map(|d| [d.join(name), d.join(format!("{name}.exe"))])
+        .find(|p| p.is_file())
+}
+
+fn tor_config(state: &Path, cache: &Path, bridges: Option<&Bridges>) -> Result<TorClientConfig> {
+    let mut b = TorClientConfigBuilder::from_directories(state, cache);
+    if let Some(br) = bridges {
+        br.add_to(&mut b)?;
+    }
+    b.build().context("Tor settings")
+}
+
 /// A Tor client. Cheap to clone.
 #[derive(Clone)]
 pub struct Tor {
@@ -50,10 +154,12 @@ impl Tor {
     /// A Tor client keeping its keys and state in `state` and what it
     /// downloads in `cache`. It joins the Tor network in the background, and
     /// anything asked of it waits until it has.
-    pub fn start(state: &Path, cache: &Path) -> Result<Self> {
-        let config: TorClientConfig = TorClientConfigBuilder::from_directories(state, cache)
-            .build()
-            .context("Tor settings")?;
+    ///
+    /// With `bridges`, it goes through them from the start. Without, it
+    /// moves to the public bridges if it has not joined within
+    /// [`BRIDGES_AFTER`] and their program is installed.
+    pub fn start(state: &Path, cache: &Path, bridges: Option<&Bridges>) -> Result<Self> {
+        let config = tor_config(state, cache, bridges)?;
         let client = TorClient::builder()
             .config(config)
             .bootstrap_behavior(BootstrapBehavior::OnDemand)
@@ -66,6 +172,29 @@ impl Tor {
                 Err(e) => info!("Tor: {e}"),
             }
         });
+        if bridges.is_none() {
+            let c = client.clone();
+            let (state, cache) = (state.to_path_buf(), cache.to_path_buf());
+            tokio::spawn(async move {
+                tokio::time::sleep(BRIDGES_AFTER).await;
+                if c.bootstrap_status().ready_for_traffic() {
+                    return;
+                }
+                let Some(public) = Bridges::public(find_program) else {
+                    debug!("Tor has not joined, and no bridge program is installed");
+                    return;
+                };
+                info!("Tor has not joined: trying the public bridges");
+                match tor_config(&state, &cache, Some(&public)) {
+                    Ok(cfg) => {
+                        if let Err(e) = c.reconfigure(&cfg, Reconfigure::WarnOnFailures) {
+                            info!("Tor bridges: {e}");
+                        }
+                    }
+                    Err(e) => info!("Tor bridges: {e:#}"),
+                }
+            });
+        }
         Ok(Self { client })
     }
 
@@ -205,6 +334,28 @@ async fn tunnel(mut conn: TcpStream, tor: &Tor, onion: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bridge_lines() {
+        let find = |n: &str| (n == "lyrebird").then(|| PathBuf::from("/usr/bin/lyrebird"));
+        let b = Bridges::parse(
+            "# mine\nBridge obfs4 192.0.2.55:38114 316E643333645F6D79216558614D3931657A5F5F cert=x iat-mode=0\n\nwebtunnel 192.0.2.9:443 AAAA url=https://example.com/x\nsnowflake 192.0.2.3:80 2B28\n192.0.2.1:9001\n",
+            find,
+        );
+        assert_eq!(b.lines.len(), 4);
+        assert!(b.lines[0].starts_with("obfs4 "));
+        assert_eq!(
+            b.transports,
+            vec![
+                ("obfs4".into(), PathBuf::from("/usr/bin/lyrebird")),
+                ("webtunnel".into(), PathBuf::from("/usr/bin/lyrebird")),
+            ]
+        );
+        assert!(Bridges::public(|_| None).is_none());
+        let public = Bridges::public(|n| Some(PathBuf::from(n))).expect("public");
+        let mut cfg = TorClientConfigBuilder::from_directories("/s", "/c");
+        public.add_to(&mut cfg).expect("parses");
+    }
 
     #[test]
     fn only_the_box() {

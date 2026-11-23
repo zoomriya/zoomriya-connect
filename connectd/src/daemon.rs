@@ -13,6 +13,7 @@ use tracing::{info, warn};
 use zoomriya_keys::{SecretKey, record::RecordSecret};
 
 use crate::{
+    away::Away,
     config::Config,
     devices::Devices,
     link::{Link, LinkConfig, Live},
@@ -37,6 +38,8 @@ pub struct Ctx {
     pub reach: Mutex<Reach>,
     /// The box's onion address, once its relay runs behind it.
     pub onion: Mutex<Option<String>>,
+    /// Whether devices may reach the box away from home.
+    pub away: Away,
 }
 
 impl std::fmt::Debug for Ctx {
@@ -57,6 +60,7 @@ impl Ctx {
             record: crate::files::record_secret(&cfg.record_secret())?,
             reach: Mutex::default(),
             onion: Mutex::default(),
+            away: Away::open(&cfg.away_file())?,
             cfg,
         })
     }
@@ -65,7 +69,8 @@ impl Ctx {
 /// Runs the link until `stop` finishes, then closes it.
 pub async fn run(ctx: Arc<Ctx>, stop: impl Future<Output = ()>) -> Result<()> {
     let (relay, onion) = if ctx.cfg.tor {
-        let relay = Relay::start(ctx.box_key.public(), ctx.devices.clone()).await?;
+        let relay =
+            Relay::start(ctx.box_key.public(), ctx.devices.clone(), ctx.away.clone()).await?;
         let onion = onion_service(&ctx, relay.addr)
             .map_err(|e| warn!("the onion service: {e:#}"))
             .ok();
@@ -89,6 +94,7 @@ pub async fn run(ctx: Arc<Ctx>, stop: impl Future<Output = ()>) -> Result<()> {
             record: Some(ctx.record.clone()),
             relay: relay.as_ref().map(|r| r.url.clone()),
             onion: onion_address,
+            away: ctx.away.clone(),
         },
         ctx.devices.clone(),
     )
@@ -129,7 +135,7 @@ fn onion_service(ctx: &Ctx, relay: SocketAddr) -> Result<Onion> {
         std::fs::create_dir_all(&dir).with_context(|| format!("making {}", dir.display()))?;
         restrict(&dir)?;
     }
-    let tor = Tor::start(&ctx.cfg.tor_state(), &ctx.cfg.tor_cache())?;
+    let tor = Tor::start(&ctx.cfg.tor_state(), &ctx.cfg.tor_cache(), None)?;
     tor.serve("box-relay", relay)
 }
 

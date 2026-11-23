@@ -134,7 +134,8 @@ async fn endpoint(
         return Ok((zoomriya_link::endpoint(link).await?, None));
     };
     let (state, cache) = store.tor_dirs()?;
-    let tor = zoomriya_tor::Tor::start(&state, &cache)?;
+    let bridges = store.bridges()?;
+    let tor = zoomriya_tor::Tor::start(&state, &cache, bridges.as_ref())?;
     let (proxy, _) = zoomriya_tor::proxy(tor, onion.clone()).await?;
     let (ep, relay) = zoomriya_link::endpoint_via(link, &onion, proxy).await?;
     Ok((ep, Some(relay)))

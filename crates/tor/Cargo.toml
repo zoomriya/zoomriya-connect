@@ -9,7 +9,7 @@ publish.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-arti-client = { version = "0.48", default-features = false, features = ["tokio", "rustls", "compression", "onion-service-client", "onion-service-service", "static-sqlite"] }
+arti-client = { version = "0.48", default-features = false, features = ["tokio", "rustls", "compression", "onion-service-client", "onion-service-service", "static-sqlite", "pt-client"] }
 futures = "0.3"
 safelog = "0.10"
 tor-cell = "0.48"

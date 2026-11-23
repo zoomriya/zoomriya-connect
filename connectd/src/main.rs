@@ -19,6 +19,7 @@ use anyhow::Result;
 use tracing::info;
 
 mod api;
+mod away;
 mod config;
 mod daemon;
 mod devices;
