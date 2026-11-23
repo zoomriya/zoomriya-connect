@@ -1,5 +1,5 @@
 //! Device keys: P-256 keys made in a phone's security chip (Secure Enclave,
-//! Keystore) or by the browser extension, which never leave it. Most chips
+//! Keystore, a laptop's TPM or keychain), which never leave it. Most chips
 //! can't hold iroh's Ed25519 keys, so the device key signs each new link key
 //! instead, and the box pins the device key (docs/architecture.md, "The link").
 
@@ -39,17 +39,6 @@ impl DeviceKey {
     /// phones' chips give) or the raw 64 bytes (what browsers give), base64url.
     pub fn verify_link(&self, link: &PublicKey, sig_b64: &str) -> Result<(), KeyError> {
         self.verify(&link_key_message(link), sig_b64)
-    }
-
-    /// Checks the device key's signature over a message signed for `purpose`
-    /// ([`crate::framed`]): a laptop's WebRTC offer.
-    pub fn verify_for(
-        &self,
-        purpose: crate::Purpose,
-        msg: &[u8],
-        sig_b64: &str,
-    ) -> Result<(), KeyError> {
-        self.verify(&crate::framed(purpose, msg), sig_b64)
     }
 
     fn verify(&self, msg: &[u8], sig_b64: &str) -> Result<(), KeyError> {

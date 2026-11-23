@@ -1,11 +1,26 @@
 [package]
 name = "zoomriya-link"
-description = "The link: QUIC and TLS-over-TCP streams, the local CONNECT proxy, path choice, roaming"
+description = "The apps' side of the link: finding the box at home, pairing, and streams to the box over iroh"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 publish.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+data-encoding.workspace = true
+getrandom = "0.3"
+iroh.workspace = true
+mdns-sd = "0.22"
+p256 = { version = "0.14", default-features = false, features = ["ecdsa", "std"] }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+zoomriya-keys.workspace = true
+zoomriya-proto.workspace = true
 
 [lints]
 workspace = true

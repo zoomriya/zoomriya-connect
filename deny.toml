@@ -1,7 +1,7 @@
 # cargo-deny: licences, advisories, duplicate crates and sources.
 
-# Only the platforms we build for: the servers and the box (Linux), the phone
-# app (iOS, Android) and developers' machines. iroh's WebAssembly-only
+# Only the platforms we build for: the box (Linux), the phone app (iOS,
+# Android), the laptop app (Linux, macOS, Windows) and developers' machines. iroh's WebAssembly-only
 # dependencies are never built, so they aren't checked.
 [graph]
 targets = [
@@ -19,10 +19,9 @@ version = 2
 yanked = "deny"
 ignore = [
     # chrono is marked unmaintained, with no vulnerability. It comes in only
-    # through iroh's relay library's ACME code (tokio-rustls-acme), which we
-    # use unchanged so iroh updates stay a version number. Look again when
-    # iroh moves off it.
-    { id = "RUSTSEC-2026-0543", reason = "unmaintained, no vulnerability; only via iroh-relay's tokio-rustls-acme" },
+    # through iroh's own relay client code, which we use unchanged so iroh
+    # updates stay a version number. Look again when iroh moves off it.
+    { id = "RUSTSEC-2026-0543", reason = "unmaintained, no vulnerability; only via iroh" },
 ]
 
 [licenses]

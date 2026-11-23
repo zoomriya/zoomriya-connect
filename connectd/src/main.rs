@@ -1,36 +1,40 @@
-//! `zoomriya-connectd`: the box's side of ZOOMRIYA Connect. The only part
-//! that faces outside, and where every "who gets in" decision is made.
+//! `zoomriya-connectd`: the box's side of Direct+. The only part that faces
+//! outside, and where every "who gets in" decision is made, from the box's
+//! own list of paired devices. No ZOOMRIYA server is involved
+//! (docs/direct-plus.md).
 //!
 //! ```text
 //! zoomriya-connectd run    [--config /etc/zoomriya-connect/connectd.toml]
 //! zoomriya-connectd status [--config ...]
 //! ```
 
-use std::{path::PathBuf, process::ExitCode, sync::Arc};
+use std::{
+    path::PathBuf,
+    process::ExitCode,
+    sync::Arc,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use anyhow::Result;
 use tracing::info;
 
-mod acme;
 mod api;
-mod clock;
 mod config;
 mod daemon;
 mod devices;
 mod files;
-mod laptop;
 mod link;
 mod net;
-mod relays;
-mod server;
-mod state;
 
 #[cfg(test)]
 mod e2e;
 
 /// Seconds since 1970.
 pub fn now() -> u64 {
-    zoomriya_serve::now()
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
 }
 
 const USAGE: &str = "usage: zoomriya-connectd (run | status) [--config FILE]";
@@ -68,22 +72,40 @@ fn main() -> ExitCode {
 fn status(path: PathBuf) -> Result<()> {
     let cfg = config::Config::load(&path)?;
     let ctx = daemon::Ctx::open(cfg)?;
-    let st = ctx.state.get();
     println!("Box key:  {}", ctx.box_key.public().to_z32());
-    println!("Server:   {}", ctx.server_url());
-    println!(
-        "Name:     {}",
-        st.fqdn.as_deref().unwrap_or("not chosen yet")
-    );
-    println!("On:       {}", if st.off { "no" } else { "yes" });
-    let devices = ctx.devices.all();
-    let paired = devices.iter().filter(|d| d.removed_at.is_none()).count();
-    println!("Devices:  {paired} paired");
+    println!("Devices:  {} paired", ctx.devices.all().len());
     Ok(())
 }
 
+/// Logs to standard error, filtered by `RUST_LOG` (default `info`). systemd's
+/// journal picks it up.
+fn init_logging() {
+    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
+    tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_target(false)
+        .init();
+}
+
+/// Waits for Ctrl-C or SIGTERM.
+async fn shutdown_signal() {
+    use tokio::signal::unix::{SignalKind, signal};
+    match signal(SignalKind::terminate()) {
+        Ok(mut term) => {
+            tokio::select! {
+                _ = tokio::signal::ctrl_c() => {}
+                _ = term.recv() => {}
+            }
+        }
+        Err(_) => {
+            let _ = tokio::signal::ctrl_c().await;
+        }
+    }
+}
+
 fn run(path: PathBuf) -> Result<()> {
-    zoomriya_serve::init_logging();
+    init_logging();
     let _ = rustls::crypto::ring::default_provider().install_default();
     let cfg = config::Config::load(&path)?;
     tokio::runtime::Builder::new_multi_thread()
@@ -95,9 +117,8 @@ fn run(path: PathBuf) -> Result<()> {
             info!(box_key = %ctx.box_key.public().fmt_short(), "connectd starting");
             let api = tokio::spawn(api::serve(socket, ctx.clone()));
             tokio::select! {
-                _ = daemon::run(ctx) => {}
+                r = daemon::run(ctx, shutdown_signal()) => { r?; }
                 r = api => { r??; }
-                _ = zoomriya_serve::shutdown_signal() => info!("stopping"),
             }
             Ok(())
         })

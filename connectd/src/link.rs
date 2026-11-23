@@ -1,32 +1,40 @@
 //! connectd's side of iroh: pairing at home, and the family link from
 //! anywhere. iroh chooses the paths; connectd decides who gets in, on every
-//! path, from its own list (docs/architecture.md, "connectd").
+//! path, from its own list. No relay and no address record yet: Direct+
+//! adds the box's own relay over Tor and the DHT record (docs/direct-plus.md).
 
 use std::{
     collections::HashMap,
     net::{IpAddr, SocketAddr},
     path::PathBuf,
     sync::{Arc, Mutex},
+    time::Duration,
 };
 
 use anyhow::{Context, Result};
+use data_encoding::BASE64URL_NOPAD;
 use iroh::{
-    Endpoint, RelayMap, RelayMode, RelayUrl, TransportAddr,
-    address_lookup::PkarrPublisher,
+    Endpoint, RelayMode, TransportAddr,
     endpoint::{Connection, RecvStream, SendStream, presets},
     protocol::{AcceptError, ProtocolHandler, Router},
 };
 use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader};
 use tracing::{debug, info, warn};
-use zoomriya_keys::{PublicKey, SecretKey};
-use zoomriya_proto::link::{
-    FromBox, LINK_ALPN, MAX_LINE, PAIR_ALPN, PairRequest, PairResponse, STREAM_CONTROL, STREAM_WEB,
-    ToBox,
+use zoomriya_keys::{
+    PublicKey, SecretKey,
+    pake::{self, Side},
+};
+use zoomriya_proto::{
+    laptop::{LaptopFinish, LaptopHello},
+    link::{
+        FromBox, LINK_ALPN, MAX_LINE, PAIR_ALPN, PairRequest, PairResponse, STREAM_CONTROL,
+        STREAM_WEB, ToBox,
+    },
 };
 
 use crate::{
     config::Target,
-    devices::{Device, Devices},
+    devices::{Device, Devices, Refused},
 };
 
 /// The link's protocol version.
@@ -35,22 +43,12 @@ pub const VERSION: u32 = 1;
 /// How the endpoint is set up.
 #[derive(Debug, Clone)]
 pub struct LinkConfig {
-    /// Our relays. Empty: no relay at all.
-    pub relays: Vec<RelayUrl>,
-    /// Where address records are published (`.../pkarr`). None: not published.
-    pub address_records: Option<url::Url>,
     /// Where to listen.
     pub bind: Vec<SocketAddr>,
     /// The box's web servers.
     pub targets: Vec<Target>,
-    /// The box's name, told to devices.
-    pub fqdn: String,
-    /// The server, told to newly paired devices.
-    pub server: String,
     /// Pairing over loopback: tests only.
     pub pairing_from_loopback: bool,
-    /// Certificate authorities to trust for the relay, beside the usual ones.
-    pub extra_roots: Vec<rustls::pki_types::CertificateDer<'static>>,
 }
 
 /// Live connections, by link key, so a removed device is cut off at once.
@@ -111,23 +109,10 @@ pub struct Link {
 impl Link {
     /// Binds the endpoint with the box key and starts accepting.
     pub async fn start(box_key: SecretKey, cfg: LinkConfig, devices: Arc<Devices>) -> Result<Self> {
-        let relay_mode = if cfg.relays.is_empty() {
-            RelayMode::Disabled
-        } else {
-            RelayMode::Custom(cfg.relays.iter().cloned().collect::<RelayMap>())
-        };
         let mut b = Endpoint::builder(presets::Minimal)
-            .secret_key(box_key.clone())
+            .secret_key(box_key)
             .alpns(vec![LINK_ALPN.to_vec(), PAIR_ALPN.to_vec()])
-            .relay_mode(relay_mode)
-            .ca_tls_config(
-                iroh::tls::CaTlsConfig::default().with_extra_roots(cfg.extra_roots.clone()),
-            );
-        if let Some(url) = &cfg.address_records {
-            // The record names only the relay, as iroh does by default: the
-            // home's internet address is never published.
-            b = b.address_lookup(PkarrPublisher::builder(url.clone()));
-        }
+            .relay_mode(RelayMode::Disabled);
         for addr in &cfg.bind {
             b = b
                 .bind_addr(*addr)
@@ -137,7 +122,6 @@ impl Link {
         let live = Live::default();
         let shared = Arc::new(Shared {
             endpoint: endpoint.clone(),
-            box_key,
             devices,
             live: live.clone(),
             cfg,
@@ -149,17 +133,11 @@ impl Link {
         info!(id = %router.endpoint().id().fmt_short(), "link listening");
         Ok(Self { router, live })
     }
-
-    /// The endpoint.
-    pub fn endpoint(&self) -> &Endpoint {
-        self.router.endpoint()
-    }
 }
 
 #[derive(Debug)]
 struct Shared {
     endpoint: Endpoint,
-    box_key: SecretKey,
     devices: Arc<Devices>,
     live: Live,
     cfg: LinkConfig,
@@ -227,11 +205,78 @@ fn from_home(conn: &Connection, loopback_ok: bool) -> bool {
     })
 }
 
+/// How long a laptop has for its last pairing step.
+const LAPTOP_STEP: Duration = Duration::from_secs(60);
+
+fn outcome(r: Result<(Device, Vec<SocketAddr>), Refused>) -> PairResponse {
+    match r {
+        Ok((device, addrs)) => {
+            info!(
+                device = %device.name,
+                admin = device.admin,
+                laptop = device.laptop,
+                "paired"
+            );
+            PairResponse::Paired { addrs }
+        }
+        Err(why) => {
+            warn!(%why, "pairing refused");
+            PairResponse::Refused {
+                code: why.code().into(),
+                message: why.message().into(),
+            }
+        }
+    }
+}
+
+/// A laptop's pairing after its hello: one try used, the box's SPAKE2
+/// message and confirmation sent, the laptop's checked
+/// (zoomriya_keys::pake). A wrong code fails either side's confirmation.
+async fn pair_laptop<R: AsyncRead + Unpin>(
+    s: &Shared,
+    from: &PublicKey,
+    hello: &LaptopHello,
+    send: &mut SendStream,
+    recv: &mut BufReader<R>,
+) -> Result<(Device, Vec<SocketAddr>), Refused> {
+    let (code, name) = s.devices.laptop_attempt(crate::now())?;
+    let theirs = BASE64URL_NOPAD
+        .decode(hello.spake.as_bytes())
+        .map_err(|_| Refused::PairingCode)?;
+    let start = pake::start(&code);
+    let box_msg = start.msg.clone();
+    let t = pake::transcript(&s.endpoint.id(), from, &theirs, &box_msg);
+    let session = start.finish(&theirs).map_err(|_| Refused::PairingCode)?;
+    let challenge = PairResponse::Challenge {
+        spake: BASE64URL_NOPAD.encode(&box_msg),
+        confirm: BASE64URL_NOPAD.encode(&session.confirm(Side::Box, &t, b"")),
+    };
+    write_line(send, &challenge)
+        .await
+        .map_err(|_| Refused::PairingCode)?;
+    let line = tokio::time::timeout(LAPTOP_STEP, read_line(recv))
+        .await
+        .ok()
+        .and_then(|l| l.ok().flatten())
+        .ok_or(Refused::PairingCode)?;
+    let finish: LaptopFinish = serde_json::from_str(&line).map_err(|_| Refused::PairingCode)?;
+    let confirm = BASE64URL_NOPAD
+        .decode(finish.confirm.as_bytes())
+        .map_err(|_| Refused::PairingCode)?;
+    session
+        .check(Side::Laptop, &t, &finish.extra(), &confirm)
+        .map_err(|_| Refused::PairingCode)?;
+    let device = s
+        .devices
+        .finish_laptop(&finish, from, &name, crate::now())?;
+    Ok((device, s.direct_addrs()))
+}
+
 impl ProtocolHandler for PairHandler {
     async fn accept(&self, conn: Connection) -> Result<(), AcceptError> {
         let s = &self.0;
         let from = conn.remote_id();
-        // Pairing happens only at home, at the box: never through the relay.
+        // Pairing happens only at home, over the home network.
         if !from_home(&conn, s.cfg.pairing_from_loopback) {
             warn!(from = %from.fmt_short(), "pairing from away refused");
             conn.close(2u32.into(), b"pair at home");
@@ -240,31 +285,21 @@ impl ProtocolHandler for PairHandler {
         let (mut send, recv) = conn.accept_bi().await.map_err(err)?;
         let mut recv = BufReader::new(recv);
         let line = read_line(&mut recv).await.map_err(err)?.unwrap_or_default();
-        let answer = match serde_json::from_str::<PairRequest>(&line) {
-            Err(_) => PairResponse::Refused {
+        // A phone sends the QR code's secret; a laptop proves it knows the
+        // short code typed into the laptop app, in three steps.
+        let answer = if let Ok(req) = serde_json::from_str::<PairRequest>(&line) {
+            outcome(
+                s.devices
+                    .pair(&req, &from, crate::now())
+                    .map(|d| (d, s.direct_addrs())),
+            )
+        } else if let Ok(hello) = serde_json::from_str::<LaptopHello>(&line) {
+            outcome(pair_laptop(s, &from, &hello, &mut send, &mut recv).await)
+        } else {
+            PairResponse::Refused {
                 code: "bad_request".into(),
                 message: "Pairing didn't work. Update the ZOOMRIYA app and try again.".into(),
-            },
-            Ok(req) => match s.devices.pair(&req, &from, &s.box_key, crate::now()) {
-                Ok(p) => {
-                    info!(device = %p.device.name, admin = p.device.admin, "paired");
-                    PairResponse::Paired {
-                        pass: p.pass,
-                        until: p.device.pass_until,
-                        fqdn: s.cfg.fqdn.clone(),
-                        addrs: s.direct_addrs(),
-                        admin_note: p.admin_note,
-                        server: s.cfg.server.clone(),
-                    }
-                }
-                Err(why) => {
-                    warn!(%why, "pairing refused");
-                    PairResponse::Refused {
-                        code: why.code().into(),
-                        message: why.message().into(),
-                    }
-                }
-            },
+            }
         };
         write_line(&mut send, &answer).await.map_err(err)?;
         send.finish().map_err(err)?;
@@ -311,11 +346,10 @@ async fn serve_link(s: &Arc<Shared>, conn: &Connection, device: &Device) -> Resu
         }
         let kind = recv.read_u8().await?;
         let s = s.clone();
-        let conn = conn.clone();
         let device = device.clone();
         tokio::spawn(async move {
             let r = match kind {
-                STREAM_CONTROL => control(&s, &conn, &device, send, recv).await,
+                STREAM_CONTROL => control(&s, &device, send, recv).await,
                 STREAM_WEB => web(&s, &device, send, recv).await,
                 _ => Err(anyhow::anyhow!("unknown stream {kind}")),
             };
@@ -328,7 +362,6 @@ async fn serve_link(s: &Arc<Shared>, conn: &Connection, device: &Device) -> Resu
 
 async fn control(
     s: &Shared,
-    conn: &Connection,
     device: &Device,
     mut send: SendStream,
     recv: RecvStream,
@@ -338,32 +371,14 @@ async fn control(
         let Ok(msg) = serde_json::from_str::<ToBox>(&line) else {
             continue;
         };
-        let now = crate::now();
         let answer = match msg {
             ToBox::Hello { version, .. } if version < VERSION => Some(FromBox::Refused {
                 code: "please_update".into(),
                 message: "Update the ZOOMRIYA app to keep using your box away from home.".into(),
             }),
-            ToBox::Hello { .. } => {
-                let current = s.devices.by_link(&conn.remote_id());
-                Some(FromBox::Welcome {
-                    fqdn: s.cfg.fqdn.clone(),
-                    addrs: s.direct_addrs(),
-                    renew: current.is_some_and(|d| Devices::needs_renewal(&d, now)),
-                })
-            }
-            ToBox::Renew { link, sig } => Some(
-                match s.devices.renew(&device.id, &link.0, &sig, &s.box_key, now) {
-                    Ok((pass, until)) => {
-                        info!(device = %device.name, "pass renewed");
-                        FromBox::Pass { pass, until }
-                    }
-                    Err(why) => FromBox::Refused {
-                        code: why.code().into(),
-                        message: why.message().into(),
-                    },
-                },
-            ),
+            ToBox::Hello { .. } => Some(FromBox::Welcome {
+                addrs: s.direct_addrs(),
+            }),
             ToBox::Report(r) => {
                 s.devices.report(&device.id, r);
                 None
@@ -377,7 +392,7 @@ async fn control(
 }
 
 /// A web stream: on to one of the box's own web servers, labelled with the
-/// device. The browser's TLS passes through unopened.
+/// device, if the target takes labels (PROXY protocol v2).
 async fn web(
     s: &Shared,
     device: &Device,

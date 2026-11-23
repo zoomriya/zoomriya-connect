@@ -1,6 +1,6 @@
 [package]
 name = "zoomriya-connectd"
-description = "connectd: the box side of ZOOMRIYA Connect"
+description = "connectd: the box side of Direct+, remote access with no ZOOMRIYA server"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -15,37 +15,26 @@ path = "src/main.rs"
 anyhow.workspace = true
 axum.workspace = true
 data-encoding.workspace = true
-bytes = "1"
-futures-lite = "2"
 getrandom = "0.3"
-http.workspace = true
-http-body-util = "0.1"
-hyper = { workspace = true, features = ["client"] }
-hyper-util = { workspace = true, features = ["tokio"] }
 if-addrs = "0.15"
-instant-acme = { version = "0.8", default-features = false, features = ["ring", "hyper-rustls", "rcgen"] }
 iroh.workspace = true
-reqwest.workspace = true
+mdns-sd = "0.22"
 rustls.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
-str0m = { version = "0.25", default-features = false, features = ["rust-crypto"] }
 subtle = "2.6"
 thiserror.workspace = true
-tokio-rustls.workspace = true
 tokio.workspace = true
 toml.workspace = true
 tracing.workspace = true
-url = "2"
-x509-parser = "0.18"
+tracing-subscriber.workspace = true
 zoomriya-keys.workspace = true
 zoomriya-proto.workspace = true
-zoomriya-serve.workspace = true
 
 [dev-dependencies]
+zoomriya-link.workspace = true
 serde_json.workspace = true
-rcgen = "0.14"
 p256 = { version = "0.14", default-features = false, features = ["ecdsa", "std"] }
 tempfile = "3"
 

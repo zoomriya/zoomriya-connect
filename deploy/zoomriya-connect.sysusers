@@ -1,2 +1,0 @@
-# /usr/lib/sysusers.d/zoomriya-connect.conf: the user both servers run as.
-u zoomriya-connect - "ZOOMRIYA Connect servers" /var/lib/zoomriya-connect
