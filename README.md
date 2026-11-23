@@ -110,6 +110,7 @@ What each part could and couldn't do if someone broke into it is in the
 | [Laptops](docs/laptops.md) | The browser extension: how laptops reach the box in every option, and the checks it depends on |
 | [Sharing, names and certificates](docs/sharing-and-names.md) | Share links, box names, the four ways to reach your box (your own domain, your own server, your Cloudflare Tunnel), certificates |
 | [Security model](docs/security.md) | What each part could and couldn't do if someone took it over |
+| [Starting without a relay](docs/no-relay.md) | Notes, not decided in full: no relay at launch, what works, IPv6 hole punching and the first test |
 | [Plan and layout](docs/plan.md) | For developers: what we build in which order, and where the code goes |
 | [Running the service](docs/operations.md) | For whoever runs the servers: backups, alerts, being on call, protecting DNS, changing keys |
 | [Testing at scale](docs/testing.md) | For developers: how we'll test 1,000 families over two months before release |
