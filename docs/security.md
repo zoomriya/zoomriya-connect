@@ -1,88 +1,50 @@
 # Security model
 
-Part of [ZOOMRIYA Connect](../README.md).
+Part of [ZOOMRIYA Direct+](../README.md).
 
 To report a security problem, see [SECURITY.md](../SECURITY.md). Please never
 use a public issue.
 
-The idea is simple: no single part of ZOOMRIYA Connect can read your data or
-let a new device in. Not our servers, not the relay, not the network you're
-on. This page goes through each part and says what someone could and couldn't
-do if they took it over.
+The idea is simple: the box decides who gets in, from its own list, and
+nothing between a device and the box can read what passes. There is no
+ZOOMRIYA server to trust, break into, or switch off.
 
-## If someone took over…
+## What protects what
 
-| What | They could | They couldn't |
+| Threat | Protection |
+|---|---|
+| A stranger connects to the box | Every connection and every stream is checked against the box's device list; others are closed |
+| A stranger uses the box's relay | The relay lets in only the box and paired devices, each proving its key |
+| Someone on the path reads or changes traffic | iroh's QUIC with TLS 1.3, keyed to both ends' keys, pinned at pairing |
+| Tor relays watch | They see an onion service in use; inside Tor's encryption is iroh's |
+| Someone reads the DHT | Records are sealed (ChaCha20-Poly1305) and signed with keys that change daily; without the record secret they cannot be found or read, nor linked to a box |
+| A pairing code is overheard or guessed | Phone codes are long secrets in a QR code, shown on the box; laptop codes are short but never sent (SPAKE2), give three tries, and expire in ten minutes |
+| A device is lost | An admin removes it in Box Desktop; it is cut off at once |
+| Away access is not wanted | Box Desktop › Remote access › off: home network only, at once |
+| A program on the laptop reaches the box | The laptop app listens on loopback only, answers only its two names, and needs a cookie set by a one-time link from the app |
+| A web page on the laptop rebinds DNS | Only `zoomriya.localhost:7480` and `zoomriyabox.localhost:7480` are answered |
+| Guests see family data | Their port (TCP 8443) serves the album viewer and its guest API only; the box checks this from outside through Tor |
+| Someone gets a certificate for the family's own name | A CAA record limited to the box's account (Box Desktop shows it); the box reads the certificate logs daily and warns of certificates it did not ask for |
+
+## Keys
+
+| Key | Where | Leaves it |
 |---|---|---|
-| **Our control plane** | Stop phones finding a box that has moved to another relay. Phones that already know where the box is, and have a pass, keep connecting. See when someone looks up a box, and from where. Serve a bad guest page. Because it answers DNS for box names, it could get a certificate for your box's name and pretend to be your box to a browser. The box watches the public list of certificates and tells you if that happens | Let a new device in. Read or change your data. Pretend to be your box to the app, which checks the box's key. Send your phone to the wrong place, because the box signs its own address |
-| **A relay** | See which devices connect to which box, when, from where, and how much data goes through. Slow connections down or drop them. Ignore a pass's date, or the box saying a device was removed | Read or quietly change your data, or a guest's album. Let a device into the box, which checks its own list every time. Make a pass |
-| **A copied pass** | Nothing. A pass names one device's link key, and only that device can prove it has the key | Get through the relay, or into the box |
-| **A link key copied from a running app** | Connect as that device until its next new pass, at most 30 days, or until an admin removes it | Make a new link key, which needs the device key in the security chip |
-| **The network you're on** | Block or slow the connection | Read or change it. Connect as your phone |
-| **A lost phone or laptop** | Use the box until an admin removes it | Anything after that. The box refuses it at once and tells the relay to refuse it too. Its pass runs out within 30 days anyway |
-| **The extension's add-on store, or our signing key** | Ship a bad version of the extension that reads what paired laptops see | Reach phones, or the box without a paired laptop |
-| **A browser on a paired laptop, broken into** | Use the extension's key while it's broken into, as with a stolen laptop | Copy the key out: the browser won't export it |
-| **A leaked share link** | Show the albums in that link, until it runs out or you cancel it | Reach anything else on the box |
-| **Anyone on the internet** | Reach the album viewer while a share link is live, and poke at it. Knock on the family side of the door, which turns them away | Reach the sign-in page or any app, which are never on the internet. Get past the family side without being paired. Open an album without its link. Change anything |
+| Box key (Ed25519) | The box | Never; devices pin its public half |
+| Device's link key (Ed25519) | The device | Never |
+| Device key (P-256) | The device; the keychain or secure hardware later | Never; it vouches for the link key at pairing |
+| Record secret | The box and paired devices | Given at pairing, inside the encrypted pairing connection |
+| Onion service key | The box (`tor/`) | Never |
+| Own name's DNS key (TSIG) | The box (`names.json`, connectd only) | Never; Box Desktop never shows it again |
+| Certificate key | The box | Never; the gateway reads it to serve HTTPS |
 
-## With your Cloudflare Tunnel
+## Limits
 
-With [option 4](sharing-and-names.md#your-cloudflare-tunnel), Cloudflare
-takes the relay's and control plane's place. Phones keep the ZOOMRIYA app, and
-laptops the browser extension.
+| Limit | |
+|---|---|
+| Whoever controls the family's DNS | Can point the name elsewhere and get a certificate; the CAA record and the log watch help, the apps are unaffected (they pin the box key) |
+| A device removed while connected through the relay | Keeps its relay connection until it drops, but the box refuses its QUIC connections, so it reaches nothing |
+| Networks that allow only approved websites | Nothing gets through; mobile data is the answer |
 
-| What | They could | They couldn't |
-|---|---|---|
-| **Cloudflare** | See which name is used, when, from where and how much. See and change the photos in shared albums, and the guest page. Slow down or block everything from outside | Open or change the family's sealed traffic. Let a device in, because the box checks its own list. Reach the sign-in page or any app, which the tunnel never leads to |
-| **Your Cloudflare account** | Everything Cloudflare could, and send your names somewhere else | Fool the app or the extension, which check the box's key. Let a device in |
-| **The box's tunnel key, if copied** | Pretend to be the box to guests, and so show them other photos | Fool the app or the extension, which check the box's key. Read family data |
-| **A copied pairing code** | Nothing once it's used or a few minutes have passed. It only works at home, on the home network | Pair from away. Act as the key |
-| **A copied pairing code from an admin,** after switching option | Nothing without the device it was made for: it only works for a device already on the box's list, with that device's key | Add a new device. Act as the key |
-| **A lost phone or laptop** | Use the box until an admin removes it | Anything after that. The box refuses it at once |
-| **Anyone on the internet** | Reach the album viewer through `share.` while a link is live, and knock on the family door, which turns them away | Reach the sign-in page or any app. Open an album without its link |
-
-**What it adds.** With ZOOMRIYA Connect, the relay can't read guest albums.
-Through Cloudflare, it can. And the sealing through Cloudflare is our own work,
-next to iroh's, so it gets its own independent security review before release.
-
-## The open door for guests
-
-While a share link is live, anyone on the internet can reach the box on port
-443. Browsers get only the read-only album viewer there. Your paired devices
-can use the same door as a direct way in, but the box checks every device's
-key and turns away anyone it hasn't paired, just as it does through the
-relay. If you don't want any door open, switch sharing off and the box closes
-it.
-
-The door leads to its own port on the box, never to the port the sign-in
-page uses at home, so a router that makes internet traffic look local can't
-open the sign-in page either. Each time the door opens, the control plane
-checks from outside that the sign-in page can't be reached through it. If it
-can, the box closes the door at once and tells you.
-
-## The relay
-
-Every family device stays in touch with the relay, so whoever runs it learns
-who connects and when. It never learns what. We'll say who runs our relays, what
-they keep, and for how long. You can switch the relay off. Then, away from
-home, the app reaches the box only over IPv6, the guests' door, or a port
-you've forwarded. So
-that phones can still find it when your home's address changes, the box then
-puts its own addresses in its address record. That's the only time your
-home's internet address is published, and Box Desktop tells you so when you
-switch the relay off. Or
-you can [run your own](sharing-and-names.md#your-own-server).
-
-The relay is never what keeps your data safe. The encryption between your
-device and the box does that, and so does each side checking the other's key.
-We'll check this for the family connection and for guests' WebRTC
-connections alike.
-
-## Passes
-
-The box signs each paired device's [pass](how-it-works.md#the-box-hands-out-passes)
-with its own key, so only the box can say which devices are its own. The pass
-is for the relay, to keep strangers from using it. It never lets a device
-into the box: the box checks its own list on every connection. So a relay
-that ignored passes would only waste its own bandwidth. It still couldn't let
-anyone in.
+Data on the box is unchanged by any of this; see zoomriya-os
+docs/design.md for the box itself.

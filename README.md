@@ -6,9 +6,7 @@ devices get in, and everything between a device and the box is encrypted.
 
 > **`direct+` branch.** This branch removes ZOOMRIYA Connect's servers (the
 > control plane, the relay and their GUI), the box's code that talked to
-> them, and the laptop browser extension. `main` keeps them. The design and
-> the build phases are in [Direct+](docs/direct-plus.md). The other pages in
-> `docs/` still describe ZOOMRIYA Connect and are rewritten in phase 8.
+> them, and the laptop browser extension. `main` keeps them.
 
 ## How it works, in short
 
@@ -16,8 +14,21 @@ devices get in, and everything between a device and the box is encrypted.
 |---|---|
 | Pairing, at home | Scan the QR code on the box with the ZOOMRIYA phone app, or type the short code into the ZOOMRIYA laptop app. The box adds the device to its own list. No internet needed |
 | Connecting | The app connects to the box with iroh (QUIC), over the home network, IPv6, or a port the router opened, finding it through its sealed record in the BitTorrent DHT. When no direct path works, it reaches the box's own relay through Tor, and iroh moves to a direct path once punching works |
+| Guests | With the family's own domain, guests open `share.home.<domain>:8443` and see the album viewer only |
 | Who gets in | The box's own list of paired devices, checked on every path and every stream. Removing a device cuts it off at once |
 | Laptops | The laptop app connects; the browser shows the box at `http://zoomriya.localhost:7480` |
+
+## Documents
+
+| Page | For |
+|---|---|
+| [How it works](docs/how-it-works.md) | Everyone: from pairing to the photos, away from home |
+| [Where it works](docs/where-it-works.md) | Which homes and networks, and what Box Desktop says |
+| [Sharing, names and certificates](docs/sharing-and-names.md) | Guests, and the family's own domain |
+| [Security model](docs/security.md) | What protects what, the keys, the limits |
+| [Architecture](docs/architecture.md) | Builders: the parts, connectd's modules, its API and files |
+| [Testing](docs/testing.md) | Builders: tests on every change, and by hand |
+| [Direct+](docs/direct-plus.md) | The design, its decisions, phases and open questions |
 
 ## What is here
 
