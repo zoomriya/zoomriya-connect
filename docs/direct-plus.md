@@ -300,3 +300,43 @@ zoomriya-apps, zoomriya-docs and zoomriya-id; `main` stays as it is.
 | Wording | What Box Desktop and the apps say for each state, with Tor never named |
 | Which dynamic DNS services and DNS providers to support first | Decided 2026-11-23: the standards only, RFC 2136 updates with a TSIG key, and acme-dns for the certificate's check. No provider's own API |
 | Guest links for homes the door cannot reach | Not for now (2026-11-23). Onion links work only in Tor Browser; look again with what families ask for |
+
+## 18. Where we left off
+
+State on 23 November 2026, everything pushed to the `direct+` branches of
+zoomriya-connect, zoomriya-os, zoomriya-apps, zoomriya-docs and zoomriya-id.
+Built: phases 0–5 and 7, and the docs (phase 8). Start here when coming back.
+
+### Not built yet
+
+| # | Item | Phase | Where |
+|---|---|---|---|
+| 1 | **The phone app** (Swift, Kotlin) on `crates/ffi`, which is still empty | 6 | New repository or `crates/ffi`; [§15](#15-phases) |
+| 2 | The laptop app on macOS and Windows; signing; updating itself (only Linux is built) | 1 | `laptop/app` |
+| 3 | Many ports at once, for strict mobile networks ([§7](#7-punching) item 8) | 4 | `crates/punch` (empty), beside iroh |
+| 4 | More apps acting on `sendLess`: Vault downloads, Chat attachments | 4 | zoomriya-apps `myapps/docs/Remote-Access.md` §5 |
+| 5 | Anonymous opt-in measurements of which paths are used ([§16](#16-prototype-checks) check 9) | 8 | connectd, Box Desktop |
+| 6 | Remove the dropped extension's bridge files from Box Desktop (`zr-sw.js`, `zr-bridge.html`, `zr-bridge.js`) | 8 | zoomriya-os `packages/box-desktop/web/public/` |
+| 7 | The website: remote access without a ZOOMRIYA server, never naming Tor or the DHT | 8 | zoomriya-website |
+
+### Built, not yet tried in the real world
+
+| # | Check | Needs | How |
+|---|---|---|---|
+| 1 | A laptop on another network reaches the box through its DHT record ([§16](#16-prototype-checks) check 13) | The laptop on a phone's hotspot | `zoomriya-laptop check-away` ([testing.md](testing.md)) |
+| 2 | A home with no direct path: through Tor, then direct if punching works | A network where only Tor gets through | `zoomriya-laptop check-tor` |
+| 3 | Speed through Tor, and the [§9](#9-hiding-tors-delay) targets (check 4) | The same | Open Photos and Chat in the browser |
+| 4 | Bridges on a network that blocks Tor | Such a network, `snowflake-client` installed | `bridges.txt`, or wait 30 s for the public bridges |
+| 5 | The family's own name end to end: records, Let's Encrypt, the CAA record, the log watch | A real domain and its DNS server's TSIG key | Box Desktop › Remote access › Your own name |
+| 6 | The guest port opened by the router and checked from outside | A router with UPnP, and the own name | Box Desktop › Remote access, "Guest links from outside" |
+| 7 | On a real box: connectd's mDNS beside avahi; apps in Box Desktop's windows on a laptop; live updates and WebSockets (checks 10–12) | A real ZOOMRIYA Box | Pair the laptop app, open both addresses |
+| 8 | The connectd unit on a real box (Tor's folders, `ProcSubset=pid`, 256 MB limit) | A real box | `systemctl status zoomriya-connectd`, Box Desktop's Remote access |
+
+### Decisions to keep in mind
+
+| Decision | Date |
+|---|---|
+| No ZOOMRIYA server, VPS or second box; the box's own list decides who gets in | 2026-11-23 |
+| The family's own name by the standards only: RFC 2136 with a TSIG key, or acme-dns | 2026-11-23 |
+| No onion links for guests for now ([§17](#17-open-questions)) | 2026-11-23 |
+| Public-facing pages (user guide, website, Box Desktop, apps) never name Tor or the DHT; technical docs may | 2026-11-23 |
