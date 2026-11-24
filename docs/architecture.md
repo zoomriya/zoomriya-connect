@@ -1,6 +1,6 @@
 # Architecture
 
-Part of [ZOOMRIYA Direct+](../README.md).
+Part of [ZOOMRIYA Connect](../README.md), the Direct+ design.
 
 How the code is put together, what each part knows, and what it trusts. For
 a gentler tour, read [How it works](how-it-works.md) first; for the reasons

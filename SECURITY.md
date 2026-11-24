@@ -1,6 +1,6 @@
 # Security
 
-ZOOMRIYA Direct+ carries families' private connections, so we treat security
+ZOOMRIYA Connect carries families' private connections, so we treat security
 reports as the most important thing we receive.
 
 ## Reporting a vulnerability
@@ -23,7 +23,7 @@ it. A proof of concept helps but is not required.
 
 ## Scope
 
-In scope: everything in this repository: connectd on the box, the laptop app,
+In scope: everything in this repository: connectd on the box, the ZOOMRIYA Connect laptop app,
 and the link the phone app will use. There is no ZOOMRIYA server.
 
 Please do not test against other people's boxes, run denial-of-service tests

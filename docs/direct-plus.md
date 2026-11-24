@@ -156,6 +156,7 @@ phase 0).
 
 | | |
 |---|---|
+| Name | **ZOOMRIYA Connect.** The same name covers the connection part built into the phone app; the full phone app is "ZOOMRIYA" |
 | The app | **Only connects the laptop to the box.** It runs in the background (menu bar on a Mac, system tray on Windows and Linux), with a small menu: connected or not, pairing, Open ZOOMRIYA. Everything else is in the browser. Tauri with the phone's Rust core (`crates/link`, `crates/ffi`); macOS, Windows, Linux; signed; updates itself from zoomriya.com |
 | Opening ZOOMRIYA | **Open ZOOMRIYA** opens the laptop's default browser at `http://zoomriya.localhost:7480` (the family apps) through a one-time link that sets the session cookie. Box Desktop is at `http://zoomriyabox.localhost:7480`, because it and the apps use the same paths; it gets its cookie through the apps' address. Both look and work as at home |
 | Direct+ away | ✅ the same as the phone: Arti, DHT, iroh |
@@ -340,3 +341,5 @@ Built: phases 0–5 and 7, and the docs (phase 8). Start here when coming back.
 | The family's own name by the standards only: RFC 2136 with a TSIG key, or acme-dns | 2026-11-23 |
 | No onion links for guests for now ([§17](#17-open-questions)) | 2026-11-23 |
 | Public-facing pages (user guide, website, Box Desktop, apps) never name Tor or the DHT; technical docs may | 2026-11-23 |
+| "ZOOMRIYA Connect" names the connection part only: the laptop app, and the part built into the phone app. Never a server | 2026-11-23 |
+| This repo stays AGPL-3.0-only; ZOOMRIYA Inc. keeps every right in it through the [CLA](../CLA.md), so the closed phone app can use the same core | 2026-11-23 |

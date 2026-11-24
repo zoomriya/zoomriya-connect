@@ -1,6 +1,6 @@
 # How it works
 
-Part of [ZOOMRIYA Direct+](../README.md).
+Part of [ZOOMRIYA Connect](../README.md), the Direct+ design.
 
 This page follows a phone or laptop from pairing to seeing the family's
 photos, away from home. There is no ZOOMRIYA server anywhere in it. The full
@@ -10,7 +10,7 @@ design, with every decision, is in [Direct+](direct-plus.md).
 |---|---|
 | The box | The family's ZOOMRIYA Box, at home |
 | connectd | The program on the box that lets paired devices in |
-| The app | The ZOOMRIYA app on a phone, or the ZOOMRIYA laptop app |
+| The app | ZOOMRIYA Connect: built into the ZOOMRIYA app on a phone, or its own small app on a laptop |
 | iroh | The connection library: encrypted QUIC between two keys, over any path |
 
 ## 1. Pairing, once, at home

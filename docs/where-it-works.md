@@ -1,6 +1,6 @@
 # Where it works
 
-Part of [ZOOMRIYA Direct+](../README.md).
+Part of [ZOOMRIYA Connect](../README.md), the Direct+ design.
 
 Short answer: at home, always. Away from home, from nearly any network, at
 full speed where a direct path exists, and through the box's relay over Tor

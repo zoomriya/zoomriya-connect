@@ -1,4 +1,4 @@
-//! The ZOOMRIYA laptop app: in the menu bar or system tray, it only connects
+//! ZOOMRIYA Connect, the laptop app: in the menu bar or system tray, it only connects
 //! the laptop to the box. Everything else happens in the laptop's own
 //! browser, at `zoomriya.localhost:7480` (the apps) and
 //! `zoomriyabox.localhost:7480` (Box Desktop) (docs/direct-plus.md, §10).
@@ -9,7 +9,7 @@
 //! | Open ZOOMRIYA | The apps, in the default browser |
 //! | Open Box Desktop | Box Desktop, in the default browser |
 //! | Pair with a box… | The only window: the short code, or forgetting the box |
-//! | Quit ZOOMRIYA | |
+//! | Quit ZOOMRIYA Connect | |
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
@@ -218,7 +218,7 @@ fn main() {
                 ],
             )?;
             let mut tray = TrayIconBuilder::with_id("zoomriya")
-                .tooltip("ZOOMRIYA")
+                .tooltip("ZOOMRIYA Connect")
                 .menu(&menu)
                 .show_menu_on_left_click(true)
                 .on_menu_event(|app, event| match event.id.as_ref() {
@@ -263,7 +263,7 @@ fn main() {
     let app = match app {
         Ok(a) => a,
         Err(e) => {
-            eprintln!("ZOOMRIYA could not start: {e}");
+            eprintln!("ZOOMRIYA Connect could not start: {e}");
             std::process::exit(1);
         }
     };

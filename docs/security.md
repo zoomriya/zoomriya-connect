@@ -1,6 +1,6 @@
 # Security model
 
-Part of [ZOOMRIYA Direct+](../README.md).
+Part of [ZOOMRIYA Connect](../README.md), the Direct+ design.
 
 To report a security problem, see [SECURITY.md](../SECURITY.md). Please never
 use a public issue.
